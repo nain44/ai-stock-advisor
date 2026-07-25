@@ -5,6 +5,13 @@ import { TrendingUp, TrendingDown, ShieldAlert, Award, Compass, RefreshCw, BarCh
 
 const { width } = Dimensions.get('window');
 
+const getCurrencySymbol = (m) => {
+  if (m === 'US') return '$';
+  if (m === 'IN') return '₹';
+  if (m === 'UK') return '£';
+  return 'Rs.';
+};
+
 export default function DashboardScreen({ selectedTicker, setSelectedTicker, apiUrl }) {
   const [stocks, setStocks] = useState([]);
   const [analysis, setAnalysis] = useState(null);
@@ -20,15 +27,35 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
 
-  // Watchlist & Search autocomplete states
+  // Market selector state ('PK', 'US', 'IN' or 'UK')
+  const [market, setMarket] = useState('PK');
+
+  // Dual watchlists for localized stock management
+  const [pkWatchlist, setPkWatchlist] = useState(['MARI', 'SYS', 'MEBL', 'HUBC', 'OGDC', 'UBL']);
+  const [usWatchlist, setUsWatchlist] = useState(['AAPL', 'MSFT', 'TSLA', 'NVDA', 'AMZN']);
+  const [inWatchlist, setInWatchlist] = useState(['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS']);
+  const [ukWatchlist, setUkWatchlist] = useState(['BP.L', 'HSBA.L', 'GSK.L', 'AZN.L', 'VOD.L']);
   const [watchlist, setWatchlist] = useState(['MARI', 'SYS', 'MEBL', 'HUBC', 'OGDC', 'UBL']);
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
 
-  // Fetch stocks on watchlist or API URL change
+  // Synchronize watchlist state when market toggle occurs
+  useEffect(() => {
+    if (market === 'PK') {
+      setWatchlist(pkWatchlist);
+    } else if (market === 'US') {
+      setWatchlist(usWatchlist);
+    } else if (market === 'IN') {
+      setWatchlist(inWatchlist);
+    } else if (market === 'UK') {
+      setWatchlist(ukWatchlist);
+    }
+  }, [market, pkWatchlist, usWatchlist, inWatchlist, ukWatchlist]);
+
+  // Fetch stocks on watchlist, API URL, or market changes
   useEffect(() => {
     fetchStocks();
-  }, [apiUrl, watchlist]);
+  }, [apiUrl, watchlist, market]);
 
   // Autocomplete dynamic search handler
   useEffect(() => {
@@ -40,12 +67,12 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
       }
     }, 300);
     return () => clearTimeout(delayDebounce);
-  }, [searchQuery, apiUrl]);
+  }, [searchQuery, apiUrl, market]);
 
   const performSearch = async () => {
     try {
       setSearching(true);
-      const res = await fetch(`${apiUrl}/api/search?query=${searchQuery}`);
+      const res = await fetch(`${apiUrl}/api/search?query=${searchQuery}&market=${market}`);
       if (res.ok) {
          const data = await res.json();
          setSearchResults(data);
@@ -60,14 +87,14 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   // Timeframe state
   const [timeframe, setTimeframe] = useState('1M');
 
-  // Fetch analysis when selectedTicker changes
+  // Fetch analysis when selectedTicker or market changes
   useEffect(() => {
     if (selectedTicker) {
       fetchAnalysis(selectedTicker);
     }
-  }, [selectedTicker, apiUrl]);
+  }, [selectedTicker, apiUrl, market]);
 
-  // Fetch history when selectedTicker or timeframe changes
+  // Fetch history when selectedTicker, timeframe, or market changes
   useEffect(() => {
     if (selectedTicker) {
       let days = 30;
@@ -80,13 +107,13 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
       
       fetchHistory(selectedTicker, days);
     }
-  }, [selectedTicker, timeframe, apiUrl]);
+  }, [selectedTicker, timeframe, apiUrl, market]);
 
   const fetchStocks = async () => {
     try {
       setLoadingStocks(true);
       const tickersParam = watchlist.join(',');
-      const res = await fetch(`${apiUrl}/api/stocks?tickers=${tickersParam}`);
+      const res = await fetch(`${apiUrl}/api/stocks?tickers=${tickersParam}&market=${market}`);
       if (!res.ok) throw new Error("Failed to load stocks list");
       const data = await res.json();
       setStocks(data);
@@ -105,7 +132,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   const fetchAnalysis = async (ticker) => {
     try {
       setLoadingAnalysis(true);
-      const analysisRes = await fetch(`${apiUrl}/api/analysis/${ticker}`);
+      const analysisRes = await fetch(`${apiUrl}/api/analysis/${ticker}?market=${market}`);
       if (!analysisRes.ok) throw new Error("Failed to load analysis");
       const analysisData = await analysisRes.json();
       setAnalysis(analysisData);
@@ -125,7 +152,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
 
   const fetchHistory = async (ticker, days) => {
     try {
-      const historicalRes = await fetch(`${apiUrl}/api/historical/${ticker}?days=${days}`);
+      const historicalRes = await fetch(`${apiUrl}/api/historical/${ticker}?days=${days}&market=${market}`);
       if (historicalRes.ok) {
         const historicalData = await historicalRes.json();
         setHistorical(historicalData);
@@ -155,6 +182,40 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
     const areaPath = `${linePath} L ${w} ${h} L 0 ${h} Z`;
 
     return { linePath, areaPath };
+  };
+
+  const handleAddWatchlist = (ticker) => {
+    const uppercaseTicker = ticker.trim().toUpperCase();
+    if (market === 'PK') {
+      if (!pkWatchlist.includes(uppercaseTicker)) {
+        setPkWatchlist([...pkWatchlist, uppercaseTicker]);
+      }
+    } else if (market === 'US') {
+      if (!usWatchlist.includes(uppercaseTicker)) {
+        setUsWatchlist([...usWatchlist, uppercaseTicker]);
+      }
+    } else if (market === 'IN') {
+      if (!inWatchlist.includes(uppercaseTicker)) {
+        setInWatchlist([...inWatchlist, uppercaseTicker]);
+      }
+    } else if (market === 'UK') {
+      if (!ukWatchlist.includes(uppercaseTicker)) {
+        setUkWatchlist([...ukWatchlist, uppercaseTicker]);
+      }
+    }
+  };
+
+  const handleRemoveWatchlist = (ticker) => {
+    const uppercaseTicker = ticker.trim().toUpperCase();
+    if (market === 'PK') {
+      setPkWatchlist(pkWatchlist.filter(t => t !== uppercaseTicker));
+    } else if (market === 'US') {
+      setUsWatchlist(usWatchlist.filter(t => t !== uppercaseTicker));
+    } else if (market === 'IN') {
+      setInWatchlist(inWatchlist.filter(t => t !== uppercaseTicker));
+    } else if (market === 'UK') {
+      setUkWatchlist(ukWatchlist.filter(t => t !== uppercaseTicker));
+    }
   };
 
   const getSignalColor = (sig) => {
@@ -235,20 +296,52 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
     return 0;
   });
 
+  const getIndexValAndChange = () => {
+    switch (market) {
+      case 'US':
+        return { name: 'S&P 500', val: '5,459.10', change: '+48.30 (+0.89%)', positive: true };
+      case 'IN':
+        return { name: 'NIFTY 50', val: '24,315.90', change: '+102.50 (+0.42%)', positive: true };
+      case 'UK':
+        return { name: 'FTSE 100', val: '8,185.30', change: '-24.10 (-0.29%)', positive: false };
+      default:
+        return { name: 'KSE100', val: '171,021', change: '-718 (-0.42%)', positive: false };
+    }
+  };
+  const idxInfo = getIndexValAndChange();
+
   return (
     <View style={styles.container}>
-      {/* Market Index Banner */}
-      <View style={styles.indexBanner}>
-        <View style={styles.marketStatusRow}>
-          <View style={styles.statusDotRed} />
-          <Text style={styles.statusText}>CLOSED</Text>
+      {/* Market Switcher & Index Banner Header Row */}
+      <View style={styles.headerIndexRow}>
+        <View style={styles.indexBannerCompact}>
+          <View>
+            <Text style={styles.indexName}>{idxInfo.name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.indexVal}>{idxInfo.val}</Text>
+              <Text style={idxInfo.positive ? styles.indexChangePositive : styles.indexChangeNegative}>{idxInfo.change}</Text>
+            </View>
+          </View>
         </View>
-        <View style={styles.indexStats}>
-          <Text style={styles.indexName}>KSE100</Text>
-          <Text style={styles.indexVal}>171,021</Text>
-          <Text style={styles.indexChangeNegative}>-718 (-0.42%)</Text>
+        
+        {/* Toggle selector */}
+        <View style={styles.marketSwitcher}>
+          {['PK', 'US', 'IN', 'UK'].map((m) => {
+            const flag = m === 'PK' ? '🇵🇰' : m === 'US' ? '🇺🇸' : m === 'IN' ? '🇮🇳' : '🇬🇧';
+            return (
+              <TouchableOpacity 
+                key={m}
+                style={[styles.switcherBtn, market === m && styles.switcherBtnActive]}
+                onPress={() => {
+                  setMarket(m);
+                  setSelectedTicker(null);
+                }}
+              >
+                <Text style={[styles.switcherText, market === m && styles.switcherTextActive]}>{flag} {m}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
-        <Text style={styles.indexTime}>24 JUL 6:30PM</Text>
       </View>
 
       {/* Search Bar */}
@@ -257,7 +350,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
           <Search size={18} color="#64748B" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInputField}
-            placeholder="Search all 500+ PSX stocks..."
+            placeholder={market === 'US' ? "Search global US stocks..." : "Search all 500+ PSX stocks..."}
             placeholderTextColor="#64748B"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -274,7 +367,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                   style={styles.searchResultItem}
                   onPress={() => {
                     if (!alreadyAdded) {
-                      setWatchlist([...watchlist, result.ticker]);
+                      handleAddWatchlist(result.ticker);
                     }
                     setSearchQuery('');
                     setSearchResults([]);
@@ -410,7 +503,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                       style={styles.deleteRowBtn}
                       onPress={(e) => {
                         e.stopPropagation(); // prevent opening details sheet
-                        setWatchlist(watchlist.filter(t => t.trim().toUpperCase() !== stock.ticker.trim().toUpperCase()));
+                        handleRemoveWatchlist(stock.ticker);
                       }}
                     >
                       <Trash2 size={12} color="#EF4444" />
@@ -466,7 +559,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                     </View>
                     <View style={styles.priceContainer}>
                       <Text style={styles.mainPrice}>
-                        Rs. {analysis.profile?.current_price?.toLocaleString() || '0.00'}
+                        {getCurrencySymbol(market)} {analysis.profile?.current_price?.toLocaleString() || '0.00'}
                       </Text>
                       <Text style={[styles.mainChange, { color: (analysis.profile?.change_percent ?? 0) >= 0 ? '#34D399' : '#F87171' }]}>
                         {(analysis.profile?.change_percent ?? 0) >= 0 ? '+' : ''}
@@ -605,7 +698,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                   {/* Fundamental Analysis Summary */}
                   <View style={styles.sectionHeader}>
                     <Compass size={18} color="#00D2FF" style={{ marginRight: 6 }} />
-                    <Text style={styles.sectionTitle}>Fundamentals (KSE Metrics)</Text>
+                    <Text style={styles.sectionTitle}>Fundamentals ({market === 'PK' ? 'KSE Metrics' : market + ' Metrics'})</Text>
                   </View>
                   <View style={styles.fundamentalsCard}>
                     <View style={styles.fundRow}>
@@ -724,7 +817,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
   },
-  indexBanner: {
+  headerIndexRow: {
     flexDirection: 'row',
     backgroundColor: '#0F172A',
     paddingVertical: 10,
@@ -733,6 +826,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#1E293B',
+  },
+  indexBannerCompact: {
+    flex: 1,
+  },
+  marketSwitcher: {
+    flexDirection: 'row',
+    backgroundColor: '#0B0F19',
+    borderRadius: 8,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+  },
+  switcherBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    marginHorizontal: 1,
+  },
+  switcherBtnActive: {
+    backgroundColor: '#00D2FF',
+  },
+  switcherText: {
+    color: '#64748B',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  switcherTextActive: {
+    color: '#0B0F19',
   },
   marketStatusRow: {
     flexDirection: 'row',
@@ -767,6 +888,10 @@ const styles = StyleSheet.create({
   },
   indexChangeNegative: {
     color: '#EF4444',
+    fontSize: 11,
+  },
+  indexChangePositive: {
+    color: '#34D399',
     fontSize: 11,
   },
   indexTime: {

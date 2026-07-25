@@ -43,28 +43,91 @@ class HoldingItem(BaseModel):
 
 class PortfolioAnalysisRequest(BaseModel):
     portfolio: List[HoldingItem]
+    market: Optional[str] = "PK"
 
 ANALYSIS_CACHE = {}
 
+US_STOCK_INDEX = [
+    {"ticker": "AAPL", "name": "Apple Inc.", "sector": "Technology"},
+    {"ticker": "MSFT", "name": "Microsoft Corporation", "sector": "Technology"},
+    {"ticker": "TSLA", "name": "Tesla, Inc.", "sector": "Automotive"},
+    {"ticker": "NVDA", "name": "NVIDIA Corporation", "sector": "Semiconductors"},
+    {"ticker": "AMZN", "name": "Amazon.com, Inc.", "sector": "E-Commerce"},
+    {"ticker": "GOOG", "name": "Alphabet Inc.", "sector": "Technology"},
+    {"ticker": "META", "name": "Meta Platforms, Inc.", "sector": "Technology"},
+    {"ticker": "NFLX", "name": "Netflix, Inc.", "sector": "Entertainment"},
+    {"ticker": "AMD", "name": "Advanced Micro Devices, Inc.", "sector": "Semiconductors"},
+    {"ticker": "INTC", "name": "Intel Corporation", "sector": "Semiconductors"},
+    {"ticker": "QCOM", "name": "Qualcomm Incorporated", "sector": "Semiconductors"},
+    {"ticker": "AVGO", "name": "Broadcom Inc.", "sector": "Semiconductors"},
+    {"ticker": "BABA", "name": "Alibaba Group Holding Limited", "sector": "E-Commerce"},
+    {"ticker": "PYPL", "name": "PayPal Holdings, Inc.", "sector": "Financial Technology"},
+    {"ticker": "V", "name": "Visa Inc.", "sector": "Financial Services"},
+    {"ticker": "MA", "name": "Mastercard Incorporated", "sector": "Financial Services"},
+    {"ticker": "JPM", "name": "JPMorgan Chase & Co.", "sector": "Financial Services"},
+    {"ticker": "BAC", "name": "Bank of America Corporation", "sector": "Financial Services"},
+    {"ticker": "DIS", "name": "The Walt Disney Company", "sector": "Entertainment"},
+    {"ticker": "NKE", "name": "NIKE, Inc.", "sector": "Apparel & Accessories"},
+    {"ticker": "SBUX", "name": "Starbucks Corporation", "sector": "Consumer Services"},
+    {"ticker": "KO", "name": "The Coca-Cola Company", "sector": "Beverages"},
+    {"ticker": "PEP", "name": "PepsiCo, Inc.", "sector": "Beverages & Snacks"},
+    {"ticker": "WMT", "name": "Walmart Inc.", "sector": "Retail"},
+    {"ticker": "COST", "name": "Costco Wholesale Corporation", "sector": "Retail"}
+]
+
+IN_STOCK_INDEX = [
+    {"ticker": "RELIANCE.NS", "name": "Reliance Industries Limited", "sector": "Energy"},
+    {"ticker": "TCS.NS", "name": "Tata Consultancy Services Limited", "sector": "Technology"},
+    {"ticker": "HDFCBANK.NS", "name": "HDFC Bank Limited", "sector": "Financial Services"},
+    {"ticker": "INFY.NS", "name": "Infosys Limited", "sector": "Technology"},
+    {"ticker": "ICICIBANK.NS", "name": "ICICI Bank Limited", "sector": "Financial Services"},
+    {"ticker": "HINDUNILVR.NS", "name": "Hindustan Unilever Limited", "sector": "Consumer Defensive"},
+    {"ticker": "ITC.NS", "name": "ITC Limited", "sector": "Consumer Defensive"},
+    {"ticker": "SBIN.NS", "name": "State Bank of India", "sector": "Financial Services"},
+    {"ticker": "BHARTIARTL.NS", "name": "Bharti Airtel Limited", "sector": "Telecommunications"},
+    {"ticker": "LTIM.NS", "name": "LTIMindtree Limited", "sector": "Technology"}
+]
+
+UK_STOCK_INDEX = [
+    {"ticker": "BP.L", "name": "BP p.l.c.", "sector": "Energy"},
+    {"ticker": "HSBA.L", "name": "HSBC Holdings plc", "sector": "Financial Services"},
+    {"ticker": "GSK.L", "name": "GSK plc", "sector": "Healthcare"},
+    {"ticker": "AZN.L", "name": "AstraZeneca plc", "sector": "Healthcare"},
+    {"ticker": "VOD.L", "name": "Vodafone Group Public Limited Company", "sector": "Telecommunications"},
+    {"ticker": "SHEL.L", "name": "Shell plc", "sector": "Energy"},
+    {"ticker": "BARC.L", "name": "Barclays PLC", "sector": "Financial Services"},
+    {"ticker": "LLOY.L", "name": "Lloyds Banking Group plc", "sector": "Financial Services"},
+    {"ticker": "ULVR.L", "name": "Unilever PLC", "sector": "Consumer Defensive"},
+    {"ticker": "RIO.L", "name": "Rio Tinto Group", "sector": "Basic Materials"}
+]
+
 @app.get("/api/stocks")
-def get_stocks(tickers: Optional[str] = None):
+def get_stocks(tickers: Optional[str] = None, market: Optional[str] = "PK"):
     """
-    Returns list of PSX stocks with live quotes. 
+    Returns list of stocks with live quotes. 
     If 'tickers' is provided (comma-separated list of symbols), it returns only those tickers.
     Otherwise, it returns the default watchlist.
     """
+    market_str = (market or "PK").upper()
     if tickers:
         ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
     else:
-        # Default list of active stocks
-        ticker_list = ["MARI", "SYS", "LUCK", "ENGRO", "FFC", "UBL", "EFERT", "PSO", "DGKC", "HBL", "MEBL", "HUBC", "OGDC"]
+        if market_str == "US":
+            ticker_list = ["AAPL", "MSFT", "TSLA", "NVDA", "AMZN"]
+        elif market_str == "IN":
+            ticker_list = ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS"]
+        elif market_str == "UK":
+            ticker_list = ["BP.L", "HSBA.L", "GSK.L", "AZN.L", "VOD.L"]
+        else:
+            # Default list of active stocks
+            ticker_list = ["MARI", "SYS", "LUCK", "ENGRO", "FFC", "UBL", "EFERT", "PSO", "DGKC", "HBL", "MEBL", "HUBC", "OGDC"]
         
     def fetch_quote_for_stock(ticker):
-        quote = data_fetcher.get_latest_quote(ticker)
-        profile = data_fetcher.get_stock_profile(ticker)
+        quote = data_fetcher.get_latest_quote(ticker, market=market_str)
+        profile = data_fetcher.get_stock_profile(ticker) if market_str == "PK" else None
         
-        name = profile["name"] if profile else ticker
-        sector = profile["sector"] if profile else "PSX Equity"
+        name = profile["name"] if profile else (quote["name"] if quote else ticker)
+        sector = profile["sector"] if profile else (quote["sector"] if quote else "Global Equity")
         
         if quote:
             # Parse pct_change string safely
@@ -77,7 +140,8 @@ def get_stocks(tickers: Optional[str] = None):
                     pct_val = 0.0
                     
             # Retrieve from cache if exists
-            cached = ANALYSIS_CACHE.get(ticker)
+            cache_key = f"{market_str.upper()}:{ticker}"
+            cached = ANALYSIS_CACHE.get(cache_key)
             if cached and cached.get("recommendation"):
                 signal = cached["recommendation"].get("recommendation", "HOLD")
             else:
@@ -123,15 +187,38 @@ def get_stocks(tickers: Optional[str] = None):
 
 
 @app.get("/api/search")
-def search_stocks(query: str):
-    """Searches the complete list of standard listed PSX equities."""
+def search_stocks(query: str, market: Optional[str] = "PK"):
+    """Searches standard listed PSX equities or US/IN/UK equities."""
     if not query or len(query) < 2:
         return []
+    market_str = market or "PK"
+    market_upper = market_str.upper()
+    query = query.upper()
+    
+    if market_upper in ["US", "IN", "UK"]:
+        if market_upper == "US":
+            matches = [s for s in US_STOCK_INDEX if query in s["ticker"] or query in s["name"].upper()]
+            sector = "US Equity"
+            suffix = ""
+        elif market_upper == "IN":
+            matches = [s for s in IN_STOCK_INDEX if query in s["ticker"] or query in s["name"].upper()]
+            sector = "Indian Equity"
+            suffix = ".NS"
+        else:  # UK
+            matches = [s for s in UK_STOCK_INDEX if query in s["ticker"] or query in s["name"].upper()]
+            sector = "UK Equity"
+            suffix = ".L"
+            
+        # Fallback to direct ticker code injection for custom global lookups
+        if len(query) >= 3 and len(query) <= 6 and not any(m["ticker"].split(".")[0] == query for m in matches):
+            custom_ticker = f"{query}{suffix}" if not query.endswith(suffix) else query
+            matches.insert(0, {"ticker": custom_ticker, "name": f"{query} - Custom {market_upper} Ticker", "sector": sector})
+        return matches[:10]
+        
     try:
         # Fetch standard equities list
         df = data_fetcher.psxdata.symbols()
         equities = df[(df['is_debt'] == False) & (df['is_gem'] == False)]
-        query = query.upper()
         
         # Filter matching tickers or names
         matches = equities[equities['symbol'].str.contains(query, na=False) | equities['name'].str.upper().str.contains(query, na=False)]
@@ -157,23 +244,24 @@ def get_quote(ticker: str):
     return quote
 
 @app.get("/api/historical/{ticker}")
-def get_historical(ticker: str, days: int = 120):
-    """Returns historical OHLCV candles data for charting."""
-    profile = data_fetcher.get_stock_profile(ticker)
-    if not profile:
-        raise HTTPException(status_code=404, detail="Stock ticker not found.")
-    df = data_fetcher.generate_historical_data(ticker, days)
+def get_historical(ticker: str, days: int = 120, market: Optional[str] = "PK"):
+    """Returns historical daily candles for a stock."""
+    market_str = market or "PK"
+    df = data_fetcher.generate_historical_data(ticker, days, market=market_str)
     return df.to_dict(orient="records")
 
 @app.get("/api/analysis/{ticker}")
-def get_analysis(ticker: str):
+def get_analysis(ticker: str, market: Optional[str] = "PK"):
     """
     Runs full technical analysis calculations on historical data,
     combines with latest profile data, and fetches AI recommendation.
     """
+    market_str = market or "PK"
+    market_upper = market_str.upper()
+    
     # Fetch live quote (which has accurate price, change, sector, etc.)
-    quote = data_fetcher.get_latest_quote(ticker)
-    profile = data_fetcher.get_stock_profile(ticker)
+    quote = data_fetcher.get_latest_quote(ticker, market=market_str)
+    profile = data_fetcher.get_stock_profile(ticker) if market_upper != "US" else None
     
     if not quote:
         if not profile:
@@ -198,28 +286,48 @@ def get_analysis(ticker: str):
         live_profile = profile
     else:
         # Build profile from quote to match frontend expected fields
-        sector = profile["sector"] if profile else "PSX Equity"
-        live_profile = {
-            "name": quote["name"],
-            "sector": sector,
-            "current_price": quote["price"],
-            "change": quote["change"],
-            "change_percent": float(quote["pct_change"].replace("%", "")) if "%" in quote["pct_change"] else 0.0,
-            "high": quote["high"],
-            "low": quote["low"],
-            "volume_avg": quote["volume"],
-            "pe_ratio": quote["pe"],
-            "pb_ratio": profile.get("pb_ratio", 1.0) if profile else 1.0,
-            "debt_equity": profile.get("debt_equity", 0.0) if profile else 0.0,
-            "roe": quote["roe"] if quote["roe"] else (profile.get("roe", 0.0) if profile else 0.0),
-            "div_yield": quote["div_yield"],
-            "eps": profile.get("eps", 0.0) if profile else 0.0,
-            "description": profile.get("description", "A listed equity on the Pakistan Stock Exchange.") if profile else "A listed equity on the Pakistan Stock Exchange.",
-            "recent_news": quote["news"]
-        }
-        
+        if market_upper == "US":
+            live_profile = {
+                "name": quote["name"],
+                "sector": quote["sector"],
+                "current_price": quote["price"],
+                "change": quote["change"],
+                "change_percent": float(quote["pct_change"].replace("%", "")) if "%" in quote["pct_change"] else 0.0,
+                "high": quote["high"],
+                "low": quote["low"],
+                "volume_avg": quote["volume"],
+                "pe_ratio": quote["pe"],
+                "pb_ratio": quote.get("pb_ratio", 1.0),
+                "debt_equity": quote.get("debt_equity", 0.0),
+                "roe": quote.get("roe", 0.0),
+                "div_yield": quote.get("div_yield", 0.0),
+                "eps": quote.get("eps", 0.0),
+                "description": quote.get("description", "US Equity"),
+                "recent_news": quote.get("news", [])
+            }
+        else:
+            sector = profile["sector"] if profile else "PSX Equity"
+            live_profile = {
+                "name": quote["name"],
+                "sector": sector,
+                "current_price": quote["price"],
+                "change": quote["change"],
+                "change_percent": float(quote["pct_change"].replace("%", "")) if "%" in quote["pct_change"] else 0.0,
+                "high": quote["high"],
+                "low": quote["low"],
+                "volume_avg": quote["volume"],
+                "pe_ratio": quote["pe"],
+                "pb_ratio": profile.get("pb_ratio", 1.0) if profile else 1.0,
+                "debt_equity": profile.get("debt_equity", 0.0) if profile else 0.0,
+                "roe": quote["roe"] if quote["roe"] else (profile.get("roe", 0.0) if profile else 0.0),
+                "div_yield": quote["div_yield"],
+                "eps": profile.get("eps", 0.0) if profile else 0.0,
+                "description": profile.get("description", "A listed equity on the Pakistan Stock Exchange.") if profile else "A listed equity on the Pakistan Stock Exchange.",
+                "recent_news": quote["news"]
+            }
+            
     # Generate historical candles
-    df = data_fetcher.generate_historical_data(ticker, 120)
+    df = data_fetcher.generate_historical_data(ticker, 120, market=market_str)
     
     # Calculate indicators
     tech_analysis = technical_analysis.run_full_technical_analysis(df)
@@ -229,16 +337,19 @@ def get_analysis(ticker: str):
         ticker=ticker,
         price=quote["price"],
         tech_analysis=tech_analysis,
-        profile=live_profile
+        profile=live_profile,
+        market=market_str
     )
     
+    # Cache the analysis result
+    cache_key = f"{market_upper}:{ticker}"
     result = {
         "ticker": ticker,
         "profile": live_profile,
         "technical_analysis": tech_analysis,
         "recommendation": recommendation
     }
-    ANALYSIS_CACHE[ticker] = result
+    ANALYSIS_CACHE[cache_key] = result
     return result
 
 @app.post("/api/portfolio/analysis")
@@ -249,6 +360,8 @@ def analyze_portfolio(req: PortfolioAnalysisRequest):
     if not req.portfolio:
         raise HTTPException(status_code=400, detail="Portfolio cannot be empty.")
         
+    market_str = req.market or "PK"
+    market_upper = market_str.upper()
     total_cost = 0.0
     total_value = 0.0
     holdings_metrics = []
@@ -258,12 +371,12 @@ def analyze_portfolio(req: PortfolioAnalysisRequest):
         qty = holding.quantity
         avg_price = holding.avgPrice
         
-        quote = data_fetcher.get_latest_quote(ticker)
-        profile = data_fetcher.get_stock_profile(ticker)
+        quote = data_fetcher.get_latest_quote(ticker, market=market_str)
+        profile = data_fetcher.get_stock_profile(ticker) if market_upper != "US" else None
         
         live_price = quote["price"] if quote else avg_price
         name = quote["name"] if quote else (profile["name"] if profile else ticker)
-        sector = profile["sector"] if profile else "PSX Equity"
+        sector = quote["sector"] if market_upper == "US" else (profile["sector"] if profile else "PSX Equity")
         
         cost_val = avg_price * qty
         current_val = live_price * qty
@@ -304,7 +417,7 @@ def analyze_portfolio(req: PortfolioAnalysisRequest):
         "sector_allocation": sector_weights
     }
     
-    ai_diagnosis = ai_advisor.get_portfolio_recommendation(portfolio_summary)
+    ai_diagnosis = ai_advisor.get_portfolio_recommendation(portfolio_summary, market=market_str)
     
     return {
         "summary": portfolio_summary,

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 import psxdata
+import yfinance as yf
 
 # A dictionary of actual PSX companies with realistic profiles and current stats (approximate real-world figures)
 STOCK_PROFILES = {
@@ -335,13 +336,130 @@ def _generate_simulated_historical_data(ticker: str, days: int = 120) -> pd.Data
     df = pd.DataFrame(data)
     return df
 
-
-def generate_historical_data(ticker: str, days: int = 120) -> pd.DataFrame:
+def get_yahoo_historical(ticker: str, days: int) -> pd.DataFrame:
     """
-    Fetches actual historical daily OHLCV data directly from the Pakistan Stock Exchange using psxdata.
+    Downloads historical data from Yahoo Finance and formats it to standard columns.
+    """
+    ticker = ticker.upper()
+    try:
+        # Calculate interval period
+        period = "3mo"
+        if days > 700:
+            period = "5y"
+        elif days > 350:
+            period = "2y"
+        elif days > 150:
+            period = "1y"
+        elif days > 50:
+            period = "6mo"
+        elif days > 10:
+            period = "1mo"
+        else:
+            period = "5d"
+            
+        t = yf.Ticker(ticker)
+        df = t.history(period=period)
+        if df.empty:
+            return pd.DataFrame()
+            
+        df = df.reset_index()
+        df = df.rename(columns={
+            "Open": "Open",
+            "High": "High",
+            "Low": "Low",
+            "Close": "Close",
+            "Volume": "Volume"
+        })
+        df["Date"] = df["Date"].apply(lambda d: d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d))
+        df = df.sort_values(by="Date").reset_index(drop=True)
+        return df[["Date", "Open", "High", "Low", "Close", "Volume"]].tail(days)
+    except Exception as e:
+        print(f"Error fetching Yahoo historical data for {ticker}: {e}")
+        return pd.DataFrame()
+
+def get_yahoo_quote(ticker: str) -> dict:
+    """
+    Queries Yahoo Finance and maps key metrics to our standardized quote dictionary.
+    """
+    ticker = ticker.upper()
+    try:
+        t = yf.Ticker(ticker)
+        info = t.info
+        if not info or not info.get("symbol"):
+            return None
+            
+        price = info.get("currentPrice") or info.get("regularMarketPrice") or info.get("previousClose") or 0.0
+        prev_close = info.get("previousClose") or price
+        change = round(price - prev_close, 2)
+        pct_change = (change / prev_close) * 100 if prev_close > 0 else 0.0
+        pct_change_str = f"{round(pct_change, 2)}%"
+        
+        news_items = []
+        raw_news = t.news or []
+        for item in raw_news[:3]:
+            content = item.get("content", {})
+            title = content.get("title", "")
+            provider = content.get("provider", {}).get("displayName", "Yahoo Finance")
+            title_lower = title.lower()
+            if any(w in title_lower for w in ["rise", "surge", "gain", "growth", "jump", "higher", "beat", "bullish", "profit"]):
+                sentiment = "bullish"
+            elif any(w in title_lower for w in ["fall", "plummet", "loss", "drop", "lower", "miss", "bearish", "decline"]):
+                sentiment = "bearish"
+            else:
+                sentiment = "neutral"
+            news_items.append({
+                "title": title,
+                "sentiment": sentiment,
+                "source": provider
+            })
+            
+        sector = info.get("sectorDisp") or info.get("sector") or "US Equity"
+        
+        return {
+            "ticker": ticker,
+            "name": info.get("longName") or info.get("shortName") or ticker,
+            "sector": sector,
+            "price": round(price, 2),
+            "change": change,
+            "pct_change": pct_change_str,
+            "is_up": change >= 0,
+            "volume": int(info.get("volume") or info.get("regularMarketVolume") or 0),
+            "high": round(info.get("dayHigh") or price, 2),
+            "low": round(info.get("dayLow") or price, 2),
+            "ldcp": round(prev_close, 2),
+            "pe": round(info.get("trailingPE"), 2) if info.get("trailingPE") else 0.0,
+            "pb_ratio": round(info.get("priceToBook"), 2) if info.get("priceToBook") else 1.0,
+            "debt_equity": round(info.get("debtToEquity"), 2) if info.get("debtToEquity") else 0.0,
+            "roe": round((info.get("returnOnEquity") or 0.0) * 100, 2),
+            "div_yield": round((info.get("dividendYield") or 0.0) * 100, 2),
+            "description": info.get("longBusinessSummary", "A listed stock on the US exchange."),
+            "eps": round(info.get("trailingEps") or 0.0, 2),
+            "news": news_items,
+            "timestamp": datetime.now().strftime("%I:%M:%S %p")
+        }
+    except Exception as e:
+        print(f"Error fetching Yahoo quote for {ticker}: {e}")
+        return None
+
+def generate_historical_data(ticker: str, days: int = 120, market: str = "PK") -> pd.DataFrame:
+    """
+    Fetches actual historical daily OHLCV data directly from the Pakistan Stock Exchange using psxdata,
+    or from Yahoo Finance for US stocks.
     Falls back to simulation if the fetch fails.
     """
     ticker = ticker.upper()
+    market_upper = market.upper()
+    if market_upper in ["US", "IN", "UK"]:
+        if market_upper == "IN" and not ticker.endswith(".NS"):
+            ticker = f"{ticker}.NS"
+        elif market_upper == "UK" and not ticker.endswith(".L"):
+            ticker = f"{ticker}.L"
+            
+        df = get_yahoo_historical(ticker, days)
+        if not df.empty:
+            return df
+        return _generate_simulated_historical_data(ticker, days)
+        
     try:
         # Calculate start date going back `days` calendar days
         start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
@@ -413,19 +531,66 @@ def _generate_simulated_quote(ticker: str):
     }
 
 
-def get_latest_quote(ticker: str):
+def get_latest_quote(ticker: str, market: str = "PK"):
     """
-    Fetches real-time price and statistics directly from the Pakistan Stock Exchange using psxdata.
+    Fetches real-time price and statistics directly from the Pakistan Stock Exchange or Yahoo Finance for US.
     Falls back to simulation if the fetch fails.
     """
     ticker = ticker.upper()
+    market_upper = market.upper()
+    if market_upper == "IN" and not ticker.endswith(".NS"):
+        ticker = f"{ticker}.NS"
+    elif market_upper == "UK" and not ticker.endswith(".L"):
+        ticker = f"{ticker}.L"
+        
     now = datetime.now()
+    cache_key = f"{market_upper}:{ticker}"
     
     # Check cache
-    if ticker in QUOTE_CACHE:
-        cache_time, cached_data = QUOTE_CACHE[ticker]
+    if cache_key in QUOTE_CACHE:
+        cache_time, cached_data = QUOTE_CACHE[cache_key]
         if now - cache_time < CACHE_DURATION:
             return cached_data
+            
+    if market_upper in ["US", "IN", "UK"]:
+        quote = get_yahoo_quote(ticker)
+        if quote:
+            QUOTE_CACHE[cache_key] = (now, quote)
+            return quote
+        # If Yahoo quote lookup fails entirely, fall back to mock US quote
+        # We can construct a mock US profile dynamically if not found
+        mock_profile = {
+            "name": f"{ticker} Inc.",
+            "sector": "US Equity",
+            "current_price": 150.0,
+            "pe_ratio": 25.0,
+            "roe": 15.0,
+            "div_yield": 1.2,
+            "debt_equity": 30.0,
+            "pb_ratio": 3.0,
+            "eps": 6.0,
+            "volume_avg": 1000000,
+            "description": f"Standard US public equity: {ticker}",
+            "recent_news": []
+        }
+        mock_quote = {
+            "ticker": ticker,
+            "name": mock_profile["name"],
+            "price": 150.0,
+            "change": 0.0,
+            "pct_change": "0.0%",
+            "is_up": True,
+            "volume": 1000000,
+            "high": 152.0,
+            "low": 148.0,
+            "ldcp": 150.0,
+            "pe": 25.0,
+            "roe": 15.0,
+            "div_yield": 1.2,
+            "news": [],
+            "timestamp": now.strftime("%I:%M:%S %p")
+        }
+        return mock_quote
             
     try:
         df = psxdata.quote(ticker)

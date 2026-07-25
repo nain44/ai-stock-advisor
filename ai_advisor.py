@@ -154,19 +154,32 @@ def get_rule_based_recommendation(ticker: str, price: float, tech_analysis: dict
         "is_simulated": True
     }
 
-def get_llm_recommendation(ticker: str, price: float, tech_analysis: dict, profile: dict) -> dict:
+def get_llm_recommendation(ticker: str, price: float, tech_analysis: dict, profile: dict, market: str = "PK") -> dict:
     """
     Queries Gemini or OpenAI using structured prompts.
     Falls back to rule-based engine if APIs fail or keys are invalid.
     """
     ticker = ticker.upper()
+    market_upper = market.upper()
+    if market_upper == "US":
+        currency_symbol = "$"
+        exchange_name = "United States Stock Market (NYSE/NASDAQ)"
+    elif market_upper == "IN":
+        currency_symbol = "₹"
+        exchange_name = "National Stock Exchange of India (NSE)"
+    elif market_upper == "UK":
+        currency_symbol = "£"
+        exchange_name = "London Stock Exchange (LSE)"
+    else:
+        currency_symbol = "Rs."
+        exchange_name = "Pakistan Stock Exchange (PSX)"
     
     # Prepare prompt data
     prompt_data = {
         "Ticker": ticker,
         "Company Name": profile["name"],
         "Sector": profile["sector"],
-        "Current Price": price,
+        "Current Price": f"{currency_symbol} {price}",
         "Fundamentals": {
             "P/E Ratio": profile["pe_ratio"],
             "ROE (%)": profile["roe"],
@@ -191,7 +204,7 @@ def get_llm_recommendation(ticker: str, price: float, tech_analysis: dict, profi
     }
     
     prompt = f"""
-    You are an expert financial analyst advising retail investors on the Pakistan Stock Exchange (PSX).
+    You are an expert financial analyst advising retail investors on the {exchange_name}.
     Analyze the following stock data carefully and provide a structured JSON response:
     
     {json.dumps(prompt_data, indent=2)}
@@ -201,10 +214,10 @@ def get_llm_recommendation(ticker: str, price: float, tech_analysis: dict, profi
         "ticker": "{ticker}",
         "name": "{profile["name"]}",
         "recommendation": "BUY" or "SELL" or "HOLD",
-        "entry": <reasonable entry price as float>,
-        "target1": <target price 1 as float>,
-        "target2": <target price 2 as float>,
-        "stop_loss": <suggested stop loss as float>,
+        "entry": <reasonable entry price as float in {currency_symbol}>,
+        "target1": <target price 1 as float in {currency_symbol}>,
+        "target2": <target price 2 as float in {currency_symbol}>,
+        "stop_loss": <suggested stop loss as float in {currency_symbol}>,
         "confidence": "<confidence score between 10% and 99%, e.g., '84%'>",
         "risk_level": "Low" or "Medium" or "High",
         "reasons": [
@@ -399,10 +412,24 @@ def generate_simulator_chat_response(query: str, portfolio: list = None) -> str:
         "- *Which stocks benefit from lower interest rates?*"
     )
 
-def get_portfolio_recommendation(portfolio_summary: dict) -> dict:
+def get_portfolio_recommendation(portfolio_summary: dict, market: str = "PK") -> dict:
     """
     Evaluates the simulated portfolio and returns an AI recommendation report.
     """
+    market_upper = market.upper()
+    if market_upper == "US":
+        currency_symbol = "$"
+        exchange_name = "United States Stock Market (NYSE/NASDAQ)"
+    elif market_upper == "IN":
+        currency_symbol = "₹"
+        exchange_name = "National Stock Exchange of India (NSE)"
+    elif market_upper == "UK":
+        currency_symbol = "£"
+        exchange_name = "London Stock Exchange (LSE)"
+    else:
+        currency_symbol = "Rs."
+        exchange_name = "Pakistan Stock Exchange (PSX)"
+    
     # Try Gemini
     if has_gemini:
         try:
@@ -410,7 +437,7 @@ def get_portfolio_recommendation(portfolio_summary: dict) -> dict:
             model = genai.GenerativeModel("gemini-1.5-flash")
             
             prompt = f"""
-            You are a premier quantitative financial analyst and portfolio manager advising a retail investor on their Pakistan Stock Exchange (PSX) portfolio.
+            You are a premier quantitative financial analyst and portfolio manager advising a retail investor on their {exchange_name} portfolio.
             Analyze the following portfolio summary details and return a structured JSON response evaluating its risk, performance, diversification, and actionable rebalancing.
             
             Portfolio Summary JSON:
@@ -446,7 +473,7 @@ def get_portfolio_recommendation(portfolio_summary: dict) -> dict:
     if has_openai:
         try:
             prompt = f"""
-            You are a premier quantitative financial analyst and portfolio manager advising a retail investor on their Pakistan Stock Exchange (PSX) portfolio.
+            You are a premier quantitative financial analyst and portfolio manager advising a retail investor on their {exchange_name} portfolio.
             Analyze the following portfolio summary details and return a structured JSON response evaluating its risk, performance, diversification, and actionable rebalancing.
             
             Portfolio Summary JSON:
@@ -513,19 +540,32 @@ def get_portfolio_recommendation(portfolio_summary: dict) -> dict:
     
     bullets = [
         f"Portfolio contains {holdings_count} active holdings across {len(portfolio_summary.get('sector_allocation', {}))} sector(s).",
-        f"Your current return stance is {'positive' if pnl >= 0 else 'negative'} with a net return of Rs. {pnl:,.1f} ({portfolio_summary.get('total_pnl_percent')}%)."
+        f"Your current return stance is {'positive' if pnl >= 0 else 'negative'} with a net return of {currency_symbol} {pnl:,.1f} ({portfolio_summary.get('total_pnl_percent')}%)."
     ]
     if has_heavy_sector:
         bullets.append("WARNING: High sector concentration detected (>50% in a single area), exposing you to focused sector shocks.")
     else:
         bullets.append("Good sector allocation balance. Volatility risk is spread across multiple industry segments.")
         
+    if market_upper == "US":
+        suggested_stocks = "AAPL or MSFT"
+        defensive_sectors = "Technology or Retail"
+    elif market_upper == "IN":
+        suggested_stocks = "RELIANCE or TCS"
+        defensive_sectors = "Energy or Technology"
+    elif market_upper == "UK":
+        suggested_stocks = "BP or HSBA"
+        defensive_sectors = "Energy or Financial Services"
+    else:
+        suggested_stocks = "MARI or MEBL"
+        defensive_sectors = "Commercial Banks or Fertilizers"
+    
     actions = [
-        "Maintain cash reserves of 10-15% to take advantage of buying dips on high-quality stocks like MARI or MEBL.",
+        f"Maintain cash reserves of 10-15% to take advantage of buying dips on high-quality stocks like {suggested_stocks}.",
         "Consider reinvesting dividend gains to leverage the power of compound interest."
     ]
     if has_heavy_sector:
-        actions.insert(0, "Reduce weighting in your highly concentrated sectors and redistribute funds into defensive sectors (like Commercial Banks or Fertilizers).")
+        actions.insert(0, f"Reduce weighting in your highly concentrated sectors and redistribute funds into defensive sectors (like {defensive_sectors}).")
     else:
         actions.insert(0, "No urgent rebalancing needed. Continue monitoring quarterly earnings announcements for any fundamental change.")
         

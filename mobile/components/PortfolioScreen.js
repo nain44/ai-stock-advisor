@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { Plus, Trash2, ShieldAlert, CheckCircle2, X } from 'lucide-react-native';
 
+const getCurrencySymbol = (m) => {
+  if (m === 'US') return '$';
+  if (m === 'IN') return '₹';
+  if (m === 'UK') return '£';
+  return 'Rs.';
+};
+
 export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,15 +23,25 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [portfolioAnalysis, setPortfolioAnalysis] = useState(null);
 
-  // Load stocks to get live price information and dropdown listing
+  // Active Portfolio Market Selector state ('PK' or 'US')
+  const [portfolioMarket, setPortfolioMarket] = useState('PK');
+
+  // Load stocks to get live price information based on the active market and current holdings
   useEffect(() => {
     fetchStocks();
-  }, [apiUrl]);
+  }, [apiUrl, portfolioMarket, portfolio]);
 
   const fetchStocks = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${apiUrl}/api/stocks`);
+      const activeHoldings = portfolio.filter(h => (portfolioMarket === 'US' ? h.market === 'US' : h.market !== 'US'));
+      const tickersParam = activeHoldings.map(h => h.ticker).join(',');
+      
+      const url = tickersParam
+        ? `${apiUrl}/api/stocks?tickers=${tickersParam}&market=${portfolioMarket}`
+        : `${apiUrl}/api/stocks?market=${portfolioMarket}`;
+        
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setStocks(data);
@@ -52,11 +69,13 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
     return s ? s.name : ticker;
   };
 
-  // Calculate stats
+  // Calculate stats per active market
   let totalCost = 0;
   let totalValue = 0;
 
-  portfolio.forEach(holding => {
+  const activeHoldings = portfolio.filter(h => (portfolioMarket === 'US' ? h.market === 'US' : h.market !== 'US'));
+
+  activeHoldings.forEach(holding => {
     const livePrice = getLivePrice(holding.ticker) || holding.avgPrice;
     totalCost += holding.avgPrice * holding.quantity;
     totalValue += livePrice * holding.quantity;
@@ -75,12 +94,12 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
       }
     }, 250);
     return () => clearTimeout(delayDebounce);
-  }, [newTicker]);
+  }, [newTicker, portfolioMarket]);
 
   const performSearch = async (query) => {
     try {
       setSearching(true);
-      const res = await fetch(`${apiUrl}/api/search?query=${query}`);
+      const res = await fetch(`${apiUrl}/api/search?query=${query}&market=${portfolioMarket}`);
       if (res.ok) {
         const data = await res.json();
         setSearchResults(data);
@@ -99,7 +118,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
     // Fetch live price for this selected symbol
     try {
       setAdding(true);
-      const res = await fetch(`${apiUrl}/api/stocks?tickers=${tickerSymbol}`);
+      const res = await fetch(`${apiUrl}/api/stocks?tickers=${tickerSymbol}&market=${portfolioMarket}`);
       if (res.ok) {
         const data = await res.json();
         if (data && data.length > 0) {
@@ -128,7 +147,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
     } else {
       if (cleanTicker.length >= 3 && cleanTicker.length <= 6) {
         try {
-          const res = await fetch(`${apiUrl}/api/stocks?tickers=${cleanTicker}`);
+          const res = await fetch(`${apiUrl}/api/stocks?tickers=${cleanTicker}&market=${portfolioMarket}`);
           if (res.ok) {
             const data = await res.json();
             if (data && data.length > 0 && data[0].current_price > 0) {
@@ -174,7 +193,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
 
     // Add or merge holding
     const updatedPortfolio = [...portfolio];
-    const existingIdx = updatedPortfolio.findIndex(h => h.ticker === newTicker);
+    const existingIdx = updatedPortfolio.findIndex(h => h.ticker === newTicker && (portfolioMarket === 'US' ? h.market === 'US' : h.market !== 'US'));
 
     if (existingIdx >= 0) {
       // Merge
@@ -188,7 +207,8 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
       updatedPortfolio.push({
         ticker: newTicker,
         quantity: qty,
-        avgPrice: price
+        avgPrice: price,
+        market: portfolioMarket
       });
     }
 
@@ -219,7 +239,11 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
   };
 
   const handleFetchPortfolioAnalysis = async () => {
-    if (portfolio.length === 0) return;
+    const activeHoldings = portfolio.filter(h => (portfolioMarket === 'US' ? h.market === 'US' : h.market !== 'US'));
+    if (activeHoldings.length === 0) {
+      Alert.alert("Empty Portfolio", `Please add some ${portfolioMarket} holdings before running diagnostics.`);
+      return;
+    }
     try {
       setLoadingAnalysis(true);
       const res = await fetch(`${apiUrl}/api/portfolio/analysis`, {
@@ -227,7 +251,10 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ portfolio }),
+        body: JSON.stringify({ 
+          portfolio: activeHoldings,
+          market: portfolioMarket
+        }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -254,20 +281,38 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
 
   return (
     <View style={styles.container}>
+      {/* Market Selector for Portfolio */}
+      <View style={styles.marketSwitcherWrapper}>
+        <View style={styles.marketSwitcher}>
+          {['PK', 'US', 'IN', 'UK'].map((m) => {
+            const flag = m === 'PK' ? '🇵🇰' : m === 'US' ? '🇺🇸' : m === 'IN' ? '🇮🇳' : '🇬🇧';
+            return (
+              <TouchableOpacity 
+                key={m}
+                style={[styles.switcherBtn, portfolioMarket === m && styles.switcherBtnActive]}
+                onPress={() => setPortfolioMarket(m)}
+              >
+                <Text style={[styles.switcherText, portfolioMarket === m && styles.switcherTextActive]}>{flag} {m}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
       {/* Portfolio Header Cards */}
       <View style={styles.headerBox}>
         <Text style={styles.headerLabel}>Simulated Portfolio Value</Text>
-        <Text style={styles.headerVal}>Rs. {totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+        <Text style={styles.headerVal}>{getCurrencySymbol(portfolioMarket)} {totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
         
         <View style={styles.pnlRow}>
           <Text style={styles.pnlLabel}>Total Return: </Text>
           <Text style={[styles.pnlVal, { color: totalPnL >= 0 ? '#34D399' : '#F87171' }]}>
-            {totalPnL >= 0 ? '+' : ''}Rs. {totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({totalPnLPercent.toFixed(2)}%)
+            {totalPnL >= 0 ? '+' : ''}{getCurrencySymbol(portfolioMarket)} {totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({totalPnLPercent.toFixed(2)}%)
           </Text>
         </View>
 
         <View style={styles.summaryCostRow}>
-          <Text style={styles.summaryCostText}>Total Cost: Rs. {totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+          <Text style={styles.summaryCostText}>Total Cost: {getCurrencySymbol(portfolioMarket)} {totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
         </View>
 
         <TouchableOpacity 
@@ -293,15 +338,15 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
         </TouchableOpacity>
       </View>
 
-      {portfolio.length === 0 ? (
+      {activeHoldings.length === 0 ? (
         <View style={styles.emptyContainer}>
           <ShieldAlert size={28} color="#64748B" />
-          <Text style={styles.emptyText}>No active holdings in your simulated portfolio.</Text>
+          <Text style={styles.emptyText}>No active holdings in your simulated {portfolioMarket === 'US' ? 'US' : portfolioMarket === 'IN' ? 'India' : portfolioMarket === 'UK' ? 'UK' : 'Pakistan'} portfolio.</Text>
           <Text style={styles.emptySubText}>Tap 'Add Stock' above to simulate a stock transaction and track performance.</Text>
         </View>
       ) : (
         <ScrollView style={styles.holdingsScroll}>
-          {portfolio.map((holding) => {
+          {activeHoldings.map((holding) => {
             const livePrice = getLivePrice(holding.ticker) || holding.avgPrice;
             const currentVal = livePrice * holding.quantity;
             const costVal = holding.avgPrice * holding.quantity;
@@ -327,23 +372,23 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
                   <View style={styles.gridCol}>
                     <Text style={styles.gridLabel}>Qty / Avg Buy</Text>
                     <Text style={styles.gridVal}>
-                      {holding.quantity} @ Rs.{holding.avgPrice.toFixed(1)}
+                      {holding.quantity} @ {getCurrencySymbol(portfolioMarket)}{holding.avgPrice.toFixed(1)}
                     </Text>
                   </View>
                   <View style={styles.gridCol}>
                     <Text style={styles.gridLabel}>Live Price</Text>
-                    <Text style={styles.gridVal}>Rs. {livePrice.toLocaleString()}</Text>
+                    <Text style={styles.gridVal}>{getCurrencySymbol(portfolioMarket)} {livePrice.toLocaleString()}</Text>
                   </View>
                   <View style={styles.gridCol}>
                     <Text style={styles.gridLabel}>Current Value</Text>
-                    <Text style={styles.gridVal}>Rs. {currentVal.toLocaleString()}</Text>
+                    <Text style={styles.gridVal}>{getCurrencySymbol(portfolioMarket)} {currentVal.toLocaleString()}</Text>
                   </View>
                 </View>
 
                 <View style={styles.holdingFooter}>
                   <Text style={styles.footerPnLLabel}>Gain / Loss:</Text>
                   <Text style={[styles.footerPnLVal, { color: holdingPnL >= 0 ? '#34D399' : '#F87171' }]}>
-                    {holdingPnL >= 0 ? '+' : ''}Rs. {holdingPnL.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ({holdingPnLPercent.toFixed(2)}%)
+                    {holdingPnL >= 0 ? '+' : ''}{getCurrencySymbol(portfolioMarket)} {holdingPnL.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ({holdingPnLPercent.toFixed(2)}%)
                   </Text>
                 </View>
               </View>
@@ -369,7 +414,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Stock Ticker (e.g. MARI, SYS)</Text>
+              <Text style={styles.inputLabel}>Stock Ticker (e.g. {portfolioMarket === 'US' ? 'AAPL, MSFT' : portfolioMarket === 'IN' ? 'RELIANCE, TCS' : portfolioMarket === 'UK' ? 'BP, GSK' : 'MARI, SYS'})</Text>
               <TextInput
                 style={styles.inputField}
                 placeholder="Enter stock ticker..."
@@ -423,7 +468,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Purchase Price (Rs. per share)</Text>
+              <Text style={styles.inputLabel}>Purchase Price ({getCurrencySymbol(portfolioMarket)} per share)</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <TextInput
                   style={[styles.inputField, { flex: 1 }]}
@@ -914,5 +959,36 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     width: 40,
     textAlign: 'right',
+  },
+  marketSwitcherWrapper: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    backgroundColor: '#0B0F19',
+  },
+  marketSwitcher: {
+    flexDirection: 'row',
+    backgroundColor: '#0F172A',
+    borderRadius: 10,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    width: '100%',
+  },
+  switcherBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  switcherBtnActive: {
+    backgroundColor: '#00D2FF',
+  },
+  switcherText: {
+    color: '#64748B',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  switcherTextActive: {
+    color: '#0B0F19',
   },
 });
