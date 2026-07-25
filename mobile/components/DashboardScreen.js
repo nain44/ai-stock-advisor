@@ -413,7 +413,12 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
 
       {/* Vertical Stocks List */}
       <ScrollView style={styles.stocksScroll} contentContainerStyle={styles.stocksListContent}>
-        {filteredStocks.length === 0 ? (
+        {loadingStocks ? (
+          <View style={styles.listLoaderContainer}>
+            <ActivityIndicator size="large" color="#00D2FF" />
+            <Text style={styles.listLoaderText}>Updating watchlist data...</Text>
+          </View>
+        ) : filteredStocks.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No stocks match your search/filter criteria.</Text>
           </View>
@@ -1519,5 +1524,17 @@ const styles = StyleSheet.create({
   miniSignalText: {
     fontSize: 7,
     fontWeight: 'bold',
+  },
+  listLoaderContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  listLoaderText: {
+    color: '#94A3B8',
+    fontSize: 13,
+    marginTop: 12,
+    fontWeight: '500',
   },
 });
