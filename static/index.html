@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KSE AI Advisor - Pakistan Stock Exchange Investment Portal</title>
+    <meta name="description" content="State of the art AI Advisor & Portfolio Manager for the Pakistan Stock Exchange (PSX)">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar: Stock Selector & Portfolio -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="logo-glow"></div>
+                <i class="fa-solid fa-brain-circuit logo-icon"></i>
+                <div class="brand-text">
+                    <h1>KSE AI</h1>
+                    <span>Stock Advisor</span>
+                </div>
+            </div>
+            
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="stock-search" placeholder="Search PSX Tickers...">
+            </div>
+            
+            <div class="stock-list-container">
+                <h3>PSX Core Coverage</h3>
+                <div class="stock-list" id="stock-list-elements">
+                    <!-- Dynamic stocks loaded here -->
+                    <div class="list-skeleton"></div>
+                    <div class="list-skeleton"></div>
+                    <div class="list-skeleton"></div>
+                </div>
+            </div>
+
+            <!-- Portfolio Simulation Widget -->
+            <div class="portfolio-widget">
+                <div class="widget-header">
+                    <h4><i class="fa-solid fa-wallet"></i> Simulated Portfolio</h4>
+                    <button class="add-btn" id="add-to-portfolio-btn" title="Add Active Stock to Portfolio">
+                        <i class="fa-solid fa-plus"></i> Add
+                    </button>
+                </div>
+                <div class="portfolio-list" id="portfolio-items">
+                    <!-- Dynamic portfolio items -->
+                    <p class="empty-msg">No simulated stocks added. Select a stock and click 'Add' to track holdings.</p>
+                </div>
+                <div class="portfolio-summary" id="portfolio-summary-bar" style="display: none;">
+                    <div class="summary-row">
+                        <span>Total Value:</span>
+                        <strong id="portfolio-total">PKR 0.00</strong>
+                    </div>
+                    <button class="analyze-portfolio-btn" id="analyze-portfolio-chat-btn">
+                        <i class="fa-solid fa-chart-line"></i> Analyze Portfolio with AI
+                    </button>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <button class="footer-btn" id="settings-trigger-btn">
+                    <i class="fa-solid fa-gear"></i> AI Config
+                </button>
+                <div class="connection-status">
+                    <span class="dot active"></span>
+                    <span class="status-text">Simulated Data</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Dashboard View -->
+        <main class="main-content">
+            <!-- Header bar -->
+            <header class="main-header">
+                <div class="active-stock-details">
+                    <div class="title-row">
+                        <h2 id="active-ticker">-</h2>
+                        <span class="sector-tag" id="active-sector">-</span>
+                    </div>
+                    <h3 id="active-name">Select a Stock from the Coverage List</h3>
+                </div>
+                <div class="active-stock-quote" id="active-quote-panel">
+                    <div class="price-row">
+                        <span class="price-val" id="active-price">PKR 0.00</span>
+                        <span class="change-badge" id="active-change">0.00 (0.00%)</span>
+                    </div>
+                    <span class="update-time" id="active-timestamp"><i class="fa-regular fa-clock"></i> Live Data Unavailable</span>
+                </div>
+            </header>
+
+            <!-- Dashboard Grid -->
+            <div class="dashboard-grid">
+                
+                <!-- Card 1: Recommendation Highlight -->
+                <div class="dashboard-card rec-card">
+                    <div class="card-glow"></div>
+                    <div class="rec-header">
+                        <h4>AI Recommendation</h4>
+                        <span class="model-badge" id="advisor-type">Rule-Based Simulator</span>
+                    </div>
+                    
+                    <div class="rec-body">
+                        <div class="recommendation-badge" id="rec-badge">HOLD</div>
+                        <div class="rec-details">
+                            <div class="detail-col">
+                                <span>Confidence</span>
+                                <strong id="rec-confidence">-%</strong>
+                                <div class="progress-bar-container">
+                                    <div class="progress-fill" id="rec-confidence-fill" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="detail-col">
+                                <span>Risk Level</span>
+                                <strong id="rec-risk">-</strong>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="target-grid">
+                        <div class="target-box entry">
+                            <span>Entry Target</span>
+                            <strong id="target-entry">PKR 0.0</strong>
+                        </div>
+                        <div class="target-box target1">
+                            <span>Target 1</span>
+                            <strong id="target-1">PKR 0.0</strong>
+                        </div>
+                        <div class="target-box target2">
+                            <span>Target 2</span>
+                            <strong id="target-2">PKR 0.0</strong>
+                        </div>
+                        <div class="target-box stoploss">
+                            <span>Stop Loss</span>
+                            <strong id="target-stop">PKR 0.0</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: AI Reasoning Bullets -->
+                <div class="dashboard-card reasons-card">
+                    <h4>Technical & Fundamental Rationale</h4>
+                    <ul class="reason-list" id="rec-reasons-list">
+                        <li>Select a stock to generate AI rationale and key drivers.</li>
+                    </ul>
+                </div>
+
+                <!-- Card 3: Interactive Trading Chart -->
+                <div class="dashboard-card chart-card">
+                    <div class="chart-header">
+                        <h4>Historical Price & Trends</h4>
+                        <div class="chart-actions">
+                            <button class="chart-period active" data-days="30">1M</button>
+                            <button class="chart-period" data-days="90">3M</button>
+                            <button class="chart-period" data-days="120">4M</button>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="stockChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Card 4: Technical Analysis Speedometer -->
+                <div class="dashboard-card tech-gauges-card">
+                    <h4>Technical Indicators Summary</h4>
+                    <div class="gauges-grid">
+                        <div class="gauge-item">
+                            <span class="gauge-title">Relative Strength Index (RSI)</span>
+                            <div class="gauge-number" id="rsi-val">-</div>
+                            <span class="gauge-label" id="rsi-status">-</span>
+                            <div class="gauge-slider-container">
+                                <div class="gauge-slider-bar">
+                                    <div class="gauge-slider-marker" id="rsi-marker" style="left: 50%;"></div>
+                                </div>
+                                <div class="gauge-slider-scale">
+                                    <span>Oversold</span>
+                                    <span>Neutral</span>
+                                    <span>Overbought</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="gauge-item">
+                            <span class="gauge-title">MACD Crossover</span>
+                            <div class="gauge-number" id="macd-val">-</div>
+                            <span class="gauge-label" id="macd-crossover">-</span>
+                            <div class="macd-bars" id="macd-hist-container">
+                                <!-- Simple visual representation of MACD direction -->
+                                <div class="macd-bar-indicator" id="macd-bar-indicator"></div>
+                            </div>
+                        </div>
+
+                        <div class="gauge-item">
+                            <span class="gauge-title">Bollinger Bands</span>
+                            <div class="gauge-number" id="bb-mid-val">-</div>
+                            <span class="gauge-label" id="bb-status">-</span>
+                            <div class="bb-bounds">
+                                <span class="bound-tag">Lower: <span id="bb-low-val">-</span></span>
+                                <span class="bound-tag">Upper: <span id="bb-high-val">-</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 5: Fundamental Analysis Stats -->
+                <div class="dashboard-card fundamentals-card">
+                    <h4>Company Financial Fundamentals</h4>
+                    <div class="fundamentals-grid">
+                        <div class="fund-box">
+                            <i class="fa-solid fa-percentage fund-icon"></i>
+                            <div class="fund-info">
+                                <span>P/E Ratio</span>
+                                <strong id="fund-pe">-</strong>
+                            </div>
+                        </div>
+                        <div class="fund-box">
+                            <i class="fa-solid fa-chart-area fund-icon"></i>
+                            <div class="fund-info">
+                                <span>Return on Equity (ROE)</span>
+                                <strong id="fund-roe">-%</strong>
+                            </div>
+                        </div>
+                        <div class="fund-box">
+                            <i class="fa-solid fa-hand-holding-dollar fund-icon"></i>
+                            <div class="fund-info">
+                                <span>Dividend Yield</span>
+                                <strong id="fund-div">-%</strong>
+                            </div>
+                        </div>
+                        <div class="fund-box">
+                            <i class="fa-solid fa-money-bill-trend-up fund-icon"></i>
+                            <div class="fund-info">
+                                <span>Earnings Per Share (EPS)</span>
+                                <strong id="fund-eps">PKR -</strong>
+                            </div>
+                        </div>
+                        <div class="fund-box">
+                            <i class="fa-solid fa-scale-balanced fund-icon"></i>
+                            <div class="fund-info">
+                                <span>Debt / Equity Ratio</span>
+                                <strong id="fund-debt">-%</strong>
+                            </div>
+                        </div>
+                        <div class="fund-box">
+                            <i class="fa-solid fa-book-bookmark fund-icon"></i>
+                            <div class="fund-info">
+                                <span>Price to Book (P/B)</span>
+                                <strong id="fund-pb">-</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 6: Corporate Announcements & News Sentiment -->
+                <div class="dashboard-card news-card">
+                    <h4>Corporate Bulletins & Sentiment</h4>
+                    <div class="news-list" id="active-news-list">
+                        <p class="empty-msg">Select a stock to review recent bulletins.</p>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- Floating Action Chat Window (Integrated AI Advisor) -->
+        <div class="chat-drawer" id="chat-drawer">
+            <div class="chat-header" id="chat-header-toggle">
+                <div class="header-left">
+                    <div class="pulse-indicator"></div>
+                    <i class="fa-solid fa-comments"></i>
+                    <h4>AI Advisor Chat</h4>
+                </div>
+                <div class="header-right">
+                    <button class="expand-btn" id="chat-collapse-btn"><i class="fa-solid fa-chevron-up"></i></button>
+                </div>
+            </div>
+            
+            <div class="chat-body" id="chat-body">
+                <div class="message system">
+                    <div class="avatar"><i class="fa-solid fa-robot"></i></div>
+                    <div class="msg-bubble">
+                        <p>Welcome! I am your AI stock assistant. I can help analyze your portfolio, evaluate specific tickers, or recommend stocks based on market scenarios.</p>
+                        <p>Try clicking one of the common queries below to start:</p>
+                        <div class="chat-chips">
+                            <button class="chat-chip" data-query="Build me a dividend portfolio.">Build Dividend Portfolio</button>
+                            <button class="chat-chip" data-query="Which stocks benefit from lower interest rates?">Lower Interest Rate Winners</button>
+                            <button class="chat-chip" data-query="Find undervalued cement companies.">Cement Ratios</button>
+                            <button class="chat-chip" id="chip-stock-query" style="display:none;"></button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Dynamic messages go here -->
+                <div id="chat-end"></div>
+            </div>
+            
+            <div class="chat-footer">
+                <input type="text" id="chat-input" placeholder="Ask about stocks, dividends, rates...">
+                <button id="chat-send-btn"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Portfolio Add Modal -->
+    <div class="modal-overlay" id="portfolio-modal" style="display: none;">
+        <div class="glass-modal">
+            <div class="modal-header">
+                <h3>Simulate Holding</h3>
+                <button class="close-modal-btn" id="close-portfolio-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p>Simulate buying <strong id="modal-stock-ticker">-</strong> at current market price.</p>
+                <div class="form-group">
+                    <label for="modal-stock-shares">Number of Shares</label>
+                    <input type="number" id="modal-stock-shares" min="1" value="100">
+                </div>
+                <button class="submit-modal-btn" id="submit-portfolio-btn">Confirm Transaction</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration Modal (Settings) -->
+    <div class="modal-overlay" id="settings-modal" style="display: none;">
+        <div class="glass-modal settings-modal-content">
+            <div class="modal-header">
+                <h3>AI Model Configuration</h3>
+                <button class="close-modal-btn" id="close-settings-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="settings-intro">Configure API keys to transition from rule-based simulations to advanced live Large Language Model insights.</p>
+                
+                <div class="settings-status-indicator">
+                    <div class="status-item">
+                        <span>Gemini AI:</span>
+                        <span class="status-badge" id="gemini-status-badge">Simulator Mode</span>
+                    </div>
+                    <div class="status-item">
+                        <span>OpenAI GPT:</span>
+                        <span class="status-badge" id="openai-status-badge">Simulator Mode</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="settings-gemini-key">Google Gemini API Key</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-key"></i>
+                        <input type="password" id="settings-gemini-key" placeholder="Enter GEMINI_API_KEY">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="settings-openai-key">OpenAI API Key</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-key"></i>
+                        <input type="password" id="settings-openai-key" placeholder="Enter OPENAI_API_KEY">
+                    </div>
+                </div>
+                
+                <div class="settings-actions">
+                    <button class="submit-modal-btn" id="submit-settings-btn">Save Configuration</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

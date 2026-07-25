@@ -1,0 +1,24 @@
+# Python virtual environment
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Node modules & Mobile build caches
+node_modules/
+mobile/node_modules/
+mobile/.expo/
+mobile/web-build/
+.expo-shared/
+
+# Environment configurations (Secrets)
+.env
+.env*.local
+
+# System/IDE configurations
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
