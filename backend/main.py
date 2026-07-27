@@ -13,7 +13,7 @@ import technical_analysis
 import ai_advisor
 
 app = FastAPI(
-    title="MultiInvest AI Advisory API",
+    title="MultiStocks AI Advisory API",
     description="Backend API for real-time and historical technical stock analysis and LLM advisory for global stock markets.",
     version="1.0.0"
 )
@@ -450,28 +450,28 @@ def get_config():
     return {
         "markets": {
             "PK": {
-                "title": "MultiInvest AI",
+                "title": "MultiStocks AI",
                 "subtitle": "Pakistan Stock Exchange (PSX)",
                 "currency": "Rs.",
                 "defaultTicker": "MARI",
                 "watchlist": ["MARI", "SYS", "MEBL", "HUBC", "OGDC", "UBL"]
             },
             "US": {
-                "title": "MultiInvest AI",
+                "title": "MultiStocks AI",
                 "subtitle": "US Stock Markets (NYSE/NASDAQ)",
                 "currency": "$",
                 "defaultTicker": "AAPL",
                 "watchlist": ["AAPL", "MSFT", "TSLA", "NVDA", "AMZN"]
             },
             "IN": {
-                "title": "MultiInvest AI",
+                "title": "MultiStocks AI",
                 "subtitle": "National Stock Exchange of India (NSE)",
                 "currency": "₹",
                 "defaultTicker": "RELIANCE.NS",
                 "watchlist": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS"]
             },
             "UK": {
-                "title": "MultiInvest AI",
+                "title": "MultiStocks AI",
                 "subtitle": "London Stock Exchange (LSE)",
                 "currency": "£",
                 "defaultTicker": "BP.L",

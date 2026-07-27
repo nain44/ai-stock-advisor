@@ -12,28 +12,28 @@ import PortfolioScreen from './components/PortfolioScreen';
 const DEFAULT_CONFIG = {
   "markets": {
     "PK": {
-      "title": "MultiInvest AI",
+      "title": "MultiStocks AI",
       "subtitle": "Pakistan Stock Exchange (PSX)",
       "currency": "Rs.",
       "defaultTicker": "MARI",
       "watchlist": ["MARI", "SYS", "MEBL", "HUBC", "OGDC", "UBL"]
     },
     "US": {
-      "title": "MultiInvest AI",
+      "title": "MultiStocks AI",
       "subtitle": "US Stock Markets (NYSE/NASDAQ)",
       "currency": "$",
       "defaultTicker": "AAPL",
       "watchlist": ["AAPL", "MSFT", "TSLA", "NVDA", "AMZN"]
     },
     "IN": {
-      "title": "MultiInvest AI",
+      "title": "MultiStocks AI",
       "subtitle": "National Stock Exchange of India (NSE)",
       "currency": "₹",
       "defaultTicker": "RELIANCE.NS",
       "watchlist": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS"]
     },
     "UK": {
-      "title": "MultiInvest AI",
+      "title": "MultiStocks AI",
       "subtitle": "London Stock Exchange (LSE)",
       "currency": "£",
       "defaultTicker": "BP.L",
@@ -196,7 +196,7 @@ export default function App() {
   const getHeaderInfo = () => {
     const marketConfig = (config && config.markets && config.markets[market]) || DEFAULT_CONFIG.markets[market] || {};
     return {
-      title: marketConfig.title || 'MultiInvest AI',
+      title: marketConfig.title || 'MultiStocks AI',
       subtitle: marketConfig.subtitle || ''
     };
   };
