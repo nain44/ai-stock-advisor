@@ -2,11 +2,23 @@ import React, { useState, useRef } from 'react';
 import { StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Send, Sparkles, HelpCircle } from 'lucide-react-native';
 
-export default function AIChatScreen({ selectedTicker, portfolio, apiUrl }) {
+export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market = 'PK' }) {
+  const getWelcomeText = () => {
+    if (market === 'PK') {
+      return "As-salamu alaykum! I am your KSE AI Stock Advisor. Ask me about technical patterns, targets, or specific PSX stocks.";
+    } else if (market === 'US') {
+      return "Hello! I am your US Stocks AI Advisor. Ask me about technical patterns, targets, or specific NYSE/NASDAQ stocks.";
+    } else if (market === 'IN') {
+      return "Namaste! I am your NSE India AI Stock Advisor. Ask me about technical patterns, targets, or specific Indian stocks.";
+    } else {
+      return "Hello! I am your UK Stocks AI Advisor. Ask me about technical patterns, targets, or specific London Stock Exchange (LSE) stocks.";
+    }
+  };
+
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
-      text: "As-salamu alaykum! I am your KSE AI Stock Advisor. Ask me about technical patterns, targets, or specific PSX stocks.",
+      text: getWelcomeText(),
       sender: 'ai',
       time: new Date()
     }
@@ -15,11 +27,14 @@ export default function AIChatScreen({ selectedTicker, portfolio, apiUrl }) {
   const [loading, setLoading] = useState(false);
   const scrollViewRef = useRef();
 
+  const defaultTicker = market === 'PK' ? 'MARI' : market === 'US' ? 'AAPL' : market === 'IN' ? 'RELIANCE.NS' : 'BP.L';
+  const marketLabel = market === 'PK' ? 'PSX' : market === 'US' ? 'US markets' : market === 'IN' ? 'NSE' : 'LSE';
+
   const suggestionChips = [
-    { label: `Analyze ${selectedTicker || 'MARI'}`, query: `Can you do a full analysis of ${selectedTicker || 'MARI'} and explain target levels?` },
+    { label: `Analyze ${selectedTicker || defaultTicker}`, query: `Can you do a full analysis of ${selectedTicker || defaultTicker} and explain target levels?` },
     { label: 'Check Portfolio Stance', query: 'Based on my simulated portfolio holdings, what changes do you recommend?' },
-    { label: 'Explain RSI and MACD', query: 'What are RSI and MACD, and how should I use them for trading PSX?' },
-    { label: 'Top Defensive Stocks', query: 'Which stocks in the PSX coverage are considered the best defensive/dividend stocks?' }
+    { label: `Explain RSI and MACD`, query: `What are RSI and MACD, and how should I use them for trading ${marketLabel}?` },
+    { label: 'Top Defensive Stocks', query: `Which stocks in the ${marketLabel} coverage are considered the best defensive/dividend stocks?` }
   ];
 
   const handleSend = async (queryText) => {
@@ -44,8 +59,9 @@ export default function AIChatScreen({ selectedTicker, portfolio, apiUrl }) {
     try {
       const payload = {
         query: textToSend,
-        ticker: selectedTicker,
-        portfolio: portfolio || []
+        ticker: selectedTicker || defaultTicker,
+        portfolio: portfolio || [],
+        market: market
       };
 
       const res = await fetch(`${apiUrl}/api/chat`, {

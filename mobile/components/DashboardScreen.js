@@ -12,7 +12,7 @@ const getCurrencySymbol = (m) => {
   return 'Rs.';
 };
 
-export default function DashboardScreen({ selectedTicker, setSelectedTicker, apiUrl }) {
+export default function DashboardScreen({ selectedTicker, setSelectedTicker, apiUrl, market, setMarket }) {
   const [stocks, setStocks] = useState([]);
   const [analysis, setAnalysis] = useState(null);
   const [historical, setHistorical] = useState([]);
@@ -26,9 +26,6 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   const [sectorModalVisible, setSectorModalVisible] = useState(false);
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
-
-  // Market selector state ('PK', 'US', 'IN' or 'UK')
-  const [market, setMarket] = useState('PK');
 
   // Dual watchlists for localized stock management
   const [pkWatchlist, setPkWatchlist] = useState(['MARI', 'SYS', 'MEBL', 'HUBC', 'OGDC', 'UBL']);

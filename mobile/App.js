@@ -11,6 +11,7 @@ import PortfolioScreen from './components/PortfolioScreen';
 export default function App() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [selectedTicker, setSelectedTicker] = useState('MARI');
+  const [market, setMarket] = useState('PK');
   
   // Simulated initial portfolio for standard demo (adds visual weight immediately)
   const [portfolio, setPortfolio] = useState([
@@ -19,16 +20,24 @@ export default function App() {
     { ticker: 'FFC', quantity: 300, avgPrice: 138.0 }
   ]);
 
+  // Synchronize default selected stock when the global market changes
+  useEffect(() => {
+    if (market === 'PK') setSelectedTicker('MARI');
+    else if (market === 'US') setSelectedTicker('AAPL');
+    else if (market === 'IN') setSelectedTicker('RELIANCE.NS');
+    else if (market === 'UK') setSelectedTicker('BP.L');
+  }, [market]);
+
   // API Connection config & state
-  const [apiUrl, setApiUrl] = useState('http://localhost:8000');
+  const [apiUrl, setApiUrl] = useState('https://ai-stock-advisor-sp9b.onrender.com');
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [configModalVisible, setConfigModalVisible] = useState(false);
   const [inputUrl, setInputUrl] = useState('');
 
   // Detect network environment
   useEffect(() => {
-    // Set to local computer Wi-Fi IP so physical devices on Expo Go can connect
-    let defaultUrl = 'http://192.168.100.11:8000';
+    // Point to live Render API deployment
+    let defaultUrl = 'https://ai-stock-advisor-sp9b.onrender.com';
     setApiUrl(defaultUrl);
     setInputUrl(defaultUrl);
     testConnection(defaultUrl);
@@ -73,6 +82,8 @@ export default function App() {
             selectedTicker={selectedTicker}
             setSelectedTicker={setSelectedTicker}
             apiUrl={apiUrl}
+            market={market}
+            setMarket={setMarket}
           />
         );
       case 'chat':
@@ -81,6 +92,7 @@ export default function App() {
             selectedTicker={selectedTicker}
             portfolio={portfolio}
             apiUrl={apiUrl}
+            market={market}
           />
         );
       case 'portfolio':
