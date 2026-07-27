@@ -108,6 +108,15 @@ export default function App() {
     }
   };
 
+  const getHeaderInfo = () => {
+    if (market === 'PK') return { title: 'KSE AI Advisor', subtitle: 'Pakistan Stock Exchange' };
+    if (market === 'US') return { title: 'Wall Street AI Advisor', subtitle: 'US Stock Markets (NYSE/NASDAQ)' };
+    if (market === 'IN') return { title: 'Nifty AI Advisor', subtitle: 'National Stock Exchange (NSE)' };
+    return { title: 'LSE AI Advisor', subtitle: 'London Stock Exchange (LSE)' };
+  };
+
+  const headerInfo = getHeaderInfo();
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#0B0F19" />
@@ -115,9 +124,9 @@ export default function App() {
       {/* Global Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>KSE AI Advisor</Text>
+          <Text style={styles.headerTitle}>{headerInfo.title}</Text>
           <View style={styles.subtitleRow}>
-            <Text style={styles.headerSubtitle}>Pakistan Stock Exchange</Text>
+            <Text style={styles.headerSubtitle}>{headerInfo.subtitle}</Text>
           </View>
         </View>
 

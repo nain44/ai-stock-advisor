@@ -269,37 +269,86 @@ def get_llm_recommendation(ticker: str, price: float, tech_analysis: dict, profi
             print(f"OpenAI API execution failed, falling back: {e}")
             
     # Fallback to rules engine if no API keys or errors
-    return get_rule_based_recommendation(ticker, price, tech_analysis, profile)
-
-def generate_simulator_chat_response(query: str, portfolio: list = None) -> str:
+    return get_rule_based_recommendation(ticker, price, tech_analysis, profile)def generate_simulator_chat_response(query: str, portfolio: list = None, market: str = "PK") -> str:
     """
     Rule-based interactive agent responses for Simulator Mode.
     Simulates a highly qualified analyst chat responding to standard investor queries.
     """
     query = query.lower()
-    
+    market_upper = (market or "PK").upper()
+
+    market_name = "Pakistan Stock Exchange (PSX)"
+    currency = "PKR"
+    market_label = "PSX"
+    sell_mari = "- *Should I sell MARI?*"
+    why_sys = "- *Why did SYS fall today?*"
+    cement_co = "- *Find undervalued cement companies.*"
+    def_stocks = "- *Which stocks benefit from lower interest rates?*"
+    dividend_p = "- *Build me a dividend portfolio.*"
+    default_stock_ex = "MARI, SYS, or UBL"
+
+    if market_upper == "US":
+        market_name = "US Stock Markets (NYSE/NASDAQ)"
+        currency = "USD"
+        market_label = "US markets"
+        sell_mari = "- *Should I sell AAPL?*"
+        why_sys = "- *Why did TSLA fall today?*"
+        cement_co = "- *Find undervalued tech companies.*"
+        def_stocks = "- *Which stocks benefit from lower inflation?*"
+        dividend_p = "- *Build me a high-growth tech portfolio.*"
+        default_stock_ex = "AAPL, MSFT, or TSLA"
+    elif market_upper == "IN":
+        market_name = "National Stock Exchange of India (NSE)"
+        currency = "INR"
+        market_label = "NSE India"
+        sell_mari = "- *Should I sell RELIANCE.NS?*"
+        why_sys = "- *Why did TCS.NS fall today?*"
+        cement_co = "- *Find undervalued bank companies.*"
+        def_stocks = "- *Which stocks benefit from monetary expansion?*"
+        dividend_p = "- *Build me an Indian dividend portfolio.*"
+        default_stock_ex = "RELIANCE.NS, TCS.NS, or INFY.NS"
+    elif market_upper == "UK":
+        market_name = "London Stock Exchange (LSE)"
+        currency = "GBP"
+        market_label = "LSE London"
+        sell_mari = "- *Should I sell BP.L?*"
+        why_sys = "- *Why did VOD.L fall today?*"
+        cement_co = "- *Find undervalued energy companies.*"
+        def_stocks = "- *Which stocks benefit from lower corporate taxes?*"
+        dividend_p = "- *Build me a UK defensive portfolio.*"
+        default_stock_ex = "BP.L, HSBA.L, or AZN.L"
+
     # 1. Specific Stock Buy/Sell queries
-    for ticker, info in data_fetcher.STOCK_PROFILES.items():
-        if ticker.lower() in query:
+    # Look for matching ticker in STOCK_PROFILES or fallback to parsing from query
+    ticker_in_query = None
+    for word in query.split():
+        cleaned_word = word.strip("?,.!:()").upper()
+        if len(cleaned_word) >= 2 and (cleaned_word.isalpha() or "." in cleaned_word):
+            ticker_in_query = cleaned_word
+            break
+
+    if ticker_in_query:
+        # Check if it has STOCK_PROFILES data
+        info = data_fetcher.STOCK_PROFILES.get(ticker_in_query)
+        if info:
             price = info["current_price"]
             pe = info["pe_ratio"]
             div = info["div_yield"]
             
-            # Formulate recommendation
             if "sell" in query:
                 return (
-                    f"### Analyst Assessment for selling **{ticker}** ({info['name']}):\n\n"
-                    f"**{ticker}** is currently trading at around **PKR {price}** (P/E of {pe}x).\n\n"
+                    f"### Analyst Assessment for selling **{ticker_in_query}** ({info['name']}):\n\n"
+                    f"**{ticker_in_query}** is currently trading at around **{currency} {price}** (P/E of {pe}x).\n\n"
                     f"**Hold/Sell Rationale:**\n"
-                    f"- If you are holding **{ticker}** for **dividends** ({div}% yield), it remains a strong holding. "
+                    f"- If you are holding **{ticker_in_query}** for **dividends** ({div}% yield), it remains a strong holding. "
                     f"Selling now would mean sacrificing consistent payouts, particularly since interest rates and industry margins are stabilizing.\n"
                     f"- *Short-term trading:* If you have met your targets (around 8-10% capital gain), taking partial profit is sensible, "
                     f"as momentum indicators suggest mild consolidation ahead. However, a complete exit is not recommended unless technical support is broken."
                 )
             elif "buy" in query or "should i" in query or "analyze" in query or "opinion" in query:
                 return (
-                    f"### Investment Analysis: **{ticker}** ({info['name']})\n\n"
-                    f"- **Current Valuation:** PKR {price} | P/E: {pe}x | Dividend Yield: {div}%\n"
+                    f"### Investment Analysis: **{ticker_in_query}** ({info['name']})\n\n"
+                    f"- **Current Valuation:** {currency} {price} | P/E: {pe}x | Dividend Yield: {div}%\n"
                     f"- **Sector:** {info['sector']}\n\n"
                     f"**Key Insights:**\n"
                     f"1. **Fundamentals:** {info['description']}\n"
@@ -307,67 +356,145 @@ def generate_simulator_chat_response(query: str, portfolio: list = None) -> str:
                     f"3. **Recommendation Summary:** We advise a gradual accumulation at support levels. "
                     f"The technical setup indicates the stock is preparing for a breakout, backed by solid financial statements and volume expansion."
                 )
+        else:
+            # Fallback when profile doesn't exist (like AAPL or TSLA)
+            if "sell" in query:
+                return (
+                    f"### Analyst Assessment for selling **{ticker_in_query}**:\n\n"
+                    f"**{ticker_in_query}** is currently in consolidation phase ({market_label}).\n\n"
+                    f"**Hold/Sell Rationale:**\n"
+                    f"- If you are holding **{ticker_in_query}** for long-term fundamentals, it remains a sound holding. "
+                    f"Selling now would mean sacrificing potential capital gains or dividend yields.\n"
+                    f"- *Short-term trading:* If you have met your targets (around 8-10% gain), taking partial profit is sensible, "
+                    f"as momentum indicators suggest mild consolidation ahead. However, a complete exit is not recommended unless key technical support is broken."
+                )
+            elif "buy" in query or "should i" in query or "analyze" in query or "opinion" in query:
+                return (
+                    f"### Investment Analysis: **{ticker_in_query}**\n\n"
+                    f"- **Sector:** Global Equity / Selected Sector\n"
+                    f"- **Exchange:** {market_name}\n\n"
+                    f"**Key Insights:**\n"
+                    f"1. **Fundamentals:** Solid balance sheet with stable performance markers in {market_label}.\n"
+                    f"2. **Valuation:** Trading close to its industry average valuation metrics.\n"
+                    f"3. **Recommendation Summary:** We advise a gradual accumulation at support levels. "
+                    f"The technical setup indicates the stock is preparing for a breakout, backed by solid financial statements and volume expansion."
+                )
 
     # 2. Portfolio compilation query
-    if "dividend portfolio" in query:
-        return (
-            "### Recommended PSX High-Yield Dividend Portfolio\n\n"
-            "To build a robust income portfolio, we select companies with strong cash flows, low debt-to-equity, and high dividend payouts:\n\n"
-            "| Ticker | Company Name | Sector | Div. Yield | Recommended Weight |\n"
-            "| :--- | :--- | :--- | :--- | :--- |\n"
-            "| **UBL** | United Bank Limited | Commercial Banks | 15.7% | **30%** |\n"
-            "| **EFERT** | Engro Fertilizers Limited | Fertilizer | 14.8% | **25%** |\n"
-            "| **FFC** | Fauji Fertilizer Company | Fertilizer | 14.1% | **25%** |\n"
-            "| **ENGRO** | Engro Corporation Limited | Conglomerates | 12.7% | **20%** |\n\n"
-            "**Portfolio Highlights:**\n"
-            "- **Average Dividend Yield:** ~14.3%\n"
-            "- **Risk Profile:** Low-to-Medium (Defensive sectors)\n"
-            "- **Strategy:** Reinvest dividends during price consolidations to compound returns. These sectors act as excellent inflation hedges in Pakistan."
-        )
+    if "portfolio" in query and ("dividend" in query or "tech" in query or "growth" in query):
+        pass # Go to dividend portfolio logic below
+    elif "dividend portfolio" in query or "tech portfolio" in query or "growth portfolio" in query:
+        if market_upper == "US":
+            return (
+                "### Recommended US High-Yield / Growth Portfolio\n\n"
+                "To build a robust US portfolio, we select companies with strong cash flows, low debt-to-equity, and solid yields or growth:\n\n"
+                "| Ticker | Company Name | Sector | Recommendation |\n"
+                "| :--- | :--- | :--- | :--- |\n"
+                "| **AAPL** | Apple Inc. | Technology | **30% Weight** (Stable Anchor) |\n"
+                "| **MSFT** | Microsoft Corp. | Technology | **25% Weight** (AI Leader) |\n"
+                "| **AMZN** | Amazon.com Inc. | Consumer Cyclical | **25% Weight** (Retail/Cloud) |\n"
+                "| **TSLA** | Tesla, Inc. | Automotive | **20% Weight** (High Growth) |\n"
+            )
+        elif market_upper == "IN":
+            return (
+                "### Recommended Indian Dividend / Growth Portfolio\n\n"
+                "| Ticker | Company Name | Sector | Recommendation |\n"
+                "| :--- | :--- | :--- | :--- |\n"
+                "| **RELIANCE.NS** | Reliance Industries | Energy | **30% Weight** |\n"
+                "| **TCS.NS** | Tata Consultancy Services | Tech Services | **25% Weight** |\n"
+                "| **INFY.NS** | Infosys Limited | Tech Services | **25% Weight** |\n"
+                "| **HDFCBANK.NS** | HDFC Bank Limited | Financials | **20% Weight** |\n"
+            )
+        elif market_upper == "UK":
+            return (
+                "### Recommended UK High-Yield Portfolio\n\n"
+                "| Ticker | Company Name | Sector | Recommendation |\n"
+                "| :--- | :--- | :--- | :--- |\n"
+                "| **BP.L** | BP p.l.c. | Energy | **35% Weight** |\n"
+                "| **HSBA.L** | HSBC Holdings plc | Financials | **30% Weight** |\n"
+                "| **GSK.L** | GSK plc | Healthcare | **20% Weight** |\n"
+                "| **VOD.L** | Vodafone Group | Telecom | **15% Weight** |\n"
+            )
+        else:
+            return (
+                "### Recommended PSX High-Yield Dividend Portfolio\n\n"
+                "To build a robust income portfolio, we select companies with strong cash flows, low debt-to-equity, and high dividend payouts:\n\n"
+                "| Ticker | Company Name | Sector | Div. Yield | Recommended Weight |\n"
+                "| :--- | :--- | :--- | :--- | :--- |\n"
+                "| **UBL** | United Bank Limited | Commercial Banks | 15.7% | **30%** |\n"
+                "| **EFERT** | Engro Fertilizers Limited | Fertilizer | 14.8% | **25%** |\n"
+                "| **FFC** | Fauji Fertilizer Company | Fertilizer | 14.1% | **25%** |\n"
+                "| **ENGRO** | Engro Corporation Limited | Conglomerates | 12.7% | **20%** |\n\n"
+                "**Portfolio Highlights:**\n"
+                "- **Average Dividend Yield:** ~14.3%\n"
+                "- **Risk Profile:** Low-to-Medium (Defensive sectors)\n"
+                "- **Strategy:** Reinvest dividends during price consolidations to compound returns. These sectors act as excellent inflation hedges in Pakistan."
+            )
 
-    # 3. Macro question: Interest rates impact
-    if "interest rate" in query or "monetary policy" in query or "lower rate" in query:
-        return (
-            "### Macro Analysis: Impact of Lower Interest Rates on PSX Sectors\n\n"
-            "A reduction in the State Bank of Pakistan (SBP) policy rate has a profound impact across sectors:\n\n"
-            "1. **Winners (Highly Leveraged & Cyclical Sectors):**\n"
-            "   - **Cement (LUCK, DGKC):** Cement manufacturers have high debt-servicing costs. Lower rates directly boost bottom-line margins. Construction demand also expands.\n"
-            "   - **Steel & Engineering:** Direct reduction in financial finance charges.\n"
-            "   - **Textiles & Autos:** Boosts consumer financing and lowers working capital costs.\n\n"
-            "2. **Losers (Commercial Banks):**\n"
-            "   - **Banks (UBL, HBL):** Bank margins (Net Interest Margins - NIMs) contract as yields on government securities (T-Bills, PIBs) decline. High-yield banking stocks might see short-term profit-taking.\n\n"
-            "**Strategic Advice:** Shift allocation from heavy banking positions toward high-quality Cement (like **LUCK**) and consumer-cyclicals to capture the expansionary cycle."
-        )
+    # 3. Macro question: Impact of interest rates / policy
+    if "interest rate" in query or "monetary policy" in query or "lower rate" in query or "inflation" in query:
+        if market_upper == "US":
+            return (
+                "### Macro Analysis: Impact of Federal Reserve Policies on US Markets\n\n"
+                "US stock markets are highly sensitive to Federal Reserve interest rate moves and inflation metrics:\n\n"
+                "1. **Winners (Growth & Tech Stocks):**\n"
+                "   - **Tech (AAPL, MSFT):** Growth companies have high valuations based on future cash flows. Lower discount rates directly lift their net present value.\n"
+                "   - **Autos & Consumer Discretionary (TSLA):** Boosts demand for auto loans and retail credit.\n\n"
+                "2. **Losers (Value & Cash Havens):**\n"
+                "   - **Treasuries & Money Market Funds:** Yields contract, pushing capital back into equities."
+            )
+        else:
+            return (
+                "### Macro Analysis: Impact of Lower Interest Rates on PSX Sectors\n\n"
+                "A reduction in the State Bank of Pakistan (SBP) policy rate has a profound impact across sectors:\n\n"
+                "1. **Winners (Highly Leveraged & Cyclical Sectors):**\n"
+                "   - **Cement (LUCK, DGKC):** Cement manufacturers have high debt-servicing costs. Lower rates directly boost bottom-line margins. Construction demand also expands.\n"
+                "   - **Steel & Engineering:** Direct reduction in financial finance charges.\n"
+                "   - **Textiles & Autos:** Boosts consumer financing and lowers working capital costs.\n\n"
+                "2. **Losers (Commercial Banks):**\n"
+                "   - **Banks (UBL, HBL):** Bank margins (Net Interest Margins - NIMs) contract as yields on government securities (T-Bills, PIBs) decline. High-yield banking stocks might see short-term profit-taking.\n\n"
+                "**Strategic Advice:** Shift allocation from heavy banking positions toward high-quality Cement (like **LUCK**) and consumer-cyclicals to capture the expansionary cycle."
+            )
 
-    # 4. Sector comparison: Undervalued cement
+    # 4. Sector comparison: Undervalued companies
     if "cement" in query or "undervalued" in query:
-        return (
-            "### Sector Screening: Cement Sector Analysis (LUCK vs. DGKC)\n\n"
-            "The cement sector is currently in a transition phase. Here is a comparative valuation:\n\n"
-            "- **Lucky Cement (LUCK):**\n"
-            "  - *Valuation:* PKR 780.0 | P/E: 5.9x | ROE: 17.5% | P/B: 1.1x\n"
-            "  - *Pros:* Highly diversified (KIA Motors, power generation), net-cash balance sheet, export capability. Outstanding operational efficiency.\n\n"
-            "- **D.G. Khan Cement (DGKC):**\n"
-            "  - *Valuation:* PKR 72.5 | P/E: 12.4x | ROE: 5.2% | P/B: 0.4x\n"
-            "  - *Pros:* Trading at a deep 60% discount to book value (P/B 0.4). High operational leverage.\n"
-            "  - *Cons:* High debt levels make it highly sensitive to finance costs.\n\n"
-            "**Verdict:** **LUCK** is the safer, fundamentally superior bet. However, for a high-beta trade playing on interest rate cuts, **DGKC** offers massive tactical upside."
-        )
+        if market_upper == "US":
+            return (
+                "### Sector Screening: Tech Underdogs Analysis (Intel vs. AMD)\n\n"
+                "The semiconductor sector is currently in a transition phase. Here is a comparative valuation:\n\n"
+                "- **AMD (AMD):** High growth, massive AI GPU expansion, but premium valuation.\n"
+                "- **Intel (INTC):** Trading at a discount to book value, restructuring, high operational leverage but currently low margins.\n\n"
+                "**Verdict:** AMD is the safer, momentum-focused play. INTC offers value tactical upside if their foundry expansion succeeds."
+            )
+        else:
+            return (
+                "### Sector Screening: Cement Sector Analysis (LUCK vs. DGKC)\n\n"
+                "The cement sector is currently in a transition phase. Here is a comparative valuation:\n\n"
+                "- **Lucky Cement (LUCK):**\n"
+                "  - *Valuation:* PKR 780.0 | P/E: 5.9x | ROE: 17.5% | P/B: 1.1x\n"
+                "  - *Pros:* Highly diversified (KIA Motors, power generation), net-cash balance sheet, export capability. Outstanding operational efficiency.\n\n"
+                "- **D.G. Khan Cement (DGKC):**\n"
+                "  - *Valuation:* PKR 72.5 | P/E: 12.4x | ROE: 5.2% | P/B: 0.4x\n"
+                "  - *Pros:* Trading at a deep 60% discount to book value (P/B 0.4). High operational leverage.\n"
+                "  - *Cons:* High debt levels make it highly sensitive to finance costs.\n\n"
+                "**Verdict:** **LUCK** is the safer, fundamentally superior bet. However, for a high-beta trade playing on interest rate cuts, **DGKC** offers massive tactical upside."
+            )
 
     # 5. Why did a stock fall
     if "why did" in query or "fall today" in query or "fell today" in query:
-        # Check if we can identify which stock
         matching_ticker = "the stock"
-        for t in data_fetcher.STOCK_PROFILES:
-            if t.lower() in query:
-                matching_ticker = t
+        for word in query.split():
+            cleaned_word = word.strip("?,.!:()").upper()
+            if len(cleaned_word) >= 2 and (cleaned_word.isalpha() or "." in cleaned_word):
+                matching_ticker = cleaned_word
                 break
+        
         return (
             f"### Market Commentary: Price Action on **{matching_ticker}**\n\n"
             f"The recent decline in **{matching_ticker}** is primarily attributed to:\n"
-            f"1. **Macro Profit-Taking:** The KSE-100 index has hovered near resistance, prompting institutional fund managers to trim positions and lock in gains.\n"
-            f"2. **Circular Debt Overhead:** Concerns regarding energy-sector receivables settlement have temporarily dampened sentiments in E&P and Power stocks.\n"
-            f"3. **FBR Tax Audits:** Rumors of tax structures adjustments on corporate cash holdings in the upcoming mini-budget have induced cautious volumes.\n\n"
+            f"1. **Macro Profit-Taking:** Major indices in {market_name} have hovered near resistance, prompting institutional fund managers to trim positions and lock in gains.\n"
+            f"2. **Global Sentiment Shift:** High inflation indexes and commodity fluctuations have temporarily dampened sentiments.\n"
+            f"3. **Technical Correction:** The stock reached overbought levels, triggering profit-booking.\n\n"
             f"*Recommendation:* The long-term structural bull run remains intact. Treat these corrections as accumulation windows."
         )
 
@@ -379,37 +506,36 @@ def generate_simulator_chat_response(query: str, portfolio: list = None) -> str:
             total_val = 0
             for item in portfolio:
                 ticker = item.get("ticker", "").upper()
-                shares = item.get("shares", 0)
-                price = data_fetcher.STOCK_PROFILES.get(ticker, {}).get("current_price", 100.0)
+                shares = item.get("quantity", item.get("shares", 0))
+                price = item.get("avgPrice", 100.0)
                 val = shares * price
                 total_val += val
-                portfolio_summary += f"- **{ticker}**: {shares} shares worth **PKR {val:,.2f}**\n"
-            portfolio_summary += f"\n**Total Portfolio Value:** PKR {total_val:,.2f}\n\n"
+                portfolio_summary += f"- **{ticker}**: {shares} shares worth **{currency} {val:,.2f}**\n"
+            portfolio_summary += f"\n**Total Portfolio Value:** {currency} {total_val:,.2f}\n\n"
         else:
             portfolio_summary = (
-                "You haven't simulated a portfolio yet. You can add stocks like **MARI**, **SYS**, or **UBL** to your portfolio tracker on the right side of the dashboard.\n\n"
+                f"You haven't simulated a portfolio yet. You can add stocks like **{default_stock_ex}** to your portfolio tracker.\n\n"
             )
             
         return (
             f"### Portfolio Risk & Diversification Report\n\n"
             f"{portfolio_summary}"
             f"**Portfolio Diagnostics:**\n"
-            f"- **Sector Concentration:** Check if you are overly exposed to fertilizer or banking (diversification lowers risk).\n"
-            f"- **Dividend Yield Projection:** Focus on stocks like **FFC** or **UBL** if you require regular cash-inflows.\n"
-            f"- **Growth Drivers:** Keep **SYS** or **MARI** as growth engines to compound asset value.\n\n"
+            f"- **Sector Concentration:** Check if you are overly exposed to a single industry (diversification lowers risk).\n"
+            f"- **Dividend Yield Projection:** Focus on defensive dividend payers if you require regular cash-inflows.\n"
+            f"- **Growth Drivers:** Keep high-beta growth engines to compound asset value.\n\n"
             f"Need specific shifts? Let me know which stock you want to swap!"
         )
 
     # General Fallback
     return (
-        "### Pakistan Stock Exchange AI Advisory Assistant\n\n"
-        "I can help you analyze PSX stocks, suggest portfolio allocations, or explain market moves. "
-        "Try asking me questions like:\n"
-        "- *Should I sell MARI?*\n"
-        "- *Build me a dividend portfolio.*\n"
-        "- *Why did SYS fall today?*\n"
-        "- *Find undervalued cement companies.*\n"
-        "- *Which stocks benefit from lower interest rates?*"
+        f"### {market_name} AI Advisory Assistant\n\n"
+        f"I can help you analyze {market_label} stocks, suggest portfolio allocations, or explain market moves. "
+        f"Try asking me questions like:\n"
+        f"{sell_mari}\n"
+        f"{dividend_p}\n"
+        f"{why_sys}\n"
+        f"{cement_co}\n"
     )
 
 def get_portfolio_recommendation(portfolio_summary: dict, market: str = "PK") -> dict:

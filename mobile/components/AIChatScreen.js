@@ -159,7 +159,7 @@ export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market
       <View style={styles.inputBar}>
         <TextInput
           style={styles.textInput}
-          placeholder="Ask AI Advisor about PSX stocks..."
+          placeholder={`Ask AI Advisor about ${marketLabel} stocks...`}
           placeholderTextColor="#64748B"
           value={inputText}
           onChangeText={setInputText}
