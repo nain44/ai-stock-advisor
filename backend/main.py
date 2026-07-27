@@ -31,6 +31,7 @@ class ChatRequest(BaseModel):
     query: str
     ticker: Optional[str] = None
     portfolio: Optional[List[dict]] = None
+    market: Optional[str] = "PK"
 
 class SettingsUpdate(BaseModel):
     gemini_key: Optional[str] = None
@@ -435,7 +436,8 @@ def chat_advisor(req: ChatRequest):
     response_text = ai_advisor.query_chat_advisor(
         query=req.query,
         ticker_context=req.ticker,
-        portfolio=req.portfolio
+        portfolio=req.portfolio,
+        market=req.market
     )
     return {"response": response_text}
 
