@@ -56,6 +56,11 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   const [macroData, setMacroData] = useState(null);
   const [loadingMacro, setLoadingMacro] = useState(false);
 
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const handleManualRefresh = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
+
   // Fetch Commodities & Forex exchange rates dynamically when the market changes
   useEffect(() => {
     let ignore = false;
@@ -80,7 +85,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
     return () => {
       ignore = true;
     };
-  }, [apiUrl, market]);
+  }, [apiUrl, market, refreshTrigger]);
 
   // Fetch stocks on watchlist, API URL, or market changes (with race condition handling)
   useEffect(() => {
@@ -121,7 +126,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
     return () => {
       ignore = true;
     };
-  }, [apiUrl, watchlist, market]);
+  }, [apiUrl, watchlist, market, refreshTrigger]);
 
   // Autocomplete dynamic search handler
   useEffect(() => {
@@ -190,7 +195,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
     return () => {
       ignore = true;
     };
-  }, [selectedTicker, apiUrl, market]);
+  }, [selectedTicker, apiUrl, market, refreshTrigger]);
 
   // Fetch history when selectedTicker, timeframe, or market changes (with race condition handling)
   useEffect(() => {
@@ -224,7 +229,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
     return () => {
       ignore = true;
     };
-  }, [selectedTicker, timeframe, apiUrl, market]);
+  }, [selectedTicker, timeframe, apiUrl, market, refreshTrigger]);
 
   // Sparkline Chart SVG Path Generator
   const generateSparklinePaths = (data, w, h) => {
@@ -435,23 +440,33 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
           </View>
         </View>
         
-        {/* Toggle selector */}
-        <View style={styles.marketSwitcher}>
-          {['PK', 'US', 'IN', 'UK'].map((m) => {
-            const flag = m === 'PK' ? '🇵🇰' : m === 'US' ? '🇺🇸' : m === 'IN' ? '🇮🇳' : '🇬🇧';
-            return (
-              <TouchableOpacity 
-                key={m}
-                style={[styles.switcherBtn, market === m && styles.switcherBtnActive]}
-                onPress={() => {
-                  setMarket(m);
-                  setSelectedTicker(null);
-                }}
-              >
-                <Text style={[styles.switcherText, market === m && styles.switcherTextActive]}>{flag} {m}</Text>
-              </TouchableOpacity>
-            );
-          })}
+        {/* Toggle selector with Refresh */}
+        <View style={styles.switcherAndRefreshRow}>
+          <TouchableOpacity 
+            style={styles.refreshIconButton}
+            onPress={handleManualRefresh}
+            activeOpacity={0.7}
+          >
+            <RefreshCw size={13} color="#94A3B8" />
+          </TouchableOpacity>
+          
+          <View style={styles.marketSwitcher}>
+            {['PK', 'US', 'IN', 'UK'].map((m) => {
+              const flag = m === 'PK' ? '🇵🇰' : m === 'US' ? '🇺🇸' : m === 'IN' ? '🇮🇳' : '🇬🇧';
+              return (
+                <TouchableOpacity 
+                  key={m}
+                  style={[styles.switcherBtn, market === m && styles.switcherBtnActive]}
+                  onPress={() => {
+                    setMarket(m);
+                    setSelectedTicker(null);
+                  }}
+                >
+                  <Text style={[styles.switcherText, market === m && styles.switcherTextActive]}>{flag} {m}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
       </View>
 
@@ -1727,5 +1742,20 @@ const styles = StyleSheet.create({
   negativeText: {
     color: '#EF4444',
     fontWeight: 'bold',
+  },
+  switcherAndRefreshRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  refreshIconButton: {
+    backgroundColor: '#1E293B',
+    borderRadius: 8,
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
 });
