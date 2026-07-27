@@ -632,6 +632,7 @@ def get_latest_quote(ticker: str, market: str = "PK"):
         result = {
             "ticker": ticker,
             "name": profile.get("name", ticker),
+            "sector": profile.get("sector", "Unknown"),
             "price": round(current_price, 2),
             "change": change,
             "pct_change": pct_change_str,

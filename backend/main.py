@@ -127,8 +127,8 @@ def get_stocks(tickers: Optional[str] = None, market: Optional[str] = "PK"):
         quote = data_fetcher.get_latest_quote(ticker, market=market_str)
         profile = data_fetcher.get_stock_profile(ticker) if market_str == "PK" else None
         
-        name = profile["name"] if profile else (quote["name"] if quote else ticker)
-        sector = profile["sector"] if profile else (quote["sector"] if quote else "Global Equity")
+        name = profile.get("name") if profile else (quote.get("name") or ticker if quote else ticker)
+        sector = profile.get("sector") if profile else (quote.get("sector") or "Global Equity" if quote else "Global Equity")
         
         if quote:
             # Parse pct_change string safely
