@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { Plus, Trash2, ShieldAlert, CheckCircle2, X } from 'lucide-react-native';
 
 const getCurrencySymbol = (m) => {
@@ -25,6 +25,25 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
 
   // Active Portfolio Market Selector state ('PK' or 'US')
   const [portfolioMarket, setPortfolioMarket] = useState('PK');
+
+  // Custom Alert Modal state
+  const [customAlert, setCustomAlert] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'error', // 'error', 'warning', 'info', 'confirm'
+    onConfirm: null
+  });
+
+  const showAlert = (title, message, type = 'error', onConfirm = null) => {
+    setCustomAlert({
+      visible: true,
+      title,
+      message,
+      type,
+      onConfirm
+    });
+  };
 
   // Load stocks to get live price information based on the active market and current holdings (with race condition handling)
   useEffect(() => {
@@ -176,7 +195,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
 
   const handleAddHolding = () => {
     if (!newTicker || !newQty || !newPrice) {
-      Alert.alert("Error", "Please fill in all fields.");
+      showAlert("Error", "Please fill in all fields.", "error");
       return;
     }
 
@@ -184,20 +203,21 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
     const price = parseFloat(newPrice);
 
     if (isNaN(qty) || qty <= 0) {
-      Alert.alert("Error", "Quantity must be a valid positive integer.");
+      showAlert("Error", "Quantity must be a valid positive integer.", "error");
       return;
     }
     if (isNaN(price) || price <= 0) {
-      Alert.alert("Error", "Price must be a valid positive number.");
+      showAlert("Error", "Price must be a valid positive number.", "error");
       return;
     }
 
     // Check if the ticker exists in coverage list
     const exists = stocks.some(s => s.ticker === newTicker);
     if (!exists) {
-      Alert.alert(
+      showAlert(
         "Warning",
-        `Ticker ${newTicker} is not currently monitored in KSE coverage list. Adding it might use simulated quotes.`
+        `Ticker ${newTicker} is not currently monitored in KSE coverage list. Adding it might use simulated quotes.`,
+        "warning"
       );
     }
 
@@ -231,27 +251,21 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
   };
 
   const handleRemoveHolding = (ticker) => {
-    Alert.alert(
+    showAlert(
       "Confirm Sell/Remove",
       `Are you sure you want to remove ${ticker} from your simulated portfolio?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: () => {
-            const updated = portfolio.filter(h => h.ticker !== ticker);
-            setPortfolio(updated);
-          }
-        }
-      ]
+      "confirm",
+      () => {
+        const updated = portfolio.filter(h => h.ticker !== ticker);
+        setPortfolio(updated);
+      }
     );
   };
 
   const handleFetchPortfolioAnalysis = async () => {
     const activeHoldings = portfolio.filter(h => (portfolioMarket === 'US' ? h.market === 'US' : h.market !== 'US'));
     if (activeHoldings.length === 0) {
-      Alert.alert("Empty Portfolio", `Please add some ${portfolioMarket} holdings before running diagnostics.`);
+      showAlert("Empty Portfolio", `Please add some ${portfolioMarket} holdings before running diagnostics.`, "warning");
       return;
     }
     try {
@@ -271,11 +285,11 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
         setPortfolioAnalysis(data);
         setAnalysisModalVisible(true);
       } else {
-        Alert.alert("Error", "Failed to retrieve portfolio diagnostics.");
+        showAlert("Error", "Failed to retrieve portfolio diagnostics.", "error");
       }
     } catch (err) {
       console.error(err);
-      Alert.alert("Connection Error", "Cannot reach the AI Advisor server.");
+      showAlert("Connection Error", "Cannot reach the AI Advisor server.", "error");
     } finally {
       setLoadingAnalysis(false);
     }
@@ -575,6 +589,57 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
                 </View>
               )}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Custom Premium Alert Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={customAlert.visible}
+        onRequestClose={() => setCustomAlert(prev => ({ ...prev, visible: false }))}
+      >
+        <View style={styles.alertOverlay}>
+          <View style={styles.alertCard}>
+            <View style={styles.alertHeader}>
+              {customAlert.type === 'error' && <ShieldAlert size={24} color="#EF4444" />}
+              {customAlert.type === 'warning' && <ShieldAlert size={24} color="#F59E0B" />}
+              {customAlert.type === 'confirm' && <Trash2 size={24} color="#EC4899" />}
+              {customAlert.type === 'info' && <CheckCircle2 size={24} color="#10B981" />}
+              <Text style={styles.alertTitle}>{customAlert.title}</Text>
+            </View>
+            
+            <Text style={styles.alertMessage}>{customAlert.message}</Text>
+            
+            <View style={styles.alertActions}>
+              {customAlert.type === 'confirm' ? (
+                <>
+                  <TouchableOpacity 
+                    style={[styles.alertBtn, styles.alertCancelBtn]}
+                    onPress={() => setCustomAlert(prev => ({ ...prev, visible: false }))}
+                  >
+                    <Text style={styles.alertCancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.alertBtn, styles.alertConfirmBtn]}
+                    onPress={() => {
+                      if (customAlert.onConfirm) customAlert.onConfirm();
+                      setCustomAlert(prev => ({ ...prev, visible: false }));
+                    }}
+                  >
+                    <Text style={styles.alertConfirmBtnText}>Remove</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity 
+                  style={[styles.alertBtn, styles.alertOkBtn]}
+                  onPress={() => setCustomAlert(prev => ({ ...prev, visible: false }))}
+                >
+                  <Text style={styles.alertOkBtnText}>Okay</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
       </Modal>
@@ -1000,5 +1065,79 @@ const styles = StyleSheet.create({
   },
   switcherTextActive: {
     color: '#0B0F19',
+  },
+  alertOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  alertCard: {
+    backgroundColor: '#161B26',
+    borderWidth: 1,
+    borderColor: '#222A3C',
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  alertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  alertTitle: {
+    color: '#F3F4F6',
+    fontSize: 16,
+    fontWeight: '700',
+    marginLeft: 10,
+  },
+  alertMessage: {
+    color: '#94A3B8',
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 24,
+  },
+  alertActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  alertBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertOkBtn: {
+    backgroundColor: '#00D2FF',
+    minWidth: 90,
+  },
+  alertOkBtnText: {
+    color: '#0B0F19',
+    fontWeight: '700',
+    fontSize: 12.5,
+  },
+  alertCancelBtn: {
+    backgroundColor: '#1E293B',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  alertCancelBtnText: {
+    color: '#E2E8F0',
+    fontWeight: '600',
+    fontSize: 12.5,
+  },
+  alertConfirmBtn: {
+    backgroundColor: '#EF4444',
+  },
+  alertConfirmBtnText: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 12.5,
   },
 });
