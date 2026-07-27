@@ -35,26 +35,54 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   const [usWatchlist, setUsWatchlist] = useState(['AAPL', 'MSFT', 'TSLA', 'NVDA', 'AMZN']);
   const [inWatchlist, setInWatchlist] = useState(['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS']);
   const [ukWatchlist, setUkWatchlist] = useState(['BP.L', 'HSBA.L', 'GSK.L', 'AZN.L', 'VOD.L']);
-  const [watchlist, setWatchlist] = useState(['MARI', 'SYS', 'MEBL', 'HUBC', 'OGDC', 'UBL']);
+  // Derive watchlist dynamically based on the active market to avoid race conditions
+  const watchlist = React.useMemo(() => {
+    if (market === 'PK') return pkWatchlist;
+    if (market === 'US') return usWatchlist;
+    if (market === 'IN') return inWatchlist;
+    if (market === 'UK') return ukWatchlist;
+    return [];
+  }, [market, pkWatchlist, usWatchlist, inWatchlist, ukWatchlist]);
+
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
 
-  // Synchronize watchlist state when market toggle occurs
+  // Fetch stocks on watchlist, API URL, or market changes (with race condition handling)
   useEffect(() => {
-    if (market === 'PK') {
-      setWatchlist(pkWatchlist);
-    } else if (market === 'US') {
-      setWatchlist(usWatchlist);
-    } else if (market === 'IN') {
-      setWatchlist(inWatchlist);
-    } else if (market === 'UK') {
-      setWatchlist(ukWatchlist);
-    }
-  }, [market, pkWatchlist, usWatchlist, inWatchlist, ukWatchlist]);
+    let ignore = false;
+    
+    const fetchStocks = async () => {
+      try {
+        setLoadingStocks(true);
+        const tickersParam = watchlist.join(',');
+        const res = await fetch(`${apiUrl}/api/stocks?tickers=${tickersParam}&market=${market}`);
+        if (!res.ok) throw new Error("Failed to load stocks list");
+        const data = await res.json();
+        
+        if (!ignore) {
+          setStocks(data);
+          if (data.length > 0 && !selectedTicker) {
+            setSelectedTicker(data[0].ticker);
+          }
+          setError(null);
+        }
+      } catch (err) {
+        console.error(err);
+        if (!ignore) {
+          setError("Cannot connect to server. Check API URL.");
+        }
+      } finally {
+        if (!ignore) {
+          setLoadingStocks(false);
+        }
+      }
+    };
 
-  // Fetch stocks on watchlist, API URL, or market changes
-  useEffect(() => {
     fetchStocks();
+
+    return () => {
+      ignore = true;
+    };
   }, [apiUrl, watchlist, market]);
 
   // Autocomplete dynamic search handler
@@ -87,80 +115,78 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   // Timeframe state
   const [timeframe, setTimeframe] = useState('1M');
 
-  // Fetch analysis when selectedTicker or market changes
+  // Fetch analysis when selectedTicker or market changes (with race condition handling)
   useEffect(() => {
-    if (selectedTicker) {
-      fetchAnalysis(selectedTicker);
-    }
+    if (!selectedTicker) return;
+    
+    let ignore = false;
+    
+    const fetchAnalysis = async (ticker) => {
+      try {
+        setLoadingAnalysis(true);
+        const analysisRes = await fetch(`${apiUrl}/api/analysis/${ticker}?market=${market}`);
+        if (!analysisRes.ok) throw new Error("Failed to load analysis");
+        const analysisData = await analysisRes.json();
+        
+        if (!ignore) {
+          setAnalysis(analysisData);
+          
+          // Update signal in stocks list state to keep it synchronized!
+          if (analysisData.recommendation?.recommendation) {
+            setStocks(prevStocks => prevStocks.map(s => 
+              s.ticker === ticker ? { ...s, signal: analysisData.recommendation.recommendation } : s
+            ));
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (!ignore) {
+          setLoadingAnalysis(false);
+        }
+      }
+    };
+
+    fetchAnalysis(selectedTicker);
+
+    return () => {
+      ignore = true;
+    };
   }, [selectedTicker, apiUrl, market]);
 
-  // Fetch history when selectedTicker, timeframe, or market changes
+  // Fetch history when selectedTicker, timeframe, or market changes (with race condition handling)
   useEffect(() => {
-    if (selectedTicker) {
-      let days = 30;
-      if (timeframe === '1D') days = 2;
-      else if (timeframe === '1W') days = 7;
-      else if (timeframe === '1M') days = 30;
-      else if (timeframe === '6M') days = 180;
-      else if (timeframe === '1Y') days = 365;
-      else if (timeframe === '3Y') days = 1095;
-      
-      fetchHistory(selectedTicker, days);
-    }
+    if (!selectedTicker) return;
+
+    let ignore = false;
+    let days = 30;
+    if (timeframe === '1D') days = 2;
+    else if (timeframe === '1W') days = 7;
+    else if (timeframe === '1M') days = 30;
+    else if (timeframe === '6M') days = 180;
+    else if (timeframe === '1Y') days = 365;
+    else if (timeframe === '3Y') days = 1095;
+
+    const fetchHistory = async (ticker, daysNum) => {
+      try {
+        const historicalRes = await fetch(`${apiUrl}/api/historical/${ticker}?days=${daysNum}&market=${market}`);
+        if (historicalRes.ok) {
+          const historicalData = await historicalRes.json();
+          if (!ignore) {
+            setHistorical(historicalData);
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchHistory(selectedTicker, days);
+
+    return () => {
+      ignore = true;
+    };
   }, [selectedTicker, timeframe, apiUrl, market]);
-
-  const fetchStocks = async () => {
-    try {
-      setLoadingStocks(true);
-      const tickersParam = watchlist.join(',');
-      const res = await fetch(`${apiUrl}/api/stocks?tickers=${tickersParam}&market=${market}`);
-      if (!res.ok) throw new Error("Failed to load stocks list");
-      const data = await res.json();
-      setStocks(data);
-      if (data.length > 0 && !selectedTicker) {
-        setSelectedTicker(data[0].ticker);
-      }
-      setError(null);
-    } catch (err) {
-      console.error(err);
-      setError("Cannot connect to server. Check API URL.");
-    } finally {
-      setLoadingStocks(false);
-    }
-  };
-
-  const fetchAnalysis = async (ticker) => {
-    try {
-      setLoadingAnalysis(true);
-      const analysisRes = await fetch(`${apiUrl}/api/analysis/${ticker}?market=${market}`);
-      if (!analysisRes.ok) throw new Error("Failed to load analysis");
-      const analysisData = await analysisRes.json();
-      setAnalysis(analysisData);
-      
-      // Update signal in stocks list state to keep it synchronized!
-      if (analysisData.recommendation?.recommendation) {
-        setStocks(prevStocks => prevStocks.map(s => 
-          s.ticker === ticker ? { ...s, signal: analysisData.recommendation.recommendation } : s
-        ));
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingAnalysis(false);
-    }
-  };
-
-  const fetchHistory = async (ticker, days) => {
-    try {
-      const historicalRes = await fetch(`${apiUrl}/api/historical/${ticker}?days=${days}&market=${market}`);
-      if (historicalRes.ok) {
-        const historicalData = await historicalRes.json();
-        setHistorical(historicalData);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   // Sparkline Chart SVG Path Generator
   const generateSparklinePaths = (data, w, h) => {

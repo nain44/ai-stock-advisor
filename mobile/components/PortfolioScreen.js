@@ -26,32 +26,42 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
   // Active Portfolio Market Selector state ('PK' or 'US')
   const [portfolioMarket, setPortfolioMarket] = useState('PK');
 
-  // Load stocks to get live price information based on the active market and current holdings
+  // Load stocks to get live price information based on the active market and current holdings (with race condition handling)
   useEffect(() => {
-    fetchStocks();
-  }, [apiUrl, portfolioMarket, portfolio]);
+    let ignore = false;
 
-  const fetchStocks = async () => {
-    try {
-      setLoading(true);
-      const activeHoldings = portfolio.filter(h => (portfolioMarket === 'US' ? h.market === 'US' : h.market !== 'US'));
-      const tickersParam = activeHoldings.map(h => h.ticker).join(',');
-      
-      const url = tickersParam
-        ? `${apiUrl}/api/stocks?tickers=${tickersParam}&market=${portfolioMarket}`
-        : `${apiUrl}/api/stocks?market=${portfolioMarket}`;
+    const fetchStocks = async () => {
+      try {
+        setLoading(true);
+        const activeHoldings = portfolio.filter(h => (portfolioMarket === 'US' ? h.market === 'US' : h.market !== 'US'));
+        const tickersParam = activeHoldings.map(h => h.ticker).join(',');
         
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setStocks(data);
+        const url = tickersParam
+          ? `${apiUrl}/api/stocks?tickers=${tickersParam}&market=${portfolioMarket}`
+          : `${apiUrl}/api/stocks?market=${portfolioMarket}`;
+          
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (!ignore) {
+            setStocks(data);
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    fetchStocks();
+
+    return () => {
+      ignore = true;
+    };
+  }, [apiUrl, portfolioMarket, portfolio]);
 
   // Find live price for any stock ticker
   const getLivePrice = (ticker) => {
