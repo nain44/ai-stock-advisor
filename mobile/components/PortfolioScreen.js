@@ -132,10 +132,10 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
       if (res.ok) {
         const data = await res.json();
         if (data && data.length > 0) {
-          const livePrice = data[0].current_price;
+          const livePrice = data[0].current_price || 100.0;
           setNewPrice(livePrice.toString());
           if (!stocks.some(s => s.ticker === tickerSymbol)) {
-            setStocks(prev => [...prev, data[0]]);
+            setStocks(prev => [...prev, { ...data[0], current_price: livePrice }]);
           }
         }
       }

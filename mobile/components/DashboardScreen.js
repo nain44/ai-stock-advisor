@@ -395,6 +395,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                     if (!alreadyAdded) {
                       handleAddWatchlist(result.ticker);
                     }
+                    setSelectedTicker(result.ticker); // Focus and select the newly added stock immediately!
                     setSearchQuery('');
                     setSearchResults([]);
                   }}
