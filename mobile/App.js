@@ -109,10 +109,10 @@ export default function App() {
   };
 
   const getHeaderInfo = () => {
-    if (market === 'PK') return { title: 'OmniVest AI', subtitle: 'Pakistan Stock Exchange (PSX)' };
-    if (market === 'US') return { title: 'OmniVest AI', subtitle: 'US Stock Markets (NYSE/NASDAQ)' };
-    if (market === 'IN') return { title: 'OmniVest AI', subtitle: 'National Stock Exchange of India (NSE)' };
-    return { title: 'OmniVest AI', subtitle: 'London Stock Exchange (LSE)' };
+    if (market === 'PK') return { title: 'MultiInvest AI', subtitle: 'Pakistan Stock Exchange (PSX)' };
+    if (market === 'US') return { title: 'MultiInvest AI', subtitle: 'US Stock Markets (NYSE/NASDAQ)' };
+    if (market === 'IN') return { title: 'MultiInvest AI', subtitle: 'National Stock Exchange of India (NSE)' };
+    return { title: 'MultiInvest AI', subtitle: 'London Stock Exchange (LSE)' };
   };
 
   const headerInfo = getHeaderInfo();

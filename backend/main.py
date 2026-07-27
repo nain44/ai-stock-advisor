@@ -13,7 +13,7 @@ import technical_analysis
 import ai_advisor
 
 app = FastAPI(
-    title="OmniVest AI Advisory API",
+    title="MultiInvest AI Advisory API",
     description="Backend API for real-time and historical technical stock analysis and LLM advisory for global stock markets.",
     version="1.0.0"
 )
