@@ -55,7 +55,10 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
       try {
         setLoadingStocks(true);
         const tickersParam = watchlist.join(',');
-        const res = await fetch(`${apiUrl}/api/stocks?tickers=${tickersParam}&market=${market}`);
+        const url = `${apiUrl}/api/stocks?tickers=${tickersParam}&market=${market}`;
+        console.log("[fetchStocks] URL:", url);
+        const res = await fetch(url);
+        console.log("[fetchStocks] Status:", res.status, "OK:", res.ok);
         if (!res.ok) throw new Error("Failed to load stocks list");
         const data = await res.json();
         
