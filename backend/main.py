@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 import data_fetcher
 import technical_analysis
 import ai_advisor
+import macro_fetcher
 
 app = FastAPI(
     title="MultiStocks AI Advisory API",
@@ -513,6 +514,14 @@ def get_config():
             }
         }
     }
+
+@app.get("/api/macro")
+def get_macro(market: Optional[str] = "PK"):
+    """
+    Returns dynamic commodity rates (Gold, Silver, Oil) and exchange rates (Forex)
+    localized to the requested market.
+    """
+    return macro_fetcher.get_macro_indicators(market)
 
 @app.get("/api/settings")
 def get_settings():

@@ -53,6 +53,35 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
 
+  const [macroData, setMacroData] = useState(null);
+  const [loadingMacro, setLoadingMacro] = useState(false);
+
+  // Fetch Commodities & Forex exchange rates dynamically when the market changes
+  useEffect(() => {
+    let ignore = false;
+    const fetchMacroData = async () => {
+      try {
+        setLoadingMacro(true);
+        const res = await fetch(`${apiUrl}/api/macro?market=${market}`);
+        if (!res.ok) throw new Error("Failed to load macro indicators");
+        const data = await res.json();
+        if (!ignore) {
+          setMacroData(data);
+        }
+      } catch (err) {
+        console.warn("Failed to retrieve commodities/forex data", err);
+      } finally {
+        if (!ignore) {
+          setLoadingMacro(false);
+        }
+      }
+    };
+    fetchMacroData();
+    return () => {
+      ignore = true;
+    };
+  }, [apiUrl, market]);
+
   // Fetch stocks on watchlist, API URL, or market changes (with race condition handling)
   useEffect(() => {
     let ignore = false;
@@ -343,6 +372,53 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
         return { name: 'KSE100', val: '171,021', change: '-718 (-0.42%)', positive: false };
     }
   };
+  const renderMacroWidget = () => {
+    if (!macroData) return null;
+    
+    return (
+      <View style={styles.macroContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          contentContainerStyle={styles.macroScrollContent}
+        >
+          {/* Commodities */}
+          {macroData.commodities?.map((item, idx) => {
+            const isUp = item.pct_change >= 0;
+            const priceLabel = item.localized ? item.localized.price : `${getCurrencySymbol('US')}${item.price}`;
+            const unitLabel = item.localized ? item.localized.label : `${item.name} (${item.ticker})`;
+            
+            return (
+              <View key={`commodity-${idx}`} style={styles.macroCard}>
+                <View style={styles.macroCardHeader}>
+                  <View style={[styles.macroDot, { backgroundColor: item.name === 'Gold' ? '#F59E0B' : item.name === 'Silver' ? '#94A3B8' : '#34D399' }]} />
+                  <Text style={styles.macroUnitLabel} numberOfLines={1}>{unitLabel}</Text>
+                </View>
+                <Text style={styles.macroPrice}>{priceLabel}</Text>
+                <View style={styles.macroChangeRow}>
+                  <Text style={[styles.macroChangeText, isUp ? styles.positiveText : styles.negativeText]}>
+                    {isUp ? '▲' : '▼'} {Math.abs(item.pct_change).toFixed(2)}%
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+
+          {/* Forex */}
+          {macroData.forex?.map((item, idx) => {
+            return (
+              <View key={`forex-${idx}`} style={[styles.macroCard, styles.forexCard]}>
+                <Text style={styles.forexPair}>{item.pair}</Text>
+                <Text style={styles.forexRate}>{item.rate}</Text>
+                <Text style={styles.forexSub}>Live Forex Rate</Text>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+  };
+
   const idxInfo = getIndexValAndChange();
 
   return (
@@ -378,6 +454,9 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
           })}
         </View>
       </View>
+
+      {/* Dynamic Commodities and Forex Rates Bar */}
+      {renderMacroWidget()}
 
       {/* Search Bar */}
       <View style={styles.searchBarRow}>
@@ -1572,5 +1651,81 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 12,
     fontWeight: '500',
+  },
+  macroContainer: {
+    marginVertical: 12,
+    width: '100%',
+  },
+  macroScrollContent: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  macroCard: {
+    backgroundColor: '#131A2A',
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    borderRadius: 12,
+    padding: 12,
+    width: 140,
+    justifyContent: 'center',
+  },
+  forexCard: {
+    backgroundColor: '#0F172A',
+    borderColor: '#1E293B',
+  },
+  macroCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  macroDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  macroUnitLabel: {
+    color: '#64748B',
+    fontSize: 9.5,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  macroPrice: {
+    color: '#F8FAFC',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  macroChangeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  macroChangeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  forexPair: {
+    color: '#00D2FF',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  forexRate: {
+    color: '#F8FAFC',
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  forexSub: {
+    color: '#64748B',
+    fontSize: 9,
+  },
+  positiveText: {
+    color: '#10B981',
+    fontWeight: 'bold',
+  },
+  negativeText: {
+    color: '#EF4444',
+    fontWeight: 'bold',
   },
 });
