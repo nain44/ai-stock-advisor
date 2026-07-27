@@ -118,30 +118,84 @@ def get_macro_indicators(market: str = "PK"):
             {"name": "Crude Oil", "ticker": "CL=F", "price": 78.4, "change": -0.85, "pct_change": -1.07}
         ]
 
-    # 3. Add localized conversions for Gold Rates (per Troy Ounce -> per Tola / per gram)
-    gold_item = next((c for c in commodity_list if c["name"] == "Gold"), None)
-    if gold_item:
-        gold_price_usd_oz = gold_item["price"]
-        # Convert Gold per Troy Ounce (31.1034768 grams) to localized units:
-        # Tola (11.6638 grams) for PK/IN, gram for UK.
+    # 3. Add localized conversions for ALL commodities based on active market
+    for item in commodity_list:
+        name = item["name"]
+        price_usd = item["price"]
+        
         if market == "PK":
-            tola_price = (gold_price_usd_oz / 31.1034768) * 11.6638 * usd_pkr
-            gold_item["localized"] = {
-                "label": "Gold rate per Tola",
-                "price": f"Rs. {round(tola_price, -2):,.0f}" # Round to nearest hundred for local market format
-            }
+            if name == "Gold":
+                tola_price = (price_usd / 31.1034768) * 11.6638 * usd_pkr
+                item["localized"] = {
+                    "label": "Gold per Tola",
+                    "price": f"Rs. {round(tola_price, -2):,.0f}"
+                }
+            elif name == "Silver":
+                tola_price = (price_usd / 31.1034768) * 11.6638 * usd_pkr
+                item["localized"] = {
+                    "label": "Silver per Tola",
+                    "price": f"Rs. {round(tola_price, -1):,.0f}"
+                }
+            elif name == "Crude Oil":
+                barrel_price = price_usd * usd_pkr
+                item["localized"] = {
+                    "label": "Crude Oil per bbl",
+                    "price": f"Rs. {round(barrel_price, -2):,.0f}"
+                }
         elif market == "IN":
-            tola_price = (gold_price_usd_oz / 31.1034768) * 11.6638 * usd_inr
-            gold_item["localized"] = {
-                "label": "Gold rate per Tola",
-                "price": f"₹{round(tola_price, -1):,.0f}" # Round to nearest ten for Indian market format
-            }
+            if name == "Gold":
+                tola_price = (price_usd / 31.1034768) * 11.6638 * usd_inr
+                item["localized"] = {
+                    "label": "Gold per Tola",
+                    "price": f"₹{round(tola_price, -1):,.0f}"
+                }
+            elif name == "Silver":
+                tola_price = (price_usd / 31.1034768) * 11.6638 * usd_inr
+                item["localized"] = {
+                    "label": "Silver per Tola",
+                    "price": f"₹{round(tola_price, -1):,.0f}"
+                }
+            elif name == "Crude Oil":
+                barrel_price = price_usd * usd_inr
+                item["localized"] = {
+                    "label": "Crude Oil per bbl",
+                    "price": f"₹{round(barrel_price, -1):,.0f}"
+                }
         elif market == "UK":
-            g_price = (gold_price_usd_oz / 31.1034768) * usd_gbp
-            gold_item["localized"] = {
-                "label": "Gold price per gram",
-                "price": f"£{round(g_price, 2):,.2f}"
-            }
+            if name == "Gold":
+                g_price = (price_usd / 31.1034768) * usd_gbp
+                item["localized"] = {
+                    "label": "Gold per gram",
+                    "price": f"£{round(g_price, 2):,.2f}"
+                }
+            elif name == "Silver":
+                g_price = (price_usd / 31.1034768) * usd_gbp
+                item["localized"] = {
+                    "label": "Silver per gram",
+                    "price": f"£{round(g_price, 2):,.2f}"
+                }
+            elif name == "Crude Oil":
+                barrel_price = price_usd * usd_gbp
+                item["localized"] = {
+                    "label": "Crude Oil per bbl",
+                    "price": f"£{round(barrel_price, 2):,.2f}"
+                }
+        else: # US tab
+            if name == "Gold":
+                item["localized"] = {
+                    "label": "Gold per oz",
+                    "price": f"${price_usd:,.2f}"
+                }
+            elif name == "Silver":
+                item["localized"] = {
+                    "label": "Silver per oz",
+                    "price": f"${price_usd:,.2f}"
+                }
+            elif name == "Crude Oil":
+                item["localized"] = {
+                    "label": "Crude Oil per bbl",
+                    "price": f"${price_usd:,.2f}"
+                }
 
     return {
         "commodities": commodity_list,
