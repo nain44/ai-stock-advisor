@@ -13,8 +13,8 @@ import technical_analysis
 import ai_advisor
 
 app = FastAPI(
-    title="PSX AI Stock Advisor API",
-    description="Backend API for real-time and historical technical stock analysis and LLM advisory for Pakistan Stock Exchange.",
+    title="OmniVest AI Advisory API",
+    description="Backend API for real-time and historical technical stock analysis and LLM advisory for global stock markets.",
     version="1.0.0"
 )
 

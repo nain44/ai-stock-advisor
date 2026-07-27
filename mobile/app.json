@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "KSE AI Advisor",
-    "slug": "kse-ai-advisor",
+    "name": "OmniVest AI",
+    "slug": "omnivest-ai",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
