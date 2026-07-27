@@ -441,6 +441,79 @@ def chat_advisor(req: ChatRequest):
     )
     return {"response": response_text}
 
+@app.get("/api/config")
+def get_config():
+    """
+    Returns global project configurations, markets, and chat configurations
+    to enable dynamic server-driven UI updates on the mobile app.
+    """
+    return {
+        "markets": {
+            "PK": {
+                "title": "MultiInvest AI",
+                "subtitle": "Pakistan Stock Exchange (PSX)",
+                "currency": "Rs.",
+                "defaultTicker": "MARI",
+                "watchlist": ["MARI", "SYS", "MEBL", "HUBC", "OGDC", "UBL"]
+            },
+            "US": {
+                "title": "MultiInvest AI",
+                "subtitle": "US Stock Markets (NYSE/NASDAQ)",
+                "currency": "$",
+                "defaultTicker": "AAPL",
+                "watchlist": ["AAPL", "MSFT", "TSLA", "NVDA", "AMZN"]
+            },
+            "IN": {
+                "title": "MultiInvest AI",
+                "subtitle": "National Stock Exchange of India (NSE)",
+                "currency": "₹",
+                "defaultTicker": "RELIANCE.NS",
+                "watchlist": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS"]
+            },
+            "UK": {
+                "title": "MultiInvest AI",
+                "subtitle": "London Stock Exchange (LSE)",
+                "currency": "£",
+                "defaultTicker": "BP.L",
+                "watchlist": ["BP.L", "HSBA.L", "GSK.L", "AZN.L", "VOD.L"]
+            }
+        },
+        "chat": {
+            "welcome_messages": {
+                "PK": "As-salamu alaykum! I am your KSE AI Stock Advisor. Ask me about technical patterns, targets, or specific PSX stocks.",
+                "US": "Hello! I am your US Stocks AI Advisor. Ask me about technical patterns, targets, or specific NYSE/NASDAQ stocks.",
+                "IN": "Namaste! I am your NSE India AI Stock Advisor. Ask me about technical patterns, targets, or specific Indian stocks.",
+                "UK": "Hello! I am your UK Stocks AI Advisor. Ask me about technical patterns, targets, or specific London Stock Exchange (LSE) stocks."
+            },
+            "suggestion_chips": {
+                "PK": [
+                    {"label": "Analyze MARI", "query": "Can you do a full analysis of MARI and explain target levels?"},
+                    {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+                    {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading PSX?"},
+                    {"label": "Top Defensive Stocks", "query": "Which stocks in the PSX coverage are considered the best defensive/dividend stocks?"}
+                ],
+                "US": [
+                    {"label": "Analyze AAPL", "query": "Can you do a full analysis of AAPL and explain target levels?"},
+                    {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+                    {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading US markets?"},
+                    {"label": "Top Defensive Stocks", "query": "Which stocks in the US markets coverage are considered the best defensive/dividend stocks?"}
+                ],
+                "IN": [
+                    {"label": "Analyze RELIANCE.NS", "query": "Can you do a full analysis of RELIANCE.NS and explain target levels?"},
+                    {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+                    {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading NSE?"},
+                    {"label": "Top Defensive Stocks", "query": "Which stocks in the NSE coverage are considered the best defensive/dividend stocks?"}
+                ],
+                "UK": [
+                    {"label": "Analyze BP.L", "query": "Can you do a full analysis of BP.L and explain target levels?"},
+                    {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+                    {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading LSE?"},
+                    {"label": "Top Defensive Stocks", "query": "Which stocks in the LSE coverage are considered the best defensive/dividend stocks?"}
+                ]
+            }
+        }
+    }
+
 @app.get("/api/settings")
 def get_settings():
     """Returns status of API keys configuration without leaking secret contents."""

@@ -8,10 +8,79 @@ import DashboardScreen from './components/DashboardScreen';
 import AIChatScreen from './components/AIChatScreen';
 import PortfolioScreen from './components/PortfolioScreen';
 
+// Default Local Configuration Cache / Fallback
+const DEFAULT_CONFIG = {
+  "markets": {
+    "PK": {
+      "title": "MultiInvest AI",
+      "subtitle": "Pakistan Stock Exchange (PSX)",
+      "currency": "Rs.",
+      "defaultTicker": "MARI",
+      "watchlist": ["MARI", "SYS", "MEBL", "HUBC", "OGDC", "UBL"]
+    },
+    "US": {
+      "title": "MultiInvest AI",
+      "subtitle": "US Stock Markets (NYSE/NASDAQ)",
+      "currency": "$",
+      "defaultTicker": "AAPL",
+      "watchlist": ["AAPL", "MSFT", "TSLA", "NVDA", "AMZN"]
+    },
+    "IN": {
+      "title": "MultiInvest AI",
+      "subtitle": "National Stock Exchange of India (NSE)",
+      "currency": "₹",
+      "defaultTicker": "RELIANCE.NS",
+      "watchlist": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS"]
+    },
+    "UK": {
+      "title": "MultiInvest AI",
+      "subtitle": "London Stock Exchange (LSE)",
+      "currency": "£",
+      "defaultTicker": "BP.L",
+      "watchlist": ["BP.L", "HSBA.L", "GSK.L", "AZN.L", "VOD.L"]
+    }
+  },
+  "chat": {
+    "welcome_messages": {
+      "PK": "As-salamu alaykum! I am your KSE AI Stock Advisor. Ask me about technical patterns, targets, or specific PSX stocks.",
+      "US": "Hello! I am your US Stocks AI Advisor. Ask me about technical patterns, targets, or specific NYSE/NASDAQ stocks.",
+      "IN": "Namaste! I am your NSE India AI Stock Advisor. Ask me about technical patterns, targets, or specific Indian stocks.",
+      "UK": "Hello! I am your UK Stocks AI Advisor. Ask me about technical patterns, targets, or specific London Stock Exchange (LSE) stocks."
+    },
+    "suggestion_chips": {
+      "PK": [
+        {"label": "Analyze MARI", "query": "Can you do a full analysis of MARI and explain target levels?"},
+        {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+        {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading PSX?"},
+        {"label": "Top Defensive Stocks", "query": "Which stocks in the PSX coverage are considered the best defensive/dividend stocks?"}
+      ],
+      "US": [
+        {"label": "Analyze AAPL", "query": "Can you do a full analysis of AAPL and explain target levels?"},
+        {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+        {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading US markets?"},
+        {"label": "Top Defensive Stocks", "query": "Which stocks in the US markets coverage are considered the best defensive/dividend stocks?"}
+      ],
+      "IN": [
+        {"label": "Analyze RELIANCE.NS", "query": "Can you do a full analysis of RELIANCE.NS and explain target levels?"},
+        {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+        {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading NSE?"},
+        {"label": "Top Defensive Stocks", "query": "Which stocks in the NSE coverage are considered the best defensive/dividend stocks?"}
+      ],
+      "UK": [
+        {"label": "Analyze BP.L", "query": "Can you do a full analysis of BP.L and explain target levels?"},
+        {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+        {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading LSE?"},
+        {"label": "Top Defensive Stocks", "query": "Which stocks in the LSE coverage are considered the best defensive/dividend stocks?"}
+      ]
+    }
+  }
+};
+
 export default function App() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [selectedTicker, setSelectedTicker] = useState('MARI');
   const [market, setMarket] = useState('PK');
+  const [config, setConfig] = useState(DEFAULT_CONFIG);
   
   // Simulated initial portfolio for standard demo (adds visual weight immediately)
   const [portfolio, setPortfolio] = useState([
@@ -20,13 +89,12 @@ export default function App() {
     { ticker: 'FFC', quantity: 300, avgPrice: 138.0 }
   ]);
 
-  // Synchronize default selected stock when the global market changes
+  // Synchronize default selected stock when the global market or config changes
   useEffect(() => {
-    if (market === 'PK') setSelectedTicker('MARI');
-    else if (market === 'US') setSelectedTicker('AAPL');
-    else if (market === 'IN') setSelectedTicker('RELIANCE.NS');
-    else if (market === 'UK') setSelectedTicker('BP.L');
-  }, [market]);
+    const marketConfig = (config && config.markets && config.markets[market]) || DEFAULT_CONFIG.markets[market] || {};
+    const defaultTicker = marketConfig.defaultTicker || 'MARI';
+    setSelectedTicker(defaultTicker);
+  }, [market, config]);
 
   // API Connection config & state
   const [apiUrl, setApiUrl] = useState('https://ai-stock-advisor-sp9b.onrender.com');
@@ -41,6 +109,7 @@ export default function App() {
     setApiUrl(defaultUrl);
     setInputUrl(defaultUrl);
     testConnection(defaultUrl);
+    fetchConfig(defaultUrl);
   }, []);
 
   const testConnection = async (url) => {
@@ -67,10 +136,24 @@ export default function App() {
     }
   };
 
+  const fetchConfig = async (url) => {
+    try {
+      const res = await fetch(`${url}/api/config`);
+      if (res.ok) {
+        const data = await res.json();
+        setConfig(data);
+        console.log("[App] Configuration loaded from server successfully.");
+      }
+    } catch (e) {
+      console.warn("Failed to load server configuration, using local fallback cache.", e);
+    }
+  };
+
   const handleSaveApiUrl = () => {
     const formattedUrl = inputUrl.trim().replace(/\/$/, "");
     setApiUrl(formattedUrl);
     testConnection(formattedUrl);
+    fetchConfig(formattedUrl);
     setConfigModalVisible(false);
   };
 
@@ -84,6 +167,7 @@ export default function App() {
             apiUrl={apiUrl}
             market={market}
             setMarket={setMarket}
+            config={config}
           />
         );
       case 'chat':
@@ -93,6 +177,7 @@ export default function App() {
             portfolio={portfolio}
             apiUrl={apiUrl}
             market={market}
+            config={config}
           />
         );
       case 'portfolio':
@@ -109,10 +194,11 @@ export default function App() {
   };
 
   const getHeaderInfo = () => {
-    if (market === 'PK') return { title: 'MultiInvest AI', subtitle: 'Pakistan Stock Exchange (PSX)' };
-    if (market === 'US') return { title: 'MultiInvest AI', subtitle: 'US Stock Markets (NYSE/NASDAQ)' };
-    if (market === 'IN') return { title: 'MultiInvest AI', subtitle: 'National Stock Exchange of India (NSE)' };
-    return { title: 'MultiInvest AI', subtitle: 'London Stock Exchange (LSE)' };
+    const marketConfig = (config && config.markets && config.markets[market]) || DEFAULT_CONFIG.markets[market] || {};
+    return {
+      title: marketConfig.title || 'MultiInvest AI',
+      subtitle: marketConfig.subtitle || ''
+    };
   };
 
   const headerInfo = getHeaderInfo();

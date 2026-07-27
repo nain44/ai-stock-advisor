@@ -5,14 +5,12 @@ import { TrendingUp, TrendingDown, ShieldAlert, Award, Compass, RefreshCw, BarCh
 
 const { width } = Dimensions.get('window');
 
-const getCurrencySymbol = (m) => {
-  if (m === 'US') return '$';
-  if (m === 'IN') return '₹';
-  if (m === 'UK') return '£';
-  return 'Rs.';
-};
+export default function DashboardScreen({ selectedTicker, setSelectedTicker, apiUrl, market, setMarket, config }) {
+  const getCurrencySymbol = (m) => {
+    const marketConfig = (config && config.markets && config.markets[m]) || {};
+    return marketConfig.currency || (m === 'US' ? '$' : m === 'IN' ? '₹' : m === 'UK' ? '£' : 'Rs.');
+  };
 
-export default function DashboardScreen({ selectedTicker, setSelectedTicker, apiUrl, market, setMarket }) {
   const [stocks, setStocks] = useState([]);
   const [analysis, setAnalysis] = useState(null);
   const [historical, setHistorical] = useState([]);
@@ -32,6 +30,17 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   const [usWatchlist, setUsWatchlist] = useState(['AAPL', 'MSFT', 'TSLA', 'NVDA', 'AMZN']);
   const [inWatchlist, setInWatchlist] = useState(['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS']);
   const [ukWatchlist, setUkWatchlist] = useState(['BP.L', 'HSBA.L', 'GSK.L', 'AZN.L', 'VOD.L']);
+
+  // Sync watchlists dynamically from server-driven configuration
+  useEffect(() => {
+    if (config && config.markets) {
+      if (config.markets.PK && config.markets.PK.watchlist) setPkWatchlist(config.markets.PK.watchlist);
+      if (config.markets.US && config.markets.US.watchlist) setUsWatchlist(config.markets.US.watchlist);
+      if (config.markets.IN && config.markets.IN.watchlist) setInWatchlist(config.markets.IN.watchlist);
+      if (config.markets.UK && config.markets.UK.watchlist) setUkWatchlist(config.markets.UK.watchlist);
+    }
+  }, [config]);
+
   // Derive watchlist dynamically based on the active market to avoid race conditions
   const watchlist = React.useMemo(() => {
     if (market === 'PK') return pkWatchlist;

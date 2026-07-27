@@ -2,8 +2,11 @@ import React, { useState, useRef } from 'react';
 import { StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Send, Sparkles, HelpCircle } from 'lucide-react-native';
 
-export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market = 'PK' }) {
+export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market = 'PK', config }) {
   const getWelcomeText = () => {
+    if (config && config.chat && config.chat.welcome_messages && config.chat.welcome_messages[market]) {
+      return config.chat.welcome_messages[market];
+    }
     if (market === 'PK') {
       return "As-salamu alaykum! I am your KSE AI Stock Advisor. Ask me about technical patterns, targets, or specific PSX stocks.";
     } else if (market === 'US') {
@@ -30,7 +33,12 @@ export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market
   const defaultTicker = market === 'PK' ? 'MARI' : market === 'US' ? 'AAPL' : market === 'IN' ? 'RELIANCE.NS' : 'BP.L';
   const marketLabel = market === 'PK' ? 'PSX' : market === 'US' ? 'US markets' : market === 'IN' ? 'NSE' : 'LSE';
 
-  const suggestionChips = [
+  const suggestionChips = (config && config.chat && config.chat.suggestion_chips && config.chat.suggestion_chips[market])?.map(chip => {
+    const queryTicker = selectedTicker || defaultTicker;
+    const resolvedLabel = chip.label.replace('MARI', queryTicker).replace('AAPL', queryTicker).replace('RELIANCE.NS', queryTicker).replace('BP.L', queryTicker);
+    const resolvedQuery = chip.query.replace('MARI', queryTicker).replace('AAPL', queryTicker).replace('RELIANCE.NS', queryTicker).replace('BP.L', queryTicker);
+    return { label: resolvedLabel, query: resolvedQuery };
+  }) || [
     { label: `Analyze ${selectedTicker || defaultTicker}`, query: `Can you do a full analysis of ${selectedTicker || defaultTicker} and explain target levels?` },
     { label: 'Check Portfolio Stance', query: 'Based on my simulated portfolio holdings, what changes do you recommend?' },
     { label: `Explain RSI and MACD`, query: `What are RSI and MACD, and how should I use them for trading ${marketLabel}?` },
