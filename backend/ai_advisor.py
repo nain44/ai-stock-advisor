@@ -576,11 +576,20 @@ def get_portfolio_recommendation(portfolio_summary: dict, market: str = "PK") ->
         "rebalancing_actions": actions
     }
 
-def query_chat_advisor(query: str, ticker_context: str = None, portfolio: list = None) -> str:
+def query_chat_advisor(query: str, ticker_context: str = None, portfolio: list = None, market: str = "PK") -> str:
     """
     Main entry point for chat queries.
     Uses LLM client if configured, otherwise falls back to rule-based parser.
     """
+    market_upper = (market or "PK").upper()
+    market_name = "Pakistan Stock Exchange (PSX)"
+    if market_upper == "US":
+        market_name = "US Stock Markets (NYSE/NASDAQ)"
+    elif market_upper == "IN":
+        market_name = "National Stock Exchange of India (NSE)"
+    elif market_upper == "UK":
+        market_name = "London Stock Exchange (LSE)"
+
     # Try Gemini Chat
     if has_gemini:
         try:
@@ -588,12 +597,12 @@ def query_chat_advisor(query: str, ticker_context: str = None, portfolio: list =
             model = genai.GenerativeModel("gemini-1.5-flash")
             
             # Enrich prompt with context
-            context = f"Context: User is analyzing stock: {ticker_context}. " if ticker_context else ""
+            context = f"Context: User is analyzing stock: {ticker_context} in the {market_upper} market. " if ticker_context else ""
             if portfolio:
                 context += f"User's current simulated portfolio: {json.dumps(portfolio)}. "
                 
             prompt = (
-                f"You are a professional financial advisor for the Pakistan Stock Exchange (PSX).\n"
+                f"You are a professional financial advisor for {market_name}.\n"
                 f"{context}\n"
                 f"User asks: '{query}'\n\n"
                 f"Provide a clear, detailed, professional answer in markdown. Mention tickers, numbers, "
@@ -607,14 +616,14 @@ def query_chat_advisor(query: str, ticker_context: str = None, portfolio: list =
     # Try OpenAI Chat
     if has_openai:
         try:
-            context = f"Context: User is analyzing stock: {ticker_context}. " if ticker_context else ""
+            context = f"Context: User is analyzing stock: {ticker_context} in the {market_upper} market. " if ticker_context else ""
             if portfolio:
                 context += f"User's current simulated portfolio: {json.dumps(portfolio)}. "
                 
             response = openai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are a professional financial advisor for the Pakistan Stock Exchange (PSX). Provide detailed, structured, markdown responses."},
+                    {"role": "system", "content": f"You are a professional financial advisor for {market_name}. Provide detailed, structured, markdown responses."},
                     {"role": "user", "content": f"{context}User asks: {query}"}
                 ]
             )
