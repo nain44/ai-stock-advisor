@@ -758,4 +758,4 @@ def query_chat_advisor(query: str, ticker_context: str = None, portfolio: list =
             print(f"OpenAI chat failed, falling back: {e}")
             
     # Fallback to rules simulator
-    return generate_simulator_chat_response(query, portfolio)
+    return generate_simulator_chat_response(query, portfolio, market)

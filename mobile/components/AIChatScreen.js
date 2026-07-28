@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { Send, Sparkles, HelpCircle } from 'lucide-react-native';
 
 export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market = 'PK', config }) {
@@ -106,7 +106,11 @@ export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
       {/* Active Context Header */}
       <View style={styles.contextHeader}>
         <Sparkles size={16} color="#00D2FF" style={{ marginRight: 8 }} />
@@ -182,7 +186,7 @@ export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market
           <Send size={18} color="#0B0F19" />
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
