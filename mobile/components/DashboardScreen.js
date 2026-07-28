@@ -5,7 +5,7 @@ import { TrendingUp, TrendingDown, ShieldAlert, Award, Compass, RefreshCw, BarCh
 
 const { width } = Dimensions.get('window');
 
-export default function DashboardScreen({ selectedTicker, setSelectedTicker, apiUrl, market, setMarket, config }) {
+export default function DashboardScreen({ selectedTicker, setSelectedTicker, apiUrl, market, setMarket, config, refreshTrigger }) {
   const getCurrencySymbol = (m) => {
     const marketConfig = (config && config.markets && config.markets[m]) || {};
     return marketConfig.currency || (m === 'US' ? '$' : m === 'IN' ? '₹' : m === 'UK' ? '£' : 'Rs.');
@@ -56,10 +56,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   const [macroData, setMacroData] = useState(null);
   const [loadingMacro, setLoadingMacro] = useState(false);
 
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const handleManualRefresh = () => {
-    setRefreshTrigger(prev => prev + 1);
-  };
+  // refreshTrigger is consumed dynamically as a prop from the global App header
 
   // Fetch Commodities & Forex exchange rates dynamically when the market changes
   useEffect(() => {
@@ -440,33 +437,23 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
           </View>
         </View>
         
-        {/* Toggle selector with Refresh */}
-        <View style={styles.switcherAndRefreshRow}>
-          <TouchableOpacity 
-            style={styles.refreshIconButton}
-            onPress={handleManualRefresh}
-            activeOpacity={0.7}
-          >
-            <RefreshCw size={13} color="#94A3B8" />
-          </TouchableOpacity>
-          
-          <View style={styles.marketSwitcher}>
-            {['PK', 'US', 'IN', 'UK'].map((m) => {
-              const flag = m === 'PK' ? '🇵🇰' : m === 'US' ? '🇺🇸' : m === 'IN' ? '🇮🇳' : '🇬🇧';
-              return (
-                <TouchableOpacity 
-                  key={m}
-                  style={[styles.switcherBtn, market === m && styles.switcherBtnActive]}
-                  onPress={() => {
-                    setMarket(m);
-                    setSelectedTicker(null);
-                  }}
-                >
-                  <Text style={[styles.switcherText, market === m && styles.switcherTextActive]}>{flag} {m}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+        {/* Toggle selector */}
+        <View style={styles.marketSwitcher}>
+          {['PK', 'US', 'IN', 'UK'].map((m) => {
+            const flag = m === 'PK' ? '🇵🇰' : m === 'US' ? '🇺🇸' : m === 'IN' ? '🇮🇳' : '🇬🇧';
+            return (
+              <TouchableOpacity 
+                key={m}
+                style={[styles.switcherBtn, market === m && styles.switcherBtnActive]}
+                onPress={() => {
+                  setMarket(m);
+                  setSelectedTicker(null);
+                }}
+              >
+                <Text style={[styles.switcherText, market === m && styles.switcherTextActive]}>{flag} {m}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 

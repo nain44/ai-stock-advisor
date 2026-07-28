@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, StatusBar, Modal, TextInput, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, StatusBar, Modal, TextInput, Platform, Animated, Easing } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Home, MessageSquare, Briefcase, Wifi, WifiOff, Settings, AlertCircle, RefreshCw } from 'lucide-react-native';
 
@@ -81,6 +81,26 @@ export default function App() {
   const [selectedTicker, setSelectedTicker] = useState('MARI');
   const [market, setMarket] = useState('PK');
   const [config, setConfig] = useState(DEFAULT_CONFIG);
+  
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const spinValue = useRef(new Animated.Value(0)).current;
+
+  const handleManualRefresh = () => {
+    spinValue.setValue(0);
+    Animated.timing(spinValue, {
+      toValue: 1,
+      duration: 600,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg']
+  });
   
   // Simulated initial portfolio for standard demo (adds visual weight immediately)
   const [portfolio, setPortfolio] = useState([
@@ -168,6 +188,7 @@ export default function App() {
             market={market}
             setMarket={setMarket}
             config={config}
+            refreshTrigger={refreshTrigger}
           />
         );
       case 'chat':
@@ -216,29 +237,42 @@ export default function App() {
           </View>
         </View>
 
-        {/* API connection trigger badge */}
-        <TouchableOpacity 
-          style={[styles.connectionBadge, styles[`status_${connectionStatus}`]]}
-          onPress={() => {
-            setInputUrl(apiUrl);
-            setConfigModalVisible(true);
-          }}
-        >
-          {connectionStatus === 'connected' ? (
-            <Wifi size={14} color="#34D399" />
-          ) : connectionStatus === 'connecting' ? (
-            <RefreshCw size={14} color="#FBBF24" style={styles.spinAnimation} />
-          ) : (
-            <WifiOff size={14} color="#F87171" />
-          )}
-          <Text style={[styles.connectionText, { 
-            color: connectionStatus === 'connected' ? '#34D399' : 
-                   connectionStatus === 'connecting' ? '#FBBF24' : '#F87171' 
-          }]}>
-            {connectionStatus === 'connected' ? 'Live API' : 
-             connectionStatus === 'connecting' ? 'Connecting' : 'Offline'}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.headerRightContainer}>
+          {/* Animated manual refresh button */}
+          <TouchableOpacity 
+            style={styles.refreshHeaderBtn}
+            onPress={handleManualRefresh}
+            activeOpacity={0.7}
+          >
+            <Animated.View style={{ transform: [{ rotate: spin }] }}>
+              <RefreshCw size={14} color="#94A3B8" />
+            </Animated.View>
+          </TouchableOpacity>
+
+          {/* API connection trigger badge */}
+          <TouchableOpacity 
+            style={[styles.connectionBadge, styles[`status_${connectionStatus}`]]}
+            onPress={() => {
+              setInputUrl(apiUrl);
+              setConfigModalVisible(true);
+            }}
+          >
+            {connectionStatus === 'connected' ? (
+              <Wifi size={14} color="#34D399" />
+            ) : connectionStatus === 'connecting' ? (
+              <RefreshCw size={14} color="#FBBF24" style={styles.spinAnimation} />
+            ) : (
+              <WifiOff size={14} color="#F87171" />
+            )}
+            <Text style={[styles.connectionText, { 
+              color: connectionStatus === 'connected' ? '#34D399' : 
+                     connectionStatus === 'connecting' ? '#FBBF24' : '#F87171' 
+            }]}>
+              {connectionStatus === 'connected' ? 'Live API' : 
+               connectionStatus === 'connecting' ? 'Connecting' : 'Offline'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Main Screen Content */}
@@ -543,5 +577,20 @@ const styles = StyleSheet.create({
   },
   spinAnimation: {
     // Note: CSS-based animation is simplified in React Native
-  }
+  },
+  headerRightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  refreshHeaderBtn: {
+    backgroundColor: '#1E293B',
+    borderRadius: 8,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
 });
