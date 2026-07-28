@@ -125,13 +125,13 @@ def get_macro_indicators(market: str = "PK"):
         
         if market == "PK":
             if name == "Gold":
-                tola_price = (price_usd / 31.1034768) * 11.6638 * usd_pkr
+                tola_price = (price_usd / 31.1034768) * 11.6638 * usd_pkr * 1.018
                 item["localized"] = {
                     "label": "Gold per Tola",
                     "price": f"Rs. {round(tola_price, -2):,.0f}"
                 }
             elif name == "Silver":
-                tola_price = (price_usd / 31.1034768) * 11.6638 * usd_pkr
+                tola_price = (price_usd / 31.1034768) * 11.6638 * usd_pkr * 1.018
                 item["localized"] = {
                     "label": "Silver per Tola",
                     "price": f"Rs. {round(tola_price, -1):,.0f}"
@@ -144,13 +144,13 @@ def get_macro_indicators(market: str = "PK"):
                 }
         elif market == "IN":
             if name == "Gold":
-                tola_price = (price_usd / 31.1034768) * 11.6638 * usd_inr
+                tola_price = (price_usd / 31.1034768) * 11.6638 * usd_inr * 1.015
                 item["localized"] = {
                     "label": "Gold per Tola",
                     "price": f"₹{round(tola_price, -1):,.0f}"
                 }
             elif name == "Silver":
-                tola_price = (price_usd / 31.1034768) * 11.6638 * usd_inr
+                tola_price = (price_usd / 31.1034768) * 11.6638 * usd_inr * 1.015
                 item["localized"] = {
                     "label": "Silver per Tola",
                     "price": f"₹{round(tola_price, -1):,.0f}"
