@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, StatusBar, Modal, TextInput, Platform, Animated, Easing } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Home, MessageSquare, Briefcase, Wifi, WifiOff, Settings, AlertCircle, RefreshCw } from 'lucide-react-native';
 
@@ -103,11 +104,46 @@ export default function App() {
   });
   
   // Simulated initial portfolio for standard demo (adds visual weight immediately)
-  const [portfolio, setPortfolio] = useState([
-    { ticker: 'MARI', quantity: 50, avgPrice: 695.5 },
-    { ticker: 'SYS', quantity: 120, avgPrice: 412.0 },
-    { ticker: 'FFC', quantity: 300, avgPrice: 138.0 }
-  ]);
+  const [portfolio, setPortfolio] = useState([]);
+  const [isPortfolioLoaded, setIsPortfolioLoaded] = useState(false);
+
+  // Load portfolio from device persistent local storage on mount
+  useEffect(() => {
+    const loadPortfolio = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('@multistocks_portfolio');
+        if (stored) {
+          setPortfolio(JSON.parse(stored));
+        } else {
+          // Default initial simulated holdings for demo purposes
+          const defaultPortfolio = [
+            { ticker: 'MARI', quantity: 50, avgPrice: 695.5 },
+            { ticker: 'SYS', quantity: 120, avgPrice: 412.0 },
+            { ticker: 'FFC', quantity: 300, avgPrice: 138.0 }
+          ];
+          setPortfolio(defaultPortfolio);
+        }
+        setIsPortfolioLoaded(true);
+      } catch (e) {
+        console.warn("Failed to load portfolio from local storage", e);
+        setIsPortfolioLoaded(true);
+      }
+    };
+    loadPortfolio();
+  }, []);
+
+  // Save portfolio to local storage when changed
+  useEffect(() => {
+    if (!isPortfolioLoaded) return;
+    const savePortfolio = async () => {
+      try {
+        await AsyncStorage.setItem('@multistocks_portfolio', JSON.stringify(portfolio));
+      } catch (e) {
+        console.error("Failed to save portfolio to local storage", e);
+      }
+    };
+    savePortfolio();
+  }, [portfolio, isPortfolioLoaded]);
 
   // Synchronize default selected stock when the global market or config changes
   useEffect(() => {

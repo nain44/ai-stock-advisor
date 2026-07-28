@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { TrendingUp, TrendingDown, ShieldAlert, Award, Compass, RefreshCw, BarChart2, Trash2, Plus, Search } from 'lucide-react-native';
 
@@ -25,21 +26,80 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
 
-  // Dual watchlists for localized stock management
-  const [pkWatchlist, setPkWatchlist] = useState(['MARI', 'SYS', 'MEBL', 'HUBC', 'OGDC', 'UBL']);
-  const [usWatchlist, setUsWatchlist] = useState(['AAPL', 'MSFT', 'TSLA', 'NVDA', 'AMZN']);
-  const [inWatchlist, setInWatchlist] = useState(['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS']);
-  const [ukWatchlist, setUkWatchlist] = useState(['BP.L', 'HSBA.L', 'GSK.L', 'AZN.L', 'VOD.L']);
+  // Watchlists for localized stock management (persistent local states)
+  const [pkWatchlist, setPkWatchlist] = useState([]);
+  const [usWatchlist, setUsWatchlist] = useState([]);
+  const [inWatchlist, setInWatchlist] = useState([]);
+  const [ukWatchlist, setUkWatchlist] = useState([]);
+  const [isWatchlistLoaded, setIsWatchlistLoaded] = useState(false);
 
-  // Sync watchlists dynamically from server-driven configuration
+  // 1. Load watchlists from AsyncStorage on mount
   useEffect(() => {
-    if (config && config.markets) {
-      if (config.markets.PK && config.markets.PK.watchlist) setPkWatchlist(config.markets.PK.watchlist);
-      if (config.markets.US && config.markets.US.watchlist) setUsWatchlist(config.markets.US.watchlist);
-      if (config.markets.IN && config.markets.IN.watchlist) setInWatchlist(config.markets.IN.watchlist);
-      if (config.markets.UK && config.markets.UK.watchlist) setUkWatchlist(config.markets.UK.watchlist);
-    }
-  }, [config]);
+    const loadWatchlists = async () => {
+      try {
+        const pkStored = await AsyncStorage.getItem('@multistocks_watchlist_pk');
+        const usStored = await AsyncStorage.getItem('@multistocks_watchlist_us');
+        const inStored = await AsyncStorage.getItem('@multistocks_watchlist_in');
+        const ukStored = await AsyncStorage.getItem('@multistocks_watchlist_uk');
+
+        if (pkStored) setPkWatchlist(JSON.parse(pkStored));
+        if (usStored) setUsWatchlist(JSON.parse(usStored));
+        if (inStored) setInWatchlist(JSON.parse(inStored));
+        if (ukStored) setUkWatchlist(JSON.parse(ukStored));
+        
+        setIsWatchlistLoaded(true);
+      } catch (e) {
+        console.warn("Failed to load watchlists from local storage", e);
+        setIsWatchlistLoaded(true);
+      }
+    };
+    loadWatchlists();
+  }, []);
+
+  // 2. Sync default watchlists from backend config ONLY if there are no existing local storage records
+  useEffect(() => {
+    if (!isWatchlistLoaded) return;
+
+    const checkAndSyncDefaults = async () => {
+      try {
+        const pkStored = await AsyncStorage.getItem('@multistocks_watchlist_pk');
+        const usStored = await AsyncStorage.getItem('@multistocks_watchlist_us');
+        const inStored = await AsyncStorage.getItem('@multistocks_watchlist_in');
+        const ukStored = await AsyncStorage.getItem('@multistocks_watchlist_uk');
+
+        if (config && config.markets) {
+          if (!pkStored && config.markets.PK && config.markets.PK.watchlist) setPkWatchlist(config.markets.PK.watchlist);
+          if (!usStored && config.markets.US && config.markets.US.watchlist) setUsWatchlist(config.markets.US.watchlist);
+          if (!inStored && config.markets.IN && config.markets.IN.watchlist) setInWatchlist(config.markets.IN.watchlist);
+          if (!ukStored && config.markets.UK && config.markets.UK.watchlist) setUkWatchlist(config.markets.UK.watchlist);
+        }
+      } catch (e) {
+        console.error("Error checking defaults during sync", e);
+      }
+    };
+    checkAndSyncDefaults();
+  }, [config, isWatchlistLoaded]);
+
+  // 3. Save watchlists on updates
+  useEffect(() => {
+    if (!isWatchlistLoaded) return;
+    AsyncStorage.setItem('@multistocks_watchlist_pk', JSON.stringify(pkWatchlist)).catch(e => console.error(e));
+  }, [pkWatchlist, isWatchlistLoaded]);
+
+  useEffect(() => {
+    if (!isWatchlistLoaded) return;
+    AsyncStorage.setItem('@multistocks_watchlist_us', JSON.stringify(usWatchlist)).catch(e => console.error(e));
+  }, [usWatchlist, isWatchlistLoaded]);
+
+  useEffect(() => {
+    if (!isWatchlistLoaded) return;
+    AsyncStorage.setItem('@multistocks_watchlist_in', JSON.stringify(inWatchlist)).catch(e => console.error(e));
+  }, [inWatchlist, isWatchlistLoaded]);
+
+  useEffect(() => {
+    if (!isWatchlistLoaded) return;
+    AsyncStorage.setItem('@multistocks_watchlist_uk', JSON.stringify(ukWatchlist)).catch(e => console.error(e));
+  }, [ukWatchlist, isWatchlistLoaded]);
 
   // Derive watchlist dynamically based on the active market to avoid race conditions
   const watchlist = React.useMemo(() => {
