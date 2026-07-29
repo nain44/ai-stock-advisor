@@ -26,6 +26,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   const [sectorModalVisible, setSectorModalVisible] = useState(false);
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [activeModalStock, setActiveModalStock] = useState(null);
 
   // Watchlists for localized stock management (persistent local states)
   const [pkWatchlist, setPkWatchlist] = useState([]);
@@ -220,6 +221,9 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   useEffect(() => {
     if (!selectedTicker) return;
     
+    // Clear previous analysis to prevent showing stale stock data while loading
+    setAnalysis(null);
+    
     let ignore = false;
     
     const fetchAnalysis = async (ticker) => {
@@ -258,6 +262,9 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   // Fetch history when selectedTicker, timeframe, or market changes (with race condition handling)
   useEffect(() => {
     if (!selectedTicker) return;
+
+    // Clear previous historical data to prevent showing stale charts while loading
+    setHistorical([]);
 
     let ignore = false;
     let days = 30;
@@ -624,6 +631,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                   style={[styles.stockRow, isSelected && styles.selectedStockRow]}
                   onPress={() => {
                     setSelectedTicker(stock.ticker);
+                    setActiveModalStock(stock);
                     setDetailModalVisible(true);
                   }}
                 >
@@ -706,7 +714,10 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
         visible={detailModalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setDetailModalVisible(false)}
+        onRequestClose={() => {
+          setDetailModalVisible(false);
+          setActiveModalStock(null);
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -716,11 +727,14 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
             {/* Modal Header */}
             <View style={styles.modalHeaderRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.modalStockTicker}>{selectedStockObj.ticker}</Text>
-                <Text style={styles.modalStockName} numberOfLines={1}>{selectedStockObj.name}</Text>
+                <Text style={styles.modalStockTicker}>{(activeModalStock || selectedStockObj).ticker}</Text>
+                <Text style={styles.modalStockName} numberOfLines={1}>{(activeModalStock || selectedStockObj).name}</Text>
               </View>
               <TouchableOpacity
-                onPress={() => setDetailModalVisible(false)}
+                onPress={() => {
+                  setDetailModalVisible(false);
+                  setActiveModalStock(null);
+                }}
                 style={styles.closeModalBtn}
               >
                 <Text style={styles.closeModalText}>✕ Close</Text>
@@ -739,8 +753,8 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                   {/* Header Info */}
                   <View style={styles.headerInfo}>
                     <View>
-                      <Text style={styles.companyName}>{analysis.profile?.name || selectedStockObj.name}</Text>
-                      <Text style={styles.sectorText}>{analysis.profile?.sector || selectedStockObj.sector}</Text>
+                      <Text style={styles.companyName}>{analysis?.profile?.name || (activeModalStock || selectedStockObj).name}</Text>
+                      <Text style={styles.sectorText}>{analysis?.profile?.sector || (activeModalStock || selectedStockObj).sector}</Text>
                     </View>
                     <View style={styles.priceContainer}>
                       <Text style={styles.mainPrice}>
