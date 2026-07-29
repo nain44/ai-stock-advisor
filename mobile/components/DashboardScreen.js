@@ -32,6 +32,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   const [watchlists, setWatchlists] = useState({});
   const [isWatchlistLoaded, setIsWatchlistLoaded] = useState(false);
   const [countryModalVisible, setCountryModalVisible] = useState(false);
+  const [countrySearchQuery, setCountrySearchQuery] = useState('');
 
   // 1. Load watchlists from AsyncStorage on mount
   useEffect(() => {
@@ -668,7 +669,10 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
         visible={countryModalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setCountryModalVisible(false)}
+        onRequestClose={() => {
+          setCountryModalVisible(false);
+          setCountrySearchQuery('');
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.countryModalContent}>
@@ -678,50 +682,87 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
             {/* Modal Header */}
             <View style={styles.countryModalHeader}>
               <Text style={styles.countryModalTitle}>Select Market / Region</Text>
-              <TouchableOpacity onPress={() => setCountryModalVisible(false)}>
+              <TouchableOpacity onPress={() => {
+                setCountryModalVisible(false);
+                setCountrySearchQuery('');
+              }}>
                 <Text style={styles.closeCountryText}>Done</Text>
               </TouchableOpacity>
             </View>
 
+            {/* Country Search Input */}
+            <View style={styles.countrySearchContainer}>
+              <Search size={14} color="#64748B" style={styles.countrySearchIcon} />
+              <TextInput
+                style={styles.countrySearchInput}
+                placeholder="Search country, code or currency..."
+                placeholderTextColor="#64748B"
+                value={countrySearchQuery}
+                onChangeText={setCountrySearchQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
             {/* Scrollable List of Countries */}
             <ScrollView style={styles.countryScroll}>
-              {Object.keys(config?.markets || {})
-                .sort((a, b) => {
-                  const markets = config?.markets || {};
-                  const nameA = (markets[a]?.name || a).toUpperCase();
-                  const nameB = (markets[b]?.name || b).toUpperCase();
-                  return nameA.localeCompare(nameB);
-                })
-                .map((key) => {
-                  const item = (config?.markets || {})[key] || {};
-                const flag = item.flag || '🌐';
-                const countryName = item.name || key;
-                const isSelected = key === market;
-                return (
-                  <TouchableOpacity
-                    key={key}
-                    style={[styles.countryItem, isSelected && styles.selectedCountryItem]}
-                    onPress={() => {
-                      setMarket(key);
-                      setSelectedTicker(null);
-                      setCountryModalVisible(false);
-                    }}
-                  >
-                    <Text style={styles.countryItemFlag}>{flag}</Text>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={[styles.countryItemName, isSelected && styles.selectedCountryItemText]}>
-                        {countryName} ({key})
-                      </Text>
-                      <Text style={styles.countryItemSub} numberOfLines={1}>{item.subtitle || ''}</Text>
+              {(() => {
+                const filtered = Object.keys(config?.markets || {})
+                  .filter((key) => {
+                    const item = (config?.markets || {})[key] || {};
+                    const name = (item.name || '').toLowerCase();
+                    const currency = (item.currency || '').toLowerCase();
+                    const code = key.toLowerCase();
+                    const query = countrySearchQuery.toLowerCase().trim();
+                    return name.includes(query) || currency.includes(query) || code.includes(query);
+                  })
+                  .sort((a, b) => {
+                    const markets = config?.markets || {};
+                    const nameA = (markets[a]?.name || a).toUpperCase();
+                    const nameB = (markets[b]?.name || b).toUpperCase();
+                    return nameA.localeCompare(nameB);
+                  });
+
+                if (filtered.length === 0) {
+                  return (
+                    <View style={styles.noCountryContainer}>
+                      <Text style={styles.noCountryText}>No matching regions found.</Text>
                     </View>
-                    {isSelected && (
-                      <View style={styles.selectedCheck}>
-                        <Text style={{ color: '#00D2FF', fontWeight: 'bold', fontSize: 14 }}>✓</Text>
+                  );
+                }
+
+                return filtered.map((key) => {
+                  const item = (config?.markets || {})[key] || {};
+                  const flag = item.flag || '🌐';
+                  const countryName = item.name || key;
+                  const isSelected = key === market;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      style={[styles.countryItem, isSelected && styles.selectedCountryItem]}
+                      onPress={() => {
+                        setMarket(key);
+                        setSelectedTicker(null);
+                        setCountryModalVisible(false);
+                        setCountrySearchQuery('');
+                      }}
+                    >
+                      <Text style={styles.countryItemFlag}>{flag}</Text>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={[styles.countryItemName, isSelected && styles.selectedCountryItemText]}>
+                          {countryName} ({key})
+                        </Text>
+                        <Text style={styles.countryItemSub} numberOfLines={1}>{item.subtitle || ''}</Text>
                       </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
+                      {isSelected && (
+                        <View style={styles.selectedCheck}>
+                          <Text style={{ color: '#00D2FF', fontWeight: 'bold', fontSize: 14 }}>✓</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                });
+              })()}
             </ScrollView>
           </View>
         </View>
@@ -1906,5 +1947,37 @@ const styles = StyleSheet.create({
     marginRight: 8,
     borderWidth: 1,
     borderColor: '#334155',
+  },
+  countrySearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0B0F19',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    paddingHorizontal: 12,
+    height: 40,
+    marginBottom: 12,
+    width: '100%',
+  },
+  countrySearchIcon: {
+    marginRight: 8,
+  },
+  countrySearchInput: {
+    flex: 1,
+    color: '#F8FAFC',
+    fontSize: 13,
+    height: '100%',
+    paddingVertical: 4,
+    backgroundColor: 'transparent',
+  },
+  noCountryContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noCountryText: {
+    color: '#64748B',
+    fontSize: 13,
   },
 });

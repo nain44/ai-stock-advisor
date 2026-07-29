@@ -266,6 +266,7 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [selectedTicker, setSelectedTicker] = useState('MARI');
   const [market, setMarket] = useState('PK');
+  const [isMarketLoaded, setIsMarketLoaded] = useState(false);
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -287,6 +288,46 @@ export default function App() {
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg']
   });
+
+  // Load/detect market region on startup
+  useEffect(() => {
+    const initializeMarket = async () => {
+      try {
+        const storedMarket = await AsyncStorage.getItem('@multistocks_market');
+        if (storedMarket && DEFAULT_CONFIG.markets[storedMarket]) {
+          setMarket(storedMarket);
+          setIsMarketLoaded(true);
+        } else {
+          // If no manually selected market is saved, auto-detect location via IP
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          
+          const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
+          clearTimeout(timeoutId);
+          
+          if (res.ok) {
+            const data = await res.json();
+            const countryCode = data.country_code?.toUpperCase();
+            if (countryCode && DEFAULT_CONFIG.markets[countryCode]) {
+              setMarket(countryCode);
+              console.log(`[App] Auto-detected country on startup: ${countryCode}`);
+            }
+          }
+          setIsMarketLoaded(true);
+        }
+      } catch (e) {
+        console.warn("Failed to load or auto-detect market on mount:", e);
+        setIsMarketLoaded(true); // fall back to PK default
+      }
+    };
+    initializeMarket();
+  }, []);
+
+  // Save market to persistent storage on changes
+  useEffect(() => {
+    if (!isMarketLoaded) return;
+    AsyncStorage.setItem('@multistocks_market', market).catch(e => console.error(e));
+  }, [market, isMarketLoaded]);
   
   // Simulated initial portfolio for standard demo (adds visual weight immediately)
   const [portfolio, setPortfolio] = useState([]);
