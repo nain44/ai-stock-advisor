@@ -15,6 +15,15 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
     return marketConfig.currency || (m === 'US' ? '$' : m === 'IN' ? '₹' : m === 'UK' ? '£' : 'Rs.');
   };
 
+  const getSuggestions = () => {
+    const marketConfig = (config && config.markets && config.markets[market]) || {};
+    const watchlist = marketConfig.watchlist || [];
+    if (watchlist.length > 0) {
+      return watchlist.slice(0, 2).join(', ');
+    }
+    return market === 'US' ? 'AAPL, MSFT' : 'MARI, SYS';
+  };
+
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -393,23 +402,23 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
                   <View style={styles.gridCol}>
                     <Text style={styles.gridLabel}>Qty / Avg Buy</Text>
                     <Text style={styles.gridVal}>
-                      {holding.quantity} @ {getCurrencySymbol(portfolioMarket)}{holding.avgPrice.toFixed(1)}
+                      {holding.quantity} @ {getCurrencySymbol(market)}{holding.avgPrice.toFixed(1)}
                     </Text>
                   </View>
                   <View style={styles.gridCol}>
                     <Text style={styles.gridLabel}>Live Price</Text>
-                    <Text style={styles.gridVal}>{getCurrencySymbol(portfolioMarket)} {livePrice.toLocaleString()}</Text>
+                    <Text style={styles.gridVal}>{getCurrencySymbol(market)} {livePrice.toLocaleString()}</Text>
                   </View>
                   <View style={styles.gridCol}>
                     <Text style={styles.gridLabel}>Current Value</Text>
-                    <Text style={styles.gridVal}>{getCurrencySymbol(portfolioMarket)} {currentVal.toLocaleString()}</Text>
+                    <Text style={styles.gridVal}>{getCurrencySymbol(market)} {currentVal.toLocaleString()}</Text>
                   </View>
                 </View>
 
                 <View style={styles.holdingFooter}>
                   <Text style={styles.footerPnLLabel}>Gain / Loss:</Text>
                   <Text style={[styles.footerPnLVal, { color: holdingPnL >= 0 ? '#34D399' : '#F87171' }]}>
-                    {holdingPnL >= 0 ? '+' : ''}{getCurrencySymbol(portfolioMarket)} {holdingPnL.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ({holdingPnLPercent.toFixed(2)}%)
+                    {holdingPnL >= 0 ? '+' : ''}{getCurrencySymbol(market)} {holdingPnL.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ({holdingPnLPercent.toFixed(2)}%)
                   </Text>
                 </View>
               </View>
@@ -435,7 +444,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Stock Ticker (e.g. {portfolioMarket === 'US' ? 'AAPL, MSFT' : portfolioMarket === 'IN' ? 'RELIANCE, TCS' : portfolioMarket === 'UK' ? 'BP, GSK' : 'MARI, SYS'})</Text>
+              <Text style={styles.inputLabel}>Stock Ticker (e.g. {getSuggestions()})</Text>
               <TextInput
                 style={styles.inputField}
                 placeholder="Enter stock ticker..."
