@@ -578,17 +578,13 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
               "Commercial Banks": "#06B6D4",
               "Oil & Gas Marketing": "#EC4899"
             };
-            const themeColor = emblemColors[stock.sector] || "#64748B";
+            const defaultColor = emblemColors[stock.sector] || "#64748B";
+            const emblemBg = stock.signal === 'BUY' ? '#10B981' : (stock.signal === 'SELL' ? '#EF4444' : defaultColor);
 
             return (
               <React.Fragment key={stock.ticker}>
                 <TouchableOpacity
-                  style={[
-                    styles.stockRow, 
-                    isSelected && styles.selectedStockRow,
-                    !isSelected && stock.signal === 'BUY' && { borderColor: '#10B981' },
-                    !isSelected && stock.signal === 'SELL' && { borderColor: '#EF4444' }
-                  ]}
+                  style={[styles.stockRow, isSelected && styles.selectedStockRow]}
                   onPress={() => {
                     setSelectedTicker(stock.ticker);
                     setActiveModalStock(stock);
@@ -597,7 +593,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                 >
                   {/* Left Emblem & Name */}
                   <View style={styles.stockLeft}>
-                    <View style={[styles.emblem, { backgroundColor: themeColor }]}>
+                    <View style={[styles.emblem, { backgroundColor: emblemBg }]}>
                       <Text style={styles.emblemText}>{initials}</Text>
                     </View>
                     <View style={styles.nameCol}>
