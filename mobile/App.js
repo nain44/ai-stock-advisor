@@ -442,7 +442,7 @@ export default function App() {
       <MockRewardedModal 
         visible={rewardedVisible} 
         onClose={() => setRewardedVisible(false)} 
-        onRewardEarned={() => setAiCredits(prev => prev + 5)}
+        onRewardEarned={() => setAiCredits(prev => prev + 3)}
       />
     </SafeAreaView>
   );

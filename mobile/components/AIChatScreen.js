@@ -52,7 +52,7 @@ export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market
     if (aiCredits <= 0) {
       Alert.alert(
         "Out of AI Credits",
-        "You have used all of your free AI prompts. Watch a short sponsor clip to get +5 credits!",
+        "You have used all of your free AI prompts. Watch a short sponsor clip to get +3 credits!",
         [
           { text: "Cancel", style: "cancel" },
           { text: "Watch Video Ad", onPress: triggerRewarded }

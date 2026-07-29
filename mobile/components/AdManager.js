@@ -148,7 +148,7 @@ export const MockRewardedModal = ({ visible, onClose, onRewardEarned }) => {
           <ActivityIndicator size="large" color="#00D2FF" style={{ marginVertical: 20 }} />
           <Text style={styles.rewardedTitle}>Watching Sponsor Promo...</Text>
           <Text style={styles.rewardedTimer}>Reward in: {countdown}s</Text>
-          <Text style={styles.rewardedInfo}>Do not close. Complete viewing to earn +5 AI Chat credits.</Text>
+          <Text style={styles.rewardedInfo}>Do not close. Complete viewing to earn +3 AI Chat credits.</Text>
         </View>
       </View>
     </Modal>
