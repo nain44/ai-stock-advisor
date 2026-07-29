@@ -103,6 +103,229 @@ UK_STOCK_INDEX = [
     {"ticker": "RIO.L", "name": "Rio Tinto Group", "sector": "Basic Materials"}
 ]
 
+CA_STOCK_INDEX = [
+    {"ticker": "RY.TO", "name": "Royal Bank of Canada", "sector": "Financial Services"},
+    {"ticker": "TD.TO", "name": "The Toronto-Dominion Bank", "sector": "Financial Services"},
+    {"ticker": "SHOP.TO", "name": "Shopify Inc.", "sector": "Technology"},
+    {"ticker": "ENB.TO", "name": "Enbridge Inc.", "sector": "Energy"},
+    {"ticker": "BNS.TO", "name": "The Bank of Nova Scotia", "sector": "Financial Services"},
+    {"ticker": "CNR.TO", "name": "Canadian National Railway Company", "sector": "Industrials"}
+]
+
+JP_STOCK_INDEX = [
+    {"ticker": "7203.T", "name": "Toyota Motor Corporation", "sector": "Automotive"},
+    {"ticker": "6758.T", "name": "Sony Group Corporation", "sector": "Consumer Electronics"},
+    {"ticker": "9984.T", "name": "SoftBank Group Corp.", "sector": "Telecommunications"},
+    {"ticker": "8035.T", "name": "Tokyo Electron Limited", "sector": "Semiconductors"},
+    {"ticker": "6861.T", "name": "Keyence Corporation", "sector": "Electronics"}
+]
+
+DE_STOCK_INDEX = [
+    {"ticker": "SAP.DE", "name": "SAP SE", "sector": "Technology"},
+    {"ticker": "SIE.DE", "name": "Siemens Aktiengesellschaft", "sector": "Conglomerates"},
+    {"ticker": "ALV.DE", "name": "Allianz SE", "sector": "Financial Services"},
+    {"ticker": "VOW3.DE", "name": "Volkswagen AG", "sector": "Automotive"},
+    {"ticker": "MBG.DE", "name": "Mercedes-Benz Group AG", "sector": "Automotive"},
+    {"ticker": "BAS.DE", "name": "BASF SE", "sector": "Chemicals"}
+]
+
+AU_STOCK_INDEX = [
+    {"ticker": "BHP.AX", "name": "BHP Group Limited", "sector": "Basic Materials"},
+    {"ticker": "CBA.AX", "name": "Commonwealth Bank of Australia", "sector": "Financial Services"},
+    {"ticker": "RIO.AX", "name": "Rio Tinto Limited", "sector": "Basic Materials"},
+    {"ticker": "TLS.AX", "name": "Telstra Group Limited", "sector": "Telecommunications"},
+    {"ticker": "CSL.AX", "name": "CSL Limited", "sector": "Healthcare"}
+]
+
+SA_STOCK_INDEX = [
+    {"ticker": "2222.SR", "name": "Saudi Arabian Oil Company", "sector": "Energy"},
+    {"ticker": "1120.SR", "name": "Al Rajhi Banking & Investment Corp.", "sector": "Financial Services"},
+    {"ticker": "1150.SR", "name": "Alinma Bank", "sector": "Financial Services"},
+    {"ticker": "2010.SR", "name": "Saudi Basic Industries Corporation", "sector": "Chemicals"},
+    {"ticker": "7010.SR", "name": "Saudi Telecom Company", "sector": "Telecommunications"}
+]
+
+AE_STOCK_INDEX = [
+    {"ticker": "EMAAR.DU", "name": "Emaar Properties PJSC", "sector": "Real Estate"},
+    {"ticker": "DEWA.DU", "name": "Dubai Electricity & Water Authority", "sector": "Utilities"},
+    {"ticker": "DFM.DU", "name": "Dubai Financial Market PJSC", "sector": "Financial Services"},
+    {"ticker": "TAQA.AD", "name": "Abu Dhabi National Energy Company", "sector": "Utilities"},
+    {"ticker": "FAB.AD", "name": "First Abu Dhabi Bank PJSC", "sector": "Financial Services"}
+]
+
+MARKETS_CONFIG = {
+    "PK": {
+        "name": "Pakistan",
+        "flag": "🇵🇰",
+        "title": "MultiStocks AI",
+        "subtitle": "Pakistan Stock Exchange (PSX)",
+        "currency": "Rs.",
+        "defaultTicker": "MARI",
+        "watchlist": ["MARI", "SYS", "MEBL", "HUBC", "OGDC", "UBL"],
+        "index_symbol": "^KSE",
+        "welcome": "As-salamu alaykum! I am your KSE AI Stock Advisor. Ask me about technical patterns, targets, or specific PSX stocks.",
+        "suggestions": [
+            {"label": "Analyze MARI", "query": "Can you do a full analysis of MARI and explain target levels?"},
+            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading PSX?"},
+            {"label": "Top Defensive Stocks", "query": "Which stocks in the PSX coverage are considered the best defensive/dividend stocks?"}
+        ]
+    },
+    "US": {
+        "name": "United States",
+        "flag": "🇺🇸",
+        "title": "MultiStocks AI",
+        "subtitle": "US Stock Markets (NYSE/NASDAQ)",
+        "currency": "$",
+        "defaultTicker": "AAPL",
+        "watchlist": ["AAPL", "MSFT", "TSLA", "NVDA", "AMZN"],
+        "index_symbol": "^GSPC",
+        "welcome": "Hello! I am your US Stocks AI Advisor. Ask me about technical patterns, targets, or specific NYSE/NASDAQ stocks.",
+        "suggestions": [
+            {"label": "Analyze AAPL", "query": "Can you do a full analysis of AAPL and explain target levels?"},
+            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading US markets?"},
+            {"label": "Top Defensive Stocks", "query": "Which stocks in the US markets coverage are considered the best defensive/dividend stocks?"}
+        ]
+    },
+    "IN": {
+        "name": "India",
+        "flag": "🇮🇳",
+        "title": "MultiStocks AI",
+        "subtitle": "National Stock Exchange of India (NSE)",
+        "currency": "₹",
+        "defaultTicker": "RELIANCE.NS",
+        "watchlist": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS"],
+        "index_symbol": "^NSEI",
+        "welcome": "Namaste! I am your NSE India AI Stock Advisor. Ask me about technical patterns, targets, or specific Indian stocks.",
+        "suggestions": [
+            {"label": "Analyze RELIANCE.NS", "query": "Can you do a full analysis of RELIANCE.NS and explain target levels?"},
+            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading NSE?"},
+            {"label": "Top Defensive Stocks", "query": "Which stocks in the NSE coverage are considered the best defensive/dividend stocks?"}
+        ]
+    },
+    "UK": {
+        "name": "United Kingdom",
+        "flag": "🇬🇧",
+        "title": "MultiStocks AI",
+        "subtitle": "London Stock Exchange (LSE)",
+        "currency": "£",
+        "defaultTicker": "BP.L",
+        "watchlist": ["BP.L", "HSBA.L", "GSK.L", "AZN.L", "VOD.L"],
+        "index_symbol": "^FTSE",
+        "welcome": "Hello! I am your UK Stocks AI Advisor. Ask me about technical patterns, targets, or specific London Stock Exchange (LSE) stocks.",
+        "suggestions": [
+            {"label": "Analyze BP.L", "query": "Can you do a full analysis of BP.L and explain target levels?"},
+            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading LSE?"},
+            {"label": "Top Defensive Stocks", "query": "Which stocks in the LSE coverage are considered the best defensive/dividend stocks?"}
+        ]
+    },
+    "CA": {
+        "name": "Canada",
+        "flag": "🇨🇦",
+        "title": "MultiStocks AI",
+        "subtitle": "Toronto Stock Exchange (TSX)",
+        "currency": "C$",
+        "defaultTicker": "RY.TO",
+        "watchlist": ["RY.TO", "TD.TO", "SHOP.TO", "ENB.TO"],
+        "index_symbol": "^GSPTSE",
+        "welcome": "Hello! I am your TSX Canada AI Stock Advisor. Ask me about technical patterns, targets, or specific Canadian stocks.",
+        "suggestions": [
+            {"label": "Analyze RY.TO", "query": "Can you do a full analysis of RY.TO and explain target levels?"},
+            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading TSX?"},
+            {"label": "Top Defensive Stocks", "query": "Which stocks in the TSX coverage are considered the best defensive/dividend stocks?"}
+        ]
+    },
+    "JP": {
+        "name": "Japan",
+        "flag": "🇯🇵",
+        "title": "MultiStocks AI",
+        "subtitle": "Tokyo Stock Exchange (TSE)",
+        "currency": "¥",
+        "defaultTicker": "7203.T",
+        "watchlist": ["7203.T", "6758.T", "9984.T"],
+        "index_symbol": "^N225",
+        "welcome": "Konnichiwa! I am your Tokyo Stock Exchange AI Advisor. Ask me about technical indicators, targets, or specific Japanese stocks.",
+        "suggestions": [
+            {"label": "Analyze Toyota", "query": "Can you do a full analysis of 7203.T (Toyota) and explain target levels?"},
+            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading JPY markets?"},
+            {"label": "Top Growth Stocks", "query": "Which stocks in the Tokyo stock list are considered the best tech/growth stocks?"}
+        ]
+    },
+    "DE": {
+        "name": "Germany",
+        "flag": "🇩🇪",
+        "title": "MultiStocks AI",
+        "subtitle": "Frankfurt Stock Exchange (DAX)",
+        "currency": "€",
+        "defaultTicker": "SAP.DE",
+        "watchlist": ["SAP.DE", "SIE.DE", "ALV.DE", "VOW3.DE"],
+        "index_symbol": "^GDAXI",
+        "welcome": "Guten Tag! I am your German Markets AI Advisor. Ask me about technical patterns, targets, or specific DAX equities.",
+        "suggestions": [
+            {"label": "Analyze SAP", "query": "Can you do a full analysis of SAP.DE and explain target levels?"},
+            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading German markets?"},
+            {"label": "Top Industrial Equities", "query": "Which stocks in the DAX coverage are considered the best industrial/manufacturing stocks?"}
+        ]
+    },
+    "AU": {
+        "name": "Australia",
+        "flag": "🇦🇺",
+        "title": "MultiStocks AI",
+        "subtitle": "Australian Securities Exchange (ASX)",
+        "currency": "A$",
+        "defaultTicker": "BHP.AX",
+        "watchlist": ["BHP.AX", "CBA.AX", "RIO.AX", "TLS.AX"],
+        "index_symbol": "^AXJO",
+        "welcome": "G'day! I am your ASX Australia AI Stock Advisor. Ask me about technical indicators, targets, or specific Australian stocks.",
+        "suggestions": [
+            {"label": "Analyze BHP", "query": "Can you do a full analysis of BHP.AX and explain target levels?"},
+            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading ASX?"},
+            {"label": "Top Resource Stocks", "query": "Which resource/mining stocks in the ASX coverage are recommended?"}
+        ]
+    },
+    "SA": {
+        "name": "Saudi Arabia",
+        "flag": "🇸🇦",
+        "title": "MultiStocks AI",
+        "subtitle": "Saudi Stock Exchange (TADAWUL)",
+        "currency": "SAR",
+        "defaultTicker": "2222.SR",
+        "watchlist": ["2222.SR", "1120.SR", "1150.SR"],
+        "index_symbol": "^TASI.SR",
+        "welcome": "Marhaban! I am your Saudi Tadawul AI Advisor. Ask me about technical analysis, targets, or specific Saudi stocks.",
+        "suggestions": [
+            {"label": "Analyze Aramco", "query": "Can you do a full analysis of 2222.SR (Saudi Aramco) and explain target levels?"},
+            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading Tadawul?"},
+            {"label": "Top Banking Equities", "query": "Which banking stocks in the Saudi market are considered the best?"}
+        ]
+    },
+    "AE": {
+        "name": "United Arab Emirates",
+        "flag": "🇦🇪",
+        "title": "MultiStocks AI",
+        "subtitle": "Dubai Financial Market (DFM)",
+        "currency": "AED",
+        "defaultTicker": "EMAAR.DU",
+        "watchlist": ["EMAAR.DU", "DEWA.DU", "DFM.DU"],
+        "index_symbol": "^DFMGI",
+        "welcome": "Marhaban! I am your UAE Stock Markets AI Advisor. Ask me about DFM/ADX technical analysis, targets, or specific UAE equities.",
+        "suggestions": [
+            {"label": "Analyze Emaar", "query": "Can you do a full analysis of EMAAR.DU and explain target levels?"},
+            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading DFM?"},
+            {"label": "Top Real Estate Stocks", "query": "Which developers/property stocks in UAE coverage are recommended?"}
+        ]
+    }
+}
+
 @app.get("/api/stocks")
 def get_stocks(tickers: Optional[str] = None, market: Optional[str] = "PK"):
     """
@@ -114,15 +337,8 @@ def get_stocks(tickers: Optional[str] = None, market: Optional[str] = "PK"):
     if tickers:
         ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
     else:
-        if market_str == "US":
-            ticker_list = ["AAPL", "MSFT", "TSLA", "NVDA", "AMZN"]
-        elif market_str == "IN":
-            ticker_list = ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS"]
-        elif market_str == "UK":
-            ticker_list = ["BP.L", "HSBA.L", "GSK.L", "AZN.L", "VOD.L"]
-        else:
-            # Default list of active stocks
-            ticker_list = ["MARI", "SYS", "LUCK", "ENGRO", "FFC", "UBL", "EFERT", "PSO", "DGKC", "HBL", "MEBL", "HUBC", "OGDC"]
+        market_data = MARKETS_CONFIG.get(market_str, MARKETS_CONFIG["PK"])
+        ticker_list = market_data["watchlist"]
         
     def fetch_quote_for_stock(ticker):
         quote = data_fetcher.get_latest_quote(ticker, market=market_str)
@@ -190,31 +406,46 @@ def get_stocks(tickers: Optional[str] = None, market: Optional[str] = "PK"):
 
 @app.get("/api/search")
 def search_stocks(query: str, market: Optional[str] = "PK"):
-    """Searches standard listed PSX equities or US/IN/UK equities."""
+    """Searches standard listed PSX equities or global equities."""
     if not query or len(query) < 2:
         return []
-    market_str = market or "PK"
-    market_upper = market_str.upper()
+    market_str = (market or "PK").upper()
     query = query.upper()
     
-    if market_upper in ["US", "IN", "UK"]:
-        if market_upper == "US":
-            matches = [s for s in US_STOCK_INDEX if query in s["ticker"] or query in s["name"].upper()]
-            sector = "US Equity"
-            suffix = ""
-        elif market_upper == "IN":
-            matches = [s for s in IN_STOCK_INDEX if query in s["ticker"] or query in s["name"].upper()]
-            sector = "Indian Equity"
-            suffix = ".NS"
-        else:  # UK
-            matches = [s for s in UK_STOCK_INDEX if query in s["ticker"] or query in s["name"].upper()]
-            sector = "UK Equity"
-            suffix = ".L"
-            
-        # Fallback to direct ticker code injection for custom global lookups
+    suffixes = {
+        "US": "",
+        "IN": ".NS",
+        "UK": ".L",
+        "CA": ".TO",
+        "JP": ".T",
+        "DE": ".DE",
+        "AU": ".AX",
+        "SA": ".SR",
+        "AE": ".DU"
+    }
+    
+    indices = {
+        "US": US_STOCK_INDEX,
+        "IN": IN_STOCK_INDEX,
+        "UK": UK_STOCK_INDEX,
+        "CA": CA_STOCK_INDEX,
+        "JP": JP_STOCK_INDEX,
+        "DE": DE_STOCK_INDEX,
+        "AU": AU_STOCK_INDEX,
+        "SA": SA_STOCK_INDEX,
+        "AE": AE_STOCK_INDEX
+    }
+    
+    if market_str in suffixes:
+        index_list = indices.get(market_str, [])
+        matches = [s for s in index_list if query in s["ticker"] or query in s["name"].upper()]
+        
+        suffix = suffixes[market_str]
+        sector = f"{market_str} Equity"
+        
         if len(query) >= 3 and len(query) <= 6 and not any(m["ticker"].split(".")[0] == query for m in matches):
             custom_ticker = f"{query}{suffix}" if not query.endswith(suffix) else query
-            matches.insert(0, {"ticker": custom_ticker, "name": f"{query} - Custom {market_upper} Ticker", "sector": sector})
+            matches.insert(0, {"ticker": custom_ticker, "name": f"{query} - Custom {market_str} Ticker", "sector": sector})
         return matches[:10]
         
     try:
@@ -263,7 +494,7 @@ def get_analysis(ticker: str, market: Optional[str] = "PK"):
     
     # Fetch live quote (which has accurate price, change, sector, etc.)
     quote = data_fetcher.get_latest_quote(ticker, market=market_str)
-    profile = data_fetcher.get_stock_profile(ticker) if market_upper != "US" else None
+    profile = data_fetcher.get_stock_profile(ticker) if market_upper == "PK" else None
     
     if not quote:
         if not profile:
@@ -288,7 +519,7 @@ def get_analysis(ticker: str, market: Optional[str] = "PK"):
         live_profile = profile
     else:
         # Build profile from quote to match frontend expected fields
-        if market_upper == "US":
+        if market_upper != "PK":
             live_profile = {
                 "name": quote["name"],
                 "sector": quote["sector"],
@@ -304,7 +535,7 @@ def get_analysis(ticker: str, market: Optional[str] = "PK"):
                 "roe": quote.get("roe", 0.0),
                 "div_yield": quote.get("div_yield", 0.0),
                 "eps": quote.get("eps", 0.0),
-                "description": quote.get("description", "US Equity"),
+                "description": quote.get("description", f"{market_upper} Equity"),
                 "recent_news": quote.get("news", [])
             }
         else:
@@ -374,11 +605,11 @@ def analyze_portfolio(req: PortfolioAnalysisRequest):
         avg_price = holding.avgPrice
         
         quote = data_fetcher.get_latest_quote(ticker, market=market_str)
-        profile = data_fetcher.get_stock_profile(ticker) if market_upper != "US" else None
+        profile = data_fetcher.get_stock_profile(ticker) if market_upper == "PK" else None
         
         live_price = quote["price"] if quote else avg_price
         name = quote["name"] if quote else (profile["name"] if profile else ticker)
-        sector = quote["sector"] if market_upper == "US" else (profile["sector"] if profile else "PSX Equity")
+        sector = quote["sector"] if market_upper != "PK" else (profile["sector"] if profile else "PSX Equity")
         
         cost_val = avg_price * qty
         current_val = live_price * qty
@@ -448,70 +679,28 @@ def get_config():
     Returns global project configurations, markets, and chat configurations
     to enable dynamic server-driven UI updates on the mobile app.
     """
+    markets_data = {}
+    welcome_messages = {}
+    suggestion_chips = {}
+    
+    for key, val in MARKETS_CONFIG.items():
+        markets_data[key] = {
+            "name": val["name"],
+            "flag": val["flag"],
+            "title": val["title"],
+            "subtitle": val["subtitle"],
+            "currency": val["currency"],
+            "defaultTicker": val["defaultTicker"],
+            "watchlist": val["watchlist"]
+        }
+        welcome_messages[key] = val["welcome"]
+        suggestion_chips[key] = val["suggestions"]
+        
     return {
-        "markets": {
-            "PK": {
-                "title": "MultiStocks AI",
-                "subtitle": "Pakistan Stock Exchange (PSX)",
-                "currency": "Rs.",
-                "defaultTicker": "MARI",
-                "watchlist": ["MARI", "SYS", "MEBL", "HUBC", "OGDC", "UBL"]
-            },
-            "US": {
-                "title": "MultiStocks AI",
-                "subtitle": "US Stock Markets (NYSE/NASDAQ)",
-                "currency": "$",
-                "defaultTicker": "AAPL",
-                "watchlist": ["AAPL", "MSFT", "TSLA", "NVDA", "AMZN"]
-            },
-            "IN": {
-                "title": "MultiStocks AI",
-                "subtitle": "National Stock Exchange of India (NSE)",
-                "currency": "₹",
-                "defaultTicker": "RELIANCE.NS",
-                "watchlist": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS"]
-            },
-            "UK": {
-                "title": "MultiStocks AI",
-                "subtitle": "London Stock Exchange (LSE)",
-                "currency": "£",
-                "defaultTicker": "BP.L",
-                "watchlist": ["BP.L", "HSBA.L", "GSK.L", "AZN.L", "VOD.L"]
-            }
-        },
+        "markets": markets_data,
         "chat": {
-            "welcome_messages": {
-                "PK": "As-salamu alaykum! I am your KSE AI Stock Advisor. Ask me about technical patterns, targets, or specific PSX stocks.",
-                "US": "Hello! I am your US Stocks AI Advisor. Ask me about technical patterns, targets, or specific NYSE/NASDAQ stocks.",
-                "IN": "Namaste! I am your NSE India AI Stock Advisor. Ask me about technical patterns, targets, or specific Indian stocks.",
-                "UK": "Hello! I am your UK Stocks AI Advisor. Ask me about technical patterns, targets, or specific London Stock Exchange (LSE) stocks."
-            },
-            "suggestion_chips": {
-                "PK": [
-                    {"label": "Analyze MARI", "query": "Can you do a full analysis of MARI and explain target levels?"},
-                    {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-                    {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading PSX?"},
-                    {"label": "Top Defensive Stocks", "query": "Which stocks in the PSX coverage are considered the best defensive/dividend stocks?"}
-                ],
-                "US": [
-                    {"label": "Analyze AAPL", "query": "Can you do a full analysis of AAPL and explain target levels?"},
-                    {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-                    {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading US markets?"},
-                    {"label": "Top Defensive Stocks", "query": "Which stocks in the US markets coverage are considered the best defensive/dividend stocks?"}
-                ],
-                "IN": [
-                    {"label": "Analyze RELIANCE.NS", "query": "Can you do a full analysis of RELIANCE.NS and explain target levels?"},
-                    {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-                    {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading NSE?"},
-                    {"label": "Top Defensive Stocks", "query": "Which stocks in the NSE coverage are considered the best defensive/dividend stocks?"}
-                ],
-                "UK": [
-                    {"label": "Analyze BP.L", "query": "Can you do a full analysis of BP.L and explain target levels?"},
-                    {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-                    {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading LSE?"},
-                    {"label": "Top Defensive Stocks", "query": "Which stocks in the LSE coverage are considered the best defensive/dividend stocks?"}
-                ]
-            }
+            "welcome_messages": welcome_messages,
+            "suggestion_chips": suggestion_chips
         }
     }
 

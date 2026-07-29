@@ -29,26 +29,20 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   const [activeModalStock, setActiveModalStock] = useState(null);
 
   // Watchlists for localized stock management (persistent local states)
-  const [pkWatchlist, setPkWatchlist] = useState([]);
-  const [usWatchlist, setUsWatchlist] = useState([]);
-  const [inWatchlist, setInWatchlist] = useState([]);
-  const [ukWatchlist, setUkWatchlist] = useState([]);
+  const [watchlists, setWatchlists] = useState({});
   const [isWatchlistLoaded, setIsWatchlistLoaded] = useState(false);
+  const [countryModalVisible, setCountryModalVisible] = useState(false);
 
   // 1. Load watchlists from AsyncStorage on mount
   useEffect(() => {
     const loadWatchlists = async () => {
       try {
-        const pkStored = await AsyncStorage.getItem('@multistocks_watchlist_pk');
-        const usStored = await AsyncStorage.getItem('@multistocks_watchlist_us');
-        const inStored = await AsyncStorage.getItem('@multistocks_watchlist_in');
-        const ukStored = await AsyncStorage.getItem('@multistocks_watchlist_uk');
-
-        if (pkStored) setPkWatchlist(JSON.parse(pkStored));
-        if (usStored) setUsWatchlist(JSON.parse(usStored));
-        if (inStored) setInWatchlist(JSON.parse(inStored));
-        if (ukStored) setUkWatchlist(JSON.parse(ukStored));
-        
+        const stored = await AsyncStorage.getItem('@multistocks_watchlists_dict');
+        if (stored) {
+          setWatchlists(JSON.parse(stored));
+        } else {
+          setWatchlists({});
+        }
         setIsWatchlistLoaded(true);
       } catch (e) {
         console.warn("Failed to load watchlists from local storage", e);
@@ -58,59 +52,35 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
     loadWatchlists();
   }, []);
 
-  // 2. Sync default watchlists from backend config ONLY if there are no existing local storage records
+  // 2. Sync default watchlists from backend config if empty
   useEffect(() => {
     if (!isWatchlistLoaded) return;
 
-    const checkAndSyncDefaults = async () => {
-      try {
-        const pkStored = await AsyncStorage.getItem('@multistocks_watchlist_pk');
-        const usStored = await AsyncStorage.getItem('@multistocks_watchlist_us');
-        const inStored = await AsyncStorage.getItem('@multistocks_watchlist_in');
-        const ukStored = await AsyncStorage.getItem('@multistocks_watchlist_uk');
-
-        if (config && config.markets) {
-          if (!pkStored && config.markets.PK && config.markets.PK.watchlist) setPkWatchlist(config.markets.PK.watchlist);
-          if (!usStored && config.markets.US && config.markets.US.watchlist) setUsWatchlist(config.markets.US.watchlist);
-          if (!inStored && config.markets.IN && config.markets.IN.watchlist) setInWatchlist(config.markets.IN.watchlist);
-          if (!ukStored && config.markets.UK && config.markets.UK.watchlist) setUkWatchlist(config.markets.UK.watchlist);
+    setWatchlists(prev => {
+      const updated = { ...prev };
+      let changed = false;
+      const markets = config?.markets || DEFAULT_CONFIG.markets;
+      
+      Object.keys(markets).forEach(m => {
+        if (!updated[m] || updated[m].length === 0) {
+          updated[m] = markets[m].watchlist || [];
+          changed = true;
         }
-      } catch (e) {
-        console.error("Error checking defaults during sync", e);
-      }
-    };
-    checkAndSyncDefaults();
+      });
+      return changed ? updated : prev;
+    });
   }, [config, isWatchlistLoaded]);
 
   // 3. Save watchlists on updates
   useEffect(() => {
-    if (!isWatchlistLoaded) return;
-    AsyncStorage.setItem('@multistocks_watchlist_pk', JSON.stringify(pkWatchlist)).catch(e => console.error(e));
-  }, [pkWatchlist, isWatchlistLoaded]);
-
-  useEffect(() => {
-    if (!isWatchlistLoaded) return;
-    AsyncStorage.setItem('@multistocks_watchlist_us', JSON.stringify(usWatchlist)).catch(e => console.error(e));
-  }, [usWatchlist, isWatchlistLoaded]);
-
-  useEffect(() => {
-    if (!isWatchlistLoaded) return;
-    AsyncStorage.setItem('@multistocks_watchlist_in', JSON.stringify(inWatchlist)).catch(e => console.error(e));
-  }, [inWatchlist, isWatchlistLoaded]);
-
-  useEffect(() => {
-    if (!isWatchlistLoaded) return;
-    AsyncStorage.setItem('@multistocks_watchlist_uk', JSON.stringify(ukWatchlist)).catch(e => console.error(e));
-  }, [ukWatchlist, isWatchlistLoaded]);
+    if (!isWatchlistLoaded || Object.keys(watchlists).length === 0) return;
+    AsyncStorage.setItem('@multistocks_watchlists_dict', JSON.stringify(watchlists)).catch(e => console.error(e));
+  }, [watchlists, isWatchlistLoaded]);
 
   // Derive watchlist dynamically based on the active market to avoid race conditions
   const watchlist = React.useMemo(() => {
-    if (market === 'PK') return pkWatchlist;
-    if (market === 'US') return usWatchlist;
-    if (market === 'IN') return inWatchlist;
-    if (market === 'UK') return ukWatchlist;
-    return [];
-  }, [market, pkWatchlist, usWatchlist, inWatchlist, ukWatchlist]);
+    return watchlists[market] || (config?.markets[market] || DEFAULT_CONFIG.markets[market] || {}).watchlist || [];
+  }, [market, watchlists, config]);
 
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -320,36 +290,27 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
 
   const handleAddWatchlist = (ticker) => {
     const uppercaseTicker = ticker.trim().toUpperCase();
-    if (market === 'PK') {
-      if (!pkWatchlist.includes(uppercaseTicker)) {
-        setPkWatchlist([...pkWatchlist, uppercaseTicker]);
-      }
-    } else if (market === 'US') {
-      if (!usWatchlist.includes(uppercaseTicker)) {
-        setUsWatchlist([...usWatchlist, uppercaseTicker]);
-      }
-    } else if (market === 'IN') {
-      if (!inWatchlist.includes(uppercaseTicker)) {
-        setInWatchlist([...inWatchlist, uppercaseTicker]);
-      }
-    } else if (market === 'UK') {
-      if (!ukWatchlist.includes(uppercaseTicker)) {
-        setUkWatchlist([...ukWatchlist, uppercaseTicker]);
-      }
-    }
+    setWatchlists(prev => {
+      const currentList = prev[market] || [];
+      if (currentList.includes(uppercaseTicker)) return prev;
+      return {
+        ...prev,
+        [market]: [...currentList, uppercaseTicker]
+      };
+    });
+    setSearchResults([]);
+    setSearchQuery('');
   };
 
   const handleRemoveWatchlist = (ticker) => {
     const uppercaseTicker = ticker.trim().toUpperCase();
-    if (market === 'PK') {
-      setPkWatchlist(pkWatchlist.filter(t => t !== uppercaseTicker));
-    } else if (market === 'US') {
-      setUsWatchlist(usWatchlist.filter(t => t !== uppercaseTicker));
-    } else if (market === 'IN') {
-      setInWatchlist(inWatchlist.filter(t => t !== uppercaseTicker));
-    } else if (market === 'UK') {
-      setUkWatchlist(ukWatchlist.filter(t => t !== uppercaseTicker));
-    }
+    setWatchlists(prev => {
+      const currentList = prev[market] || [];
+      return {
+        ...prev,
+        [market]: currentList.filter(t => t !== uppercaseTicker)
+      };
+    });
   };
 
   const getSignalColor = (sig) => {
@@ -505,24 +466,17 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
           </View>
         </View>
         
-        {/* Toggle selector */}
-        <View style={styles.marketSwitcher}>
-          {['PK', 'US', 'IN', 'UK'].map((m) => {
-            const flag = m === 'PK' ? '🇵🇰' : m === 'US' ? '🇺🇸' : m === 'IN' ? '🇮🇳' : '🇬🇧';
-            return (
-              <TouchableOpacity 
-                key={m}
-                style={[styles.switcherBtn, market === m && styles.switcherBtnActive]}
-                onPress={() => {
-                  setMarket(m);
-                  setSelectedTicker(null);
-                }}
-              >
-                <Text style={[styles.switcherText, market === m && styles.switcherTextActive]}>{flag} {m}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {/* Country Selector Dropdown Button */}
+        <TouchableOpacity 
+          style={styles.countryDropdownBtn}
+          onPress={() => setCountryModalVisible(true)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.dropdownBtnText}>
+            {((config?.markets || DEFAULT_CONFIG.markets)[market] || {}).flag || '🌐'} {market}
+          </Text>
+          <Text style={styles.dropdownArrow}>▼</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Dynamic Commodities and Forex Rates Bar */}
@@ -708,6 +662,63 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
           })
         )}
       </ScrollView>
+
+      {/* Country Selector Bottom Sheet Modal */}
+      <Modal
+        visible={countryModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setCountryModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.countryModalContent}>
+            {/* Modal Drag/Indicator Bar */}
+            <View style={styles.modalDragBar} />
+            
+            {/* Modal Header */}
+            <View style={styles.countryModalHeader}>
+              <Text style={styles.countryModalTitle}>Select Market / Region</Text>
+              <TouchableOpacity onPress={() => setCountryModalVisible(false)}>
+                <Text style={styles.closeCountryText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Scrollable List of Countries */}
+            <ScrollView style={styles.countryScroll}>
+              {Object.keys(config?.markets || DEFAULT_CONFIG.markets).map((key) => {
+                const item = (config?.markets || DEFAULT_CONFIG.markets)[key] || {};
+                const flag = item.flag || '🌐';
+                const countryName = item.name || key;
+                const isSelected = key === market;
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    style={[styles.countryItem, isSelected && styles.selectedCountryItem]}
+                    onPress={() => {
+                      setMarket(key);
+                      setSelectedTicker(null);
+                      setCountryModalVisible(false);
+                    }}
+                  >
+                    <Text style={styles.countryItemFlag}>{flag}</Text>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={[styles.countryItemName, isSelected && styles.selectedCountryItemText]}>
+                        {countryName} ({key})
+                      </Text>
+                      <Text style={styles.countryItemSub} numberOfLines={1}>{item.subtitle || ''}</Text>
+                    </View>
+                    {isSelected && (
+                      <View style={styles.selectedCheck}>
+                        <Text style={{ color: '#00D2FF', fontWeight: 'bold', fontSize: 14 }}>✓</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Detail Bottom Sheet Modal */}
       <Modal
@@ -1029,30 +1040,97 @@ const styles = StyleSheet.create({
   indexBannerCompact: {
     flex: 1,
   },
-  marketSwitcher: {
+  countryDropdownBtn: {
     flexDirection: 'row',
-    backgroundColor: '#0B0F19',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
     borderRadius: 8,
-    padding: 3,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#334155',
   },
-  switcherBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    borderRadius: 6,
-    marginHorizontal: 1,
+  dropdownBtnText: {
+    color: '#F8FAFC',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginRight: 6,
   },
-  switcherBtnActive: {
-    backgroundColor: '#00D2FF',
+  dropdownArrow: {
+    color: '#00D2FF',
+    fontSize: 9,
   },
-  switcherText: {
-    color: '#64748B',
-    fontSize: 10,
+  countryModalContent: {
+    backgroundColor: '#0F172A',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 12,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    width: '100%',
+    position: 'absolute',
+    bottom: 0,
+    borderTopWidth: 1,
+    borderTopColor: '#1E293B',
+  },
+  countryModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+  },
+  countryModalTitle: {
+    color: '#F8FAFC',
+    fontSize: 16,
     fontWeight: 'bold',
   },
-  switcherTextActive: {
-    color: '#0B0F19',
+  closeCountryText: {
+    color: '#00D2FF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  countryScroll: {
+    maxHeight: 350,
+  },
+  countryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 8,
+    backgroundColor: '#0B0F19',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  selectedCountryItem: {
+    borderColor: '#38BDF8',
+    backgroundColor: '#1E293B',
+  },
+  countryItemFlag: {
+    fontSize: 22,
+  },
+  countryItemName: {
+    color: '#E2E8F0',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  selectedCountryItemText: {
+    color: '#38BDF8',
+  },
+  countryItemSub: {
+    color: '#64748B',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  selectedCheck: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 24,
+    height: 24,
   },
   marketStatusRow: {
     flexDirection: 'row',

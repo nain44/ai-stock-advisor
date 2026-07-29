@@ -14,6 +14,8 @@ import PortfolioScreen from './components/PortfolioScreen';
 const DEFAULT_CONFIG = {
   "markets": {
     "PK": {
+      "name": "Pakistan",
+      "flag": "🇵🇰",
       "title": "MultiStocks AI",
       "subtitle": "Pakistan Stock Exchange (PSX)",
       "currency": "Rs.",
@@ -21,6 +23,8 @@ const DEFAULT_CONFIG = {
       "watchlist": ["MARI", "SYS", "MEBL", "HUBC", "OGDC", "UBL"]
     },
     "US": {
+      "name": "United States",
+      "flag": "🇺🇸",
       "title": "MultiStocks AI",
       "subtitle": "US Stock Markets (NYSE/NASDAQ)",
       "currency": "$",
@@ -28,6 +32,8 @@ const DEFAULT_CONFIG = {
       "watchlist": ["AAPL", "MSFT", "TSLA", "NVDA", "AMZN"]
     },
     "IN": {
+      "name": "India",
+      "flag": "🇮🇳",
       "title": "MultiStocks AI",
       "subtitle": "National Stock Exchange of India (NSE)",
       "currency": "₹",
@@ -35,11 +41,67 @@ const DEFAULT_CONFIG = {
       "watchlist": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS"]
     },
     "UK": {
+      "name": "United Kingdom",
+      "flag": "🇬🇧",
       "title": "MultiStocks AI",
       "subtitle": "London Stock Exchange (LSE)",
       "currency": "£",
       "defaultTicker": "BP.L",
       "watchlist": ["BP.L", "HSBA.L", "GSK.L", "AZN.L", "VOD.L"]
+    },
+    "CA": {
+      "name": "Canada",
+      "flag": "🇨🇦",
+      "title": "MultiStocks AI",
+      "subtitle": "Toronto Stock Exchange (TSX)",
+      "currency": "C$",
+      "defaultTicker": "RY.TO",
+      "watchlist": ["RY.TO", "TD.TO", "SHOP.TO", "ENB.TO"]
+    },
+    "JP": {
+      "name": "Japan",
+      "flag": "🇯🇵",
+      "title": "MultiStocks AI",
+      "subtitle": "Tokyo Stock Exchange (TSE)",
+      "currency": "¥",
+      "defaultTicker": "7203.T",
+      "watchlist": ["7203.T", "6758.T", "9984.T"]
+    },
+    "DE": {
+      "name": "Germany",
+      "flag": "🇩🇪",
+      "title": "MultiStocks AI",
+      "subtitle": "Frankfurt Stock Exchange (DAX)",
+      "currency": "€",
+      "defaultTicker": "SAP.DE",
+      "watchlist": ["SAP.DE", "SIE.DE", "ALV.DE", "VOW3.DE"]
+    },
+    "AU": {
+      "name": "Australia",
+      "flag": "🇦🇺",
+      "title": "MultiStocks AI",
+      "subtitle": "Australian Securities Exchange (ASX)",
+      "currency": "A$",
+      "defaultTicker": "BHP.AX",
+      "watchlist": ["BHP.AX", "CBA.AX", "RIO.AX", "TLS.AX"]
+    },
+    "SA": {
+      "name": "Saudi Arabia",
+      "flag": "🇸🇦",
+      "title": "MultiStocks AI",
+      "subtitle": "Saudi Stock Exchange (TADAWUL)",
+      "currency": "SAR",
+      "defaultTicker": "2222.SR",
+      "watchlist": ["2222.SR", "1120.SR", "1150.SR"]
+    },
+    "AE": {
+      "name": "United Arab Emirates",
+      "flag": "🇦🇪",
+      "title": "MultiStocks AI",
+      "subtitle": "Dubai Financial Market (DFM)",
+      "currency": "AED",
+      "defaultTicker": "EMAAR.DU",
+      "watchlist": ["EMAAR.DU", "DEWA.DU", "DFM.DU"]
     }
   },
   "chat": {
@@ -47,7 +109,13 @@ const DEFAULT_CONFIG = {
       "PK": "As-salamu alaykum! I am your KSE AI Stock Advisor. Ask me about technical patterns, targets, or specific PSX stocks.",
       "US": "Hello! I am your US Stocks AI Advisor. Ask me about technical patterns, targets, or specific NYSE/NASDAQ stocks.",
       "IN": "Namaste! I am your NSE India AI Stock Advisor. Ask me about technical patterns, targets, or specific Indian stocks.",
-      "UK": "Hello! I am your UK Stocks AI Advisor. Ask me about technical patterns, targets, or specific London Stock Exchange (LSE) stocks."
+      "UK": "Hello! I am your UK Stocks AI Advisor. Ask me about technical patterns, targets, or specific London Stock Exchange (LSE) stocks.",
+      "CA": "Hello! I am your TSX Canada AI Stock Advisor. Ask me about technical patterns, targets, or specific Canadian stocks.",
+      "JP": "Konnichiwa! I am your Tokyo Stock Exchange AI Advisor. Ask me about technical indicators, targets, or specific Japanese stocks.",
+      "DE": "Guten Tag! I am your German Markets AI Advisor. Ask me about technical patterns, targets, or specific DAX equities.",
+      "AU": "G'day! I am your ASX Australia AI Stock Advisor. Ask me about technical indicators, targets, or specific Australian stocks.",
+      "SA": "Marhaban! I am your Saudi Tadawul AI Advisor. Ask me about technical analysis, targets, or specific Saudi stocks.",
+      "AE": "Marhaban! I am your UAE Stock Markets AI Advisor. Ask me about DFM/ADX technical analysis, targets, or specific UAE equities."
     },
     "suggestion_chips": {
       "PK": [
@@ -73,6 +141,42 @@ const DEFAULT_CONFIG = {
         {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
         {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading LSE?"},
         {"label": "Top Defensive Stocks", "query": "Which stocks in the LSE coverage are considered the best defensive/dividend stocks?"}
+      ],
+      "CA": [
+        {"label": "Analyze RY.TO", "query": "Can you do a full analysis of RY.TO and explain target levels?"},
+        {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+        {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading TSX?"},
+        {"label": "Top Defensive Stocks", "query": "Which stocks in the TSX coverage are considered the best defensive/dividend stocks?"}
+      ],
+      "JP": [
+        {"label": "Analyze Toyota", "query": "Can you do an analysis of 7203.T (Toyota) and explain target levels?"},
+        {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+        {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading JPY markets?"},
+        {"label": "Top Growth Stocks", "query": "Which stocks in the Tokyo stock list are considered the best tech/growth stocks?"}
+      ],
+      "DE": [
+        {"label": "Analyze SAP", "query": "Can you do a full analysis of SAP.DE and explain target levels?"},
+        {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+        {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading German markets?"},
+        {"label": "Top Industrial Equities", "query": "Which stocks in the DAX coverage are considered the best industrial/manufacturing stocks?"}
+      ],
+      "AU": [
+        {"label": "Analyze BHP", "query": "Can you do a full analysis of BHP.AX and explain target levels?"},
+        {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+        {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading ASX?"},
+        {"label": "Top Resource Stocks", "query": "Which resource/mining stocks in the ASX coverage are recommended?"}
+      ],
+      "SA": [
+        {"label": "Analyze Aramco", "query": "Can you do a full analysis of 2222.SR (Saudi Aramco) and explain target levels?"},
+        {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+        {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading Tadawul?"},
+        {"label": "Top Banking Equities", "query": "Which banking stocks in the Saudi market are considered the best?"}
+      ],
+      "AE": [
+        {"label": "Analyze Emaar", "query": "Can you do a full analysis of EMAAR.DU and explain target levels?"},
+        {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+        {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading DFM?"},
+        {"label": "Top Real Estate Stocks", "query": "Which developers/property stocks in UAE coverage are recommended?"}
       ]
     }
   }
