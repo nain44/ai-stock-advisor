@@ -657,7 +657,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                     </View>
                   </View>
                 </TouchableOpacity>
-                {index === 1 && <AppNativeAd />}
+                {index === 2 && <AppNativeAd />}
               </React.Fragment>
             );
           })
