@@ -596,14 +596,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                       <Text style={styles.emblemText}>{initials}</Text>
                     </View>
                     <View style={styles.nameCol}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                        <Text style={[styles.stockTickerText, { marginBottom: 0 }]}>{stock.ticker}</Text>
-                        {stock.signal && (
-                          <View style={[styles.miniSignalBadge, { backgroundColor: getSignalColor(stock.signal), borderColor: getSignalTextColor(stock.signal) }]}>
-                            <Text style={[styles.miniSignalText, { color: getSignalTextColor(stock.signal) }]}>{stock.signal}</Text>
-                          </View>
-                        )}
-                      </View>
+                      <Text style={styles.stockTickerText}>{stock.ticker}</Text>
                       <Text style={styles.stockNameText} numberOfLines={1}>
                         {stock.name}
                       </Text>
@@ -639,7 +632,12 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                     <Text style={styles.stockPriceText}>
                       {stock.current_price?.toFixed(2) || '0.00'}
                     </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', justifyContent: 'flex-end' }}>
+                    {stock.signal && (
+                      <View style={[styles.miniSignalBadge, { backgroundColor: getSignalColor(stock.signal), borderColor: getSignalTextColor(stock.signal), marginLeft: 0, marginTop: 4, marginBottom: 2 }]}>
+                        <Text style={[styles.miniSignalText, { color: getSignalTextColor(stock.signal) }]}>{stock.signal}</Text>
+                      </View>
+                    )}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', justifyContent: 'flex-end', marginTop: 2 }}>
                       <View style={[styles.changeBadge, { backgroundColor: isUp ? '#064E3B' : '#7F1D1D', flex: 1, maxWidth: 60 }]}>
                         <Text style={[styles.changeText, { color: isUp ? '#34D399' : '#F87171', fontSize: 9, textAlign: 'center' }]} numberOfLines={1}>
                           {isUp ? '+' : ''}{stock.change_percent?.toFixed(2)}%
