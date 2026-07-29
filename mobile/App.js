@@ -461,7 +461,7 @@ export default function App() {
   };
 
   // Monetization Ad States and AI credits
-  const [aiCredits, setAiCredits] = useState(5);
+  const [aiCredits, setAiCredits] = useState(3);
   const [interstitialVisible, setInterstitialVisible] = useState(false);
   const [rewardedVisible, setRewardedVisible] = useState(false);
 

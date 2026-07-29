@@ -126,13 +126,7 @@ export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 85}
     >
       {/* Active Context Header */}
-      <View style={styles.contextHeader}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Sparkles size={16} color="#00D2FF" style={{ marginRight: 8 }} />
-          <Text style={styles.contextText}>
-            Active Context: <Text style={styles.boldText}>{selectedTicker || 'None'}</Text>
-          </Text>
-        </View>
+      <View style={[styles.contextHeader, { justifyContent: 'flex-end' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Text style={[styles.contextText, { marginRight: 8 }]}>
             AI Credits: <Text style={{ color: aiCredits > 0 ? '#34D399' : '#F87171', fontWeight: 'bold' }}>{aiCredits}</Text>
