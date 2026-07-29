@@ -319,15 +319,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
 
   return (
     <View style={styles.container}>
-      {/* Market Selector for Portfolio */}
-      <View style={styles.marketSwitcherWrapper}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#161B26', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#222A3C', alignSelf: 'flex-start' }}>
-          <Text style={{ color: '#64748B', fontSize: 12, fontWeight: '600' }}>Active Market: </Text>
-          <Text style={{ color: '#00D2FF', fontSize: 12, fontWeight: 'bold' }}>
-            {((config?.markets || {})[market] || {}).flag || '🌐'} {((config?.markets || {})[market] || {}).name || market}
-          </Text>
-        </View>
-      </View>
+
 
       {/* Portfolio Header Cards */}
       <View style={styles.headerBox}>
