@@ -59,7 +59,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
     setWatchlists(prev => {
       const updated = { ...prev };
       let changed = false;
-      const markets = config?.markets || DEFAULT_CONFIG.markets;
+      const markets = config?.markets || {};
       
       Object.keys(markets).forEach(m => {
         if (!updated[m] || updated[m].length === 0) {
@@ -79,7 +79,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
 
   // Derive watchlist dynamically based on the active market to avoid race conditions
   const watchlist = React.useMemo(() => {
-    return watchlists[market] || (config?.markets[market] || DEFAULT_CONFIG.markets[market] || {}).watchlist || [];
+    return watchlists[market] || (config?.markets || {})[market]?.watchlist || [];
   }, [market, watchlists, config]);
 
   const [searchResults, setSearchResults] = useState([]);
@@ -473,7 +473,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
           activeOpacity={0.7}
         >
           <Text style={styles.dropdownBtnText}>
-            {((config?.markets || DEFAULT_CONFIG.markets)[market] || {}).flag || '🌐'} {market}
+            {((config?.markets || {})[market] || {}).flag || '🌐'} {market}
           </Text>
           <Text style={styles.dropdownArrow}>▼</Text>
         </TouchableOpacity>
@@ -685,8 +685,15 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
 
             {/* Scrollable List of Countries */}
             <ScrollView style={styles.countryScroll}>
-              {Object.keys(config?.markets || DEFAULT_CONFIG.markets).map((key) => {
-                const item = (config?.markets || DEFAULT_CONFIG.markets)[key] || {};
+              {Object.keys(config?.markets || {})
+                .sort((a, b) => {
+                  const markets = config?.markets || {};
+                  const nameA = (markets[a]?.name || a).toUpperCase();
+                  const nameB = (markets[b]?.name || b).toUpperCase();
+                  return nameA.localeCompare(nameB);
+                })
+                .map((key) => {
+                  const item = (config?.markets || {})[key] || {};
                 const flag = item.flag || '🌐';
                 const countryName = item.name || key;
                 const isSelected = key === market;
