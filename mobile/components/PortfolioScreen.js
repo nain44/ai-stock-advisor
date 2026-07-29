@@ -9,7 +9,7 @@ const getCurrencySymbol = (m) => {
   return 'Rs.';
 };
 
-export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, triggerInterstitial, config }) {
+export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, triggerInterstitial, config, market }) {
   const getCurrencySymbol = (m) => {
     const marketConfig = (config && config.markets && config.markets[m]) || {};
     return marketConfig.currency || (m === 'US' ? '$' : m === 'IN' ? '₹' : m === 'UK' ? '£' : 'Rs.');
@@ -27,11 +27,6 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
   const [analysisModalVisible, setAnalysisModalVisible] = useState(false);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [portfolioAnalysis, setPortfolioAnalysis] = useState(null);
-
-  // Active Portfolio Market Selector state ('PK' or 'US')
-  const [portfolioMarket, setPortfolioMarket] = useState('PK');
-  const [countryModalVisible, setCountryModalVisible] = useState(false);
-  const [countrySearchQuery, setCountrySearchQuery] = useState('');
 
   // Custom Alert Modal state
   const [customAlert, setCustomAlert] = useState({
@@ -59,12 +54,12 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
     const fetchStocks = async () => {
       try {
         setLoading(true);
-        const activeHoldings = portfolio.filter(h => (portfolioMarket === 'US' ? h.market === 'US' : h.market !== 'US'));
+        const activeHoldings = portfolio.filter(h => h.market === market);
         const tickersParam = activeHoldings.map(h => h.ticker).join(',');
         
         const url = tickersParam
-          ? `${apiUrl}/api/stocks?tickers=${tickersParam}&market=${portfolioMarket}`
-          : `${apiUrl}/api/stocks?market=${portfolioMarket}`;
+          ? `${apiUrl}/api/stocks?tickers=${tickersParam}&market=${market}`
+          : `${apiUrl}/api/stocks?market=${market}`;
           
         const res = await fetch(url);
         if (res.ok) {
@@ -87,7 +82,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
     return () => {
       ignore = true;
     };
-  }, [apiUrl, portfolioMarket, portfolio]);
+  }, [apiUrl, market, portfolio]);
 
   // Find live price for any stock ticker
   const getLivePrice = (ticker) => {
@@ -109,7 +104,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
   let totalCost = 0;
   let totalValue = 0;
 
-  const activeHoldings = portfolio.filter(h => (portfolioMarket === 'US' ? h.market === 'US' : h.market !== 'US'));
+  const activeHoldings = portfolio.filter(h => h.market === market);
 
   activeHoldings.forEach(holding => {
     const livePrice = getLivePrice(holding.ticker) || holding.avgPrice;
@@ -130,12 +125,12 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
       }
     }, 250);
     return () => clearTimeout(delayDebounce);
-  }, [newTicker, portfolioMarket]);
+  }, [newTicker, market]);
 
   const performSearch = async (query) => {
     try {
       setSearching(true);
-      const res = await fetch(`${apiUrl}/api/search?query=${query}&market=${portfolioMarket}`);
+      const res = await fetch(`${apiUrl}/api/search?query=${query}&market=${market}`);
       if (res.ok) {
         const data = await res.json();
         setSearchResults(data);
@@ -154,7 +149,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
     // Fetch live price for this selected symbol
     try {
       setAdding(true);
-      const res = await fetch(`${apiUrl}/api/stocks?tickers=${tickerSymbol}&market=${portfolioMarket}`);
+      const res = await fetch(`${apiUrl}/api/stocks?tickers=${tickerSymbol}&market=${market}`);
       if (res.ok) {
         const data = await res.json();
         if (data && data.length > 0) {
@@ -183,7 +178,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
     } else {
       if (cleanTicker.length >= 3 && cleanTicker.length <= 6) {
         try {
-          const res = await fetch(`${apiUrl}/api/stocks?tickers=${cleanTicker}&market=${portfolioMarket}`);
+          const res = await fetch(`${apiUrl}/api/stocks?tickers=${cleanTicker}&market=${market}`);
           if (res.ok) {
             const data = await res.json();
             if (data && data.length > 0 && data[0].current_price > 0) {
@@ -230,7 +225,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
 
     // Add or merge holding
     const updatedPortfolio = [...portfolio];
-    const existingIdx = updatedPortfolio.findIndex(h => h.ticker === newTicker && (portfolioMarket === 'US' ? h.market === 'US' : h.market !== 'US'));
+    const existingIdx = updatedPortfolio.findIndex(h => h.ticker === newTicker && h.market === market);
 
     if (existingIdx >= 0) {
       // Merge
@@ -245,7 +240,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
         ticker: newTicker,
         quantity: qty,
         avgPrice: price,
-        market: portfolioMarket
+        market: market
       });
     }
 
@@ -273,9 +268,9 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
   };
 
   const handleFetchPortfolioAnalysis = async () => {
-    const activeHoldings = portfolio.filter(h => (portfolioMarket === 'US' ? h.market === 'US' : h.market !== 'US'));
+    const activeHoldings = portfolio.filter(h => h.market === market);
     if (activeHoldings.length === 0) {
-      showAlert("Empty Portfolio", `Please add some ${portfolioMarket} holdings before running diagnostics.`, "warning");
+      showAlert("Empty Portfolio", `Please add some ${market} holdings before running diagnostics.`, "warning");
       return;
     }
     try {
@@ -287,7 +282,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
         },
         body: JSON.stringify({ 
           portfolio: activeHoldings,
-          market: portfolioMarket
+          market: market
         }),
       });
       if (res.ok) {
@@ -317,32 +312,28 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
     <View style={styles.container}>
       {/* Market Selector for Portfolio */}
       <View style={styles.marketSwitcherWrapper}>
-        <TouchableOpacity 
-          style={styles.countryDropdownBtn}
-          onPress={() => setCountryModalVisible(true)}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.dropdownBtnText}>
-            {((config?.markets || {})[portfolioMarket] || {}).flag || '🌐'} {((config?.markets || {})[portfolioMarket] || {}).name || portfolioMarket}
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#161B26', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#222A3C', alignSelf: 'flex-start' }}>
+          <Text style={{ color: '#64748B', fontSize: 12, fontWeight: '600' }}>Active Market: </Text>
+          <Text style={{ color: '#00D2FF', fontSize: 12, fontWeight: 'bold' }}>
+            {((config?.markets || {})[market] || {}).flag || '🌐'} {((config?.markets || {})[market] || {}).name || market}
           </Text>
-          <Text style={styles.dropdownArrow}>▼</Text>
-        </TouchableOpacity>
+        </View>
       </View>
 
       {/* Portfolio Header Cards */}
       <View style={styles.headerBox}>
         <Text style={styles.headerLabel}>Simulated Portfolio Value</Text>
-        <Text style={styles.headerVal}>{getCurrencySymbol(portfolioMarket)} {totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+        <Text style={styles.headerVal}>{getCurrencySymbol(market)} {totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
         
         <View style={styles.pnlRow}>
           <Text style={styles.pnlLabel}>Total Return: </Text>
           <Text style={[styles.pnlVal, { color: totalPnL >= 0 ? '#34D399' : '#F87171' }]}>
-            {totalPnL >= 0 ? '+' : ''}{getCurrencySymbol(portfolioMarket)} {totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({totalPnLPercent.toFixed(2)}%)
+            {totalPnL >= 0 ? '+' : ''}{getCurrencySymbol(market)} {totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({totalPnLPercent.toFixed(2)}%)
           </Text>
         </View>
 
         <View style={styles.summaryCostRow}>
-          <Text style={styles.summaryCostText}>Total Cost: {getCurrencySymbol(portfolioMarket)} {totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+          <Text style={styles.summaryCostText}>Total Cost: {getCurrencySymbol(market)} {totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
         </View>
 
         <TouchableOpacity 
@@ -371,7 +362,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
       {activeHoldings.length === 0 ? (
         <View style={styles.emptyContainer}>
           <ShieldAlert size={28} color="#64748B" />
-          <Text style={styles.emptyText}>No active holdings in your simulated {((config?.markets || {})[portfolioMarket] || {}).name || portfolioMarket} portfolio.</Text>
+          <Text style={styles.emptyText}>No active holdings in your simulated {((config?.markets || {})[market] || {}).name || market} portfolio.</Text>
           <Text style={styles.emptySubText}>Tap 'Add Stock' above to simulate a stock transaction and track performance.</Text>
         </View>
       ) : (
@@ -498,7 +489,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Purchase Price ({getCurrencySymbol(portfolioMarket)} per share)</Text>
+              <Text style={styles.inputLabel}>Purchase Price ({getCurrencySymbol(market)} per share)</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <TextInput
                   style={[styles.inputField, { flex: 1 }]}
@@ -650,107 +641,6 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
         </View>
       </Modal>
 
-      {/* Country Selector Bottom Sheet Modal */}
-      <Modal
-        visible={countryModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => {
-          setCountryModalVisible(false);
-          setCountrySearchQuery('');
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.countryModalContent}>
-            {/* Modal Drag/Indicator Bar */}
-            <View style={styles.modalDragBar} />
-            
-            {/* Modal Header */}
-            <View style={styles.countryModalHeader}>
-              <Text style={styles.countryModalTitle}>Select Market / Region</Text>
-              <TouchableOpacity onPress={() => {
-                setCountryModalVisible(false);
-                setCountrySearchQuery('');
-              }}>
-                <Text style={styles.closeCountryText}>Done</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Country Search Input */}
-            <View style={styles.countrySearchContainer}>
-              <Search size={14} color="#64748B" style={styles.countrySearchIcon} />
-              <TextInput
-                style={styles.countrySearchInput}
-                placeholder="Search country, code or currency..."
-                placeholderTextColor="#64748B"
-                value={countrySearchQuery}
-                onChangeText={setCountrySearchQuery}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-
-            {/* Scrollable List of Countries */}
-            <ScrollView style={styles.countryScroll}>
-              {(() => {
-                const filtered = Object.keys(config?.markets || {})
-                  .filter((key) => {
-                    const item = (config?.markets || {})[key] || {};
-                    const name = (item.name || '').toLowerCase();
-                    const currency = (item.currency || '').toLowerCase();
-                    const code = key.toLowerCase();
-                    const query = countrySearchQuery.toLowerCase().trim();
-                    return name.includes(query) || currency.includes(query) || code.includes(query);
-                  })
-                  .sort((a, b) => {
-                    const markets = config?.markets || {};
-                    const nameA = (markets[a]?.name || a).toUpperCase();
-                    const nameB = (markets[b]?.name || b).toUpperCase();
-                    return nameA.localeCompare(nameB);
-                  });
-
-                if (filtered.length === 0) {
-                  return (
-                    <View style={styles.noCountryContainer}>
-                      <Text style={styles.noCountryText}>No matching regions found.</Text>
-                    </View>
-                  );
-                }
-
-                return filtered.map((key) => {
-                  const item = (config?.markets || {})[key] || {};
-                  const flag = item.flag || '🌐';
-                  const countryName = item.name || key;
-                  const isSelected = key === portfolioMarket;
-                  return (
-                    <TouchableOpacity
-                      key={key}
-                      style={[styles.countryItem, isSelected && styles.selectedCountryItem]}
-                      onPress={() => {
-                        setPortfolioMarket(key);
-                        setCountryModalVisible(false);
-                        setCountrySearchQuery('');
-                      }}
-                    >
-                      <Text style={styles.countryItemFlag}>{flag}</Text>
-                      <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={[styles.countryItemName, isSelected && styles.selectedCountryItemText]}>
-                          {countryName} ({key})
-                        </Text>
-                        <Text style={styles.countryItemSub} numberOfLines={1}>{item.subtitle || ''}</Text>
-                      </View>
-                      {isSelected && (
-                        <View style={styles.selectedCheck}>
-                          <Text style={{ color: '#00D2FF', fontWeight: 'bold', fontSize: 14 }}>✓</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                });
-              })()}
-            </ScrollView>
-          </View>
-        </View>
       </Modal>
     </View>
   );
