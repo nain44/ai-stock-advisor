@@ -302,8 +302,29 @@ export default function App() {
       const res = await fetch(`${url}/api/config`);
       if (res.ok) {
         const data = await res.json();
-        setConfig(data);
-        console.log("[App] Configuration loaded from server successfully.");
+        
+        // Merge server configuration with local DEFAULT_CONFIG to prevent losing new global markets
+        const mergedMarkets = {
+          ...DEFAULT_CONFIG.markets,
+          ...(data.markets || {})
+        };
+        const mergedWelcome = {
+          ...DEFAULT_CONFIG.chat.welcome_messages,
+          ...(data.chat?.welcome_messages || {})
+        };
+        const mergedSuggestions = {
+          ...DEFAULT_CONFIG.chat.suggestion_chips,
+          ...(data.chat?.suggestion_chips || {})
+        };
+        
+        setConfig({
+          markets: mergedMarkets,
+          chat: {
+            welcome_messages: mergedWelcome,
+            suggestion_chips: mergedSuggestions
+          }
+        });
+        console.log("[App] Configuration loaded and merged from server successfully.");
       }
     } catch (e) {
       console.warn("Failed to load server configuration, using local fallback cache.", e);
