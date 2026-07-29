@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator } from 'react-native';
-import { Plus, Trash2, ShieldAlert, CheckCircle2, X } from 'lucide-react-native';
+import { Plus, Trash2, ShieldAlert, CheckCircle2, X, Search } from 'lucide-react-native';
 
 const getCurrencySymbol = (m) => {
   if (m === 'US') return '$';
@@ -9,7 +9,12 @@ const getCurrencySymbol = (m) => {
   return 'Rs.';
 };
 
-export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, triggerInterstitial }) {
+export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, triggerInterstitial, config }) {
+  const getCurrencySymbol = (m) => {
+    const marketConfig = (config && config.markets && config.markets[m]) || {};
+    return marketConfig.currency || (m === 'US' ? '$' : m === 'IN' ? '₹' : m === 'UK' ? '£' : 'Rs.');
+  };
+
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -25,6 +30,8 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
 
   // Active Portfolio Market Selector state ('PK' or 'US')
   const [portfolioMarket, setPortfolioMarket] = useState('PK');
+  const [countryModalVisible, setCountryModalVisible] = useState(false);
+  const [countrySearchQuery, setCountrySearchQuery] = useState('');
 
   // Custom Alert Modal state
   const [customAlert, setCustomAlert] = useState({
@@ -310,20 +317,16 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
     <View style={styles.container}>
       {/* Market Selector for Portfolio */}
       <View style={styles.marketSwitcherWrapper}>
-        <View style={styles.marketSwitcher}>
-          {['PK', 'US', 'IN', 'UK'].map((m) => {
-            const flag = m === 'PK' ? '🇵🇰' : m === 'US' ? '🇺🇸' : m === 'IN' ? '🇮🇳' : '🇬🇧';
-            return (
-              <TouchableOpacity 
-                key={m}
-                style={[styles.switcherBtn, portfolioMarket === m && styles.switcherBtnActive]}
-                onPress={() => setPortfolioMarket(m)}
-              >
-                <Text style={[styles.switcherText, portfolioMarket === m && styles.switcherTextActive]}>{flag} {m}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <TouchableOpacity 
+          style={styles.countryDropdownBtn}
+          onPress={() => setCountryModalVisible(true)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.dropdownBtnText}>
+            {((config?.markets || {})[portfolioMarket] || {}).flag || '🌐'} {((config?.markets || {})[portfolioMarket] || {}).name || portfolioMarket}
+          </Text>
+          <Text style={styles.dropdownArrow}>▼</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Portfolio Header Cards */}
@@ -368,7 +371,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
       {activeHoldings.length === 0 ? (
         <View style={styles.emptyContainer}>
           <ShieldAlert size={28} color="#64748B" />
-          <Text style={styles.emptyText}>No active holdings in your simulated {portfolioMarket === 'US' ? 'US' : portfolioMarket === 'IN' ? 'India' : portfolioMarket === 'UK' ? 'UK' : 'Pakistan'} portfolio.</Text>
+          <Text style={styles.emptyText}>No active holdings in your simulated {((config?.markets || {})[portfolioMarket] || {}).name || portfolioMarket} portfolio.</Text>
           <Text style={styles.emptySubText}>Tap 'Add Stock' above to simulate a stock transaction and track performance.</Text>
         </View>
       ) : (
@@ -643,6 +646,109 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
                 </TouchableOpacity>
               )}
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Country Selector Bottom Sheet Modal */}
+      <Modal
+        visible={countryModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          setCountryModalVisible(false);
+          setCountrySearchQuery('');
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.countryModalContent}>
+            {/* Modal Drag/Indicator Bar */}
+            <View style={styles.modalDragBar} />
+            
+            {/* Modal Header */}
+            <View style={styles.countryModalHeader}>
+              <Text style={styles.countryModalTitle}>Select Market / Region</Text>
+              <TouchableOpacity onPress={() => {
+                setCountryModalVisible(false);
+                setCountrySearchQuery('');
+              }}>
+                <Text style={styles.closeCountryText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Country Search Input */}
+            <View style={styles.countrySearchContainer}>
+              <Search size={14} color="#64748B" style={styles.countrySearchIcon} />
+              <TextInput
+                style={styles.countrySearchInput}
+                placeholder="Search country, code or currency..."
+                placeholderTextColor="#64748B"
+                value={countrySearchQuery}
+                onChangeText={setCountrySearchQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            {/* Scrollable List of Countries */}
+            <ScrollView style={styles.countryScroll}>
+              {(() => {
+                const filtered = Object.keys(config?.markets || {})
+                  .filter((key) => {
+                    const item = (config?.markets || {})[key] || {};
+                    const name = (item.name || '').toLowerCase();
+                    const currency = (item.currency || '').toLowerCase();
+                    const code = key.toLowerCase();
+                    const query = countrySearchQuery.toLowerCase().trim();
+                    return name.includes(query) || currency.includes(query) || code.includes(query);
+                  })
+                  .sort((a, b) => {
+                    const markets = config?.markets || {};
+                    const nameA = (markets[a]?.name || a).toUpperCase();
+                    const nameB = (markets[b]?.name || b).toUpperCase();
+                    return nameA.localeCompare(nameB);
+                  });
+
+                if (filtered.length === 0) {
+                  return (
+                    <View style={styles.noCountryContainer}>
+                      <Text style={styles.noCountryText}>No matching regions found.</Text>
+                    </View>
+                  );
+                }
+
+                return filtered.map((key) => {
+                  const item = (config?.markets || {})[key] || {};
+                  const flag = item.flag || '🌐';
+                  const countryName = item.name || key;
+                  const isSelected = key === portfolioMarket;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      style={[styles.countryItem, isSelected && styles.selectedCountryItem]}
+                      onPress={() => {
+                        setPortfolioMarket(key);
+                        setCountryModalVisible(false);
+                        setCountrySearchQuery('');
+                      }}
+                    >
+                      <Text style={styles.countryItemFlag}>{flag}</Text>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={[styles.countryItemName, isSelected && styles.selectedCountryItemText]}>
+                          {countryName} ({key})
+                        </Text>
+                        <Text style={styles.countryItemSub} numberOfLines={1}>{item.subtitle || ''}</Text>
+                      </View>
+                      {isSelected && (
+                        <View style={styles.selectedCheck}>
+                          <Text style={{ color: '#00D2FF', fontWeight: 'bold', fontSize: 14 }}>✓</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                });
+              })()}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1142,5 +1248,142 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: '700',
     fontSize: 12.5,
+  },
+  countryDropdownBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#161B26',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#222A3C',
+    alignSelf: 'flex-start',
+  },
+  dropdownBtnText: {
+    color: '#F8FAFC',
+    fontSize: 13,
+    fontWeight: 'bold',
+    marginRight: 6,
+  },
+  dropdownArrow: {
+    color: '#00D2FF',
+    fontSize: 9,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(5, 8, 16, 0.85)',
+    justifyContent: 'flex-end',
+  },
+  countryModalContent: {
+    backgroundColor: '#0F172A',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 12,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    width: '100%',
+    borderTopWidth: 1,
+    borderTopColor: '#1E293B',
+  },
+  modalDragBar: {
+    width: 40,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#334155',
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  countryModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+  },
+  countryModalTitle: {
+    color: '#F8FAFC',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  closeCountryText: {
+    color: '#00D2FF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  countryScroll: {
+    maxHeight: 350,
+  },
+  countryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 8,
+    backgroundColor: '#0B0F19',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  selectedCountryItem: {
+    borderColor: '#38BDF8',
+    backgroundColor: '#1E293B',
+  },
+  countryItemFlag: {
+    fontSize: 20,
+  },
+  countryItemName: {
+    color: '#94A3B8',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  selectedCountryItemText: {
+    color: '#F8FAFC',
+  },
+  countryItemSub: {
+    color: '#64748B',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  selectedCheck: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 20,
+    height: 20,
+  },
+  countrySearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0B0F19',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    paddingHorizontal: 12,
+    height: 40,
+    marginBottom: 12,
+    width: '100%',
+  },
+  countrySearchIcon: {
+    marginRight: 8,
+  },
+  countrySearchInput: {
+    flex: 1,
+    color: '#F8FAFC',
+    fontSize: 13,
+    height: '100%',
+    paddingVertical: 4,
+    backgroundColor: 'transparent',
+  },
+  noCountryContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noCountryText: {
+    color: '#64748B',
+    fontSize: 13,
   },
 });

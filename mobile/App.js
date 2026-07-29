@@ -507,6 +507,7 @@ export default function App() {
             setPortfolio={setPortfolio}
             apiUrl={apiUrl}
             triggerInterstitial={triggerInterstitial}
+            config={config}
           />
         );
       default:
@@ -611,7 +612,7 @@ export default function App() {
         >
           <Briefcase size={20} color={currentTab === 'portfolio' ? '#00D2FF' : '#64748B'} />
           <Text style={[styles.tabLabel, currentTab === 'portfolio' && styles.activeTabLabel]}>
-            Simulator
+            Portfolio
           </Text>
         </TouchableOpacity>
       </View>
