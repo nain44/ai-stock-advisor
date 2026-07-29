@@ -640,8 +640,6 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
           </View>
         </View>
       </Modal>
-
-      </Modal>
     </View>
   );
 }
