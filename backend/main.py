@@ -153,6 +153,44 @@ AE_STOCK_INDEX = [
     {"ticker": "FAB.AD", "name": "First Abu Dhabi Bank PJSC", "sector": "Financial Services"}
 ]
 
+CN_STOCK_INDEX = [
+    {"ticker": "601398.SS", "name": "Industrial and Commercial Bank of China Limited", "sector": "Financial Services"},
+    {"ticker": "600519.SS", "name": "Kweichow Moutai Co., Ltd.", "sector": "Beverages"},
+    {"ticker": "601857.SS", "name": "PetroChina Company Limited", "sector": "Energy"},
+    {"ticker": "600028.SS", "name": "China Petroleum & Chemical Corporation", "sector": "Energy"},
+    {"ticker": "601988.SS", "name": "Bank of China Limited", "sector": "Financial Services"}
+]
+
+QA_STOCK_INDEX = [
+    {"ticker": "QNBK.QA", "name": "Qatar National Bank (Q.P.S.C.)", "sector": "Financial Services"},
+    {"ticker": "QGTS.QA", "name": "Qatar Gas Transport Company Limited (Nakilat)", "sector": "Industrials"},
+    {"ticker": "IQCD.QA", "name": "Industries Qatar Q.P.S.C.", "sector": "Basic Materials"},
+    {"ticker": "QEWS.QA", "name": "Qatar Electricity & Water Company Q.P.S.C.", "sector": "Utilities"},
+    {"ticker": "QIBK.QA", "name": "Qatar Islamic Bank (Q.P.S.C.)", "sector": "Financial Services"}
+]
+
+EG_STOCK_INDEX = [
+    {"ticker": "COMI.CA", "name": "Commercial International Bank (Egypt) S.A.E.", "sector": "Financial Services"},
+    {"ticker": "EAST.CA", "name": "Eastern Company S.A.E.", "sector": "Consumer Defensive"},
+    {"ticker": "SWDY.CA", "name": "Elsewedy Electric Co.", "sector": "Industrials"},
+    {"ticker": "FWRY.CA", "name": "Fawry for Banking Technology and Electronic Payments S.A.E.", "sector": "Financial Technology"},
+    {"ticker": "ETEL.CA", "name": "Telecom Egypt Company S.A.E.", "sector": "Telecommunications"}
+]
+
+IR_STOCK_INDEX = [
+    {"ticker": "IRR=X", "name": "Iranian Rial Proxy Spot Exchange Rate", "sector": "Foreign Exchange"},
+    {"ticker": "GC=F", "name": "Gold Spot Proxy Rate", "sector": "Precious Metals"},
+    {"ticker": "SI=F", "name": "Silver Spot Proxy Rate", "sector": "Precious Metals"}
+]
+
+TR_STOCK_INDEX = [
+    {"ticker": "THYAO.IS", "name": "Turk Hava Yollari Anonim Ortakligi", "sector": "Airlines"},
+    {"ticker": "ASELS.IS", "name": "Aselsan Elektronik Sanayi ve Ticaret A.S.", "sector": "Defense & Aerospace"},
+    {"ticker": "AKBNK.IS", "name": "Akbank T.A.S.", "sector": "Financial Services"},
+    {"ticker": "EREGL.IS", "name": "Eregli Demir ve Celik Fabrikalari T.A.S.", "sector": "Basic Materials"},
+    {"ticker": "TUPRS.IS", "name": "Turkiye Petrol Rafinerileri A.S.", "sector": "Energy"}
+]
+
 MARKETS_CONFIG = {
     "PK": {
         "name": "Pakistan",
@@ -323,6 +361,91 @@ MARKETS_CONFIG = {
             {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading DFM?"},
             {"label": "Top Real Estate Stocks", "query": "Which developers/property stocks in UAE coverage are recommended?"}
         ]
+    },
+    "CN": {
+        "name": "China",
+        "flag": "🇨🇳",
+        "title": "MultiStocks AI",
+        "subtitle": "Shanghai Stock Exchange (SSE)",
+        "currency": "¥",
+        "defaultTicker": "601398.SS",
+        "watchlist": ["601398.SS", "600519.SS", "601857.SS", "600028.SS"],
+        "index_symbol": "000001.SS",
+        "welcome": "Nǐ hǎo! I am your Shanghai Stock Exchange AI Advisor. Ask me about technical patterns, targets, or specific SSE stocks.",
+        "suggestions": [
+            {"label": "Analyze ICBC", "query": "Can you do a full analysis of 601398.SS and explain target levels?"},
+            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading SSE?"},
+            {"label": "Top SSE Equities", "query": "Which stocks in the SSE coverage are considered the best defensive/dividend stocks?"}
+        ]
+    },
+    "QA": {
+        "name": "Qatar",
+        "flag": "🇶🇦",
+        "title": "MultiStocks AI",
+        "subtitle": "Qatar Stock Exchange (QSE)",
+        "currency": "QR",
+        "defaultTicker": "QNBK.QA",
+        "watchlist": ["QNBK.QA", "QGTS.QA", "IQCD.QA", "QEWS.QA"],
+        "index_symbol": "^QSI",
+        "welcome": "Marhaban! I am your Qatar Stock Exchange AI Advisor. Ask me about technical indicators, targets, or specific Qatari stocks.",
+        "suggestions": [
+            {"label": "Analyze QNB", "query": "Can you do a full analysis of QNBK.QA and explain target levels?"},
+            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading QSE?"},
+            {"label": "Top QSE Equities", "query": "Which banking/financial stocks in the QSE coverage are recommended?"}
+        ]
+    },
+    "EG": {
+        "name": "Egypt",
+        "flag": "🇪🇬",
+        "title": "MultiStocks AI",
+        "subtitle": "Egyptian Exchange (EGX)",
+        "currency": "E£",
+        "defaultTicker": "COMI.CA",
+        "watchlist": ["COMI.CA", "EAST.CA", "SWDY.CA", "FWRY.CA"],
+        "index_symbol": "^EGX30",
+        "welcome": "Ahlan bik! I am your Egyptian Exchange AI Advisor. Ask me about technical analysis, targets, or specific EGX stocks.",
+        "suggestions": [
+            {"label": "Analyze CIB Egypt", "query": "Can you do a full analysis of COMI.CA and explain target levels?"},
+            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading EGX?"},
+            {"label": "Top EGX Equities", "query": "Which industrial and digital payment stocks in EGX coverage are recommended?"}
+        ]
+    },
+    "IR": {
+        "name": "Iran",
+        "flag": "🇮🇷",
+        "title": "MultiStocks AI",
+        "subtitle": "Iran Markets (IRR Proxy Feed)",
+        "currency": "IRR",
+        "defaultTicker": "IRR=X",
+        "watchlist": ["IRR=X", "GC=F", "SI=F"],
+        "index_symbol": "IRR=X",
+        "welcome": "Dorood! I am your Iranian Markets AI Advisor. Ask me about Rial exchange rates, bullion gold/silver targets, or custom tickers.",
+        "suggestions": [
+            {"label": "Analyze Gold Proxy", "query": "Can you do a full technical analysis of GC=F (Gold Spot) and explain targets?"},
+            {"label": "Check Rial Stance", "query": "What are the latest technical projections for IRR=X (USD/IRR exchange rate)?"},
+            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading forex and commodities?"},
+            {"label": "Top Hedging Options", "query": "Which precious metal commodities in my coverage are the best hedges against inflation?"}
+        ]
+    },
+    "TR": {
+        "name": "Turkey",
+        "flag": "🇹🇷",
+        "title": "MultiStocks AI",
+        "subtitle": "Borsa Istanbul (BIST)",
+        "currency": "₺",
+        "defaultTicker": "THYAO.IS",
+        "watchlist": ["THYAO.IS", "ASELS.IS", "AKBNK.IS", "EREGL.IS", "TUPRS.IS"],
+        "index_symbol": "XU100.IS",
+        "welcome": "Merhaba! I am your Borsa Istanbul AI Advisor. Ask me about technical indicators, targets, or specific Turkish stocks.",
+        "suggestions": [
+            {"label": "Analyze Turkish Airlines", "query": "Can you do a full analysis of THYAO.IS and explain target levels?"},
+            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading BIST?"},
+            {"label": "Top BIST Equities", "query": "Which industrial or banking stocks in BIST coverage are recommended?"}
+        ]
     }
 }
 
@@ -421,7 +544,12 @@ def search_stocks(query: str, market: Optional[str] = "PK"):
         "DE": ".DE",
         "AU": ".AX",
         "SA": ".SR",
-        "AE": ".DU"
+        "AE": ".DU",
+        "CN": ".SS",
+        "QA": ".QA",
+        "EG": ".CA",
+        "IR": "=X",
+        "TR": ".IS"
     }
     
     indices = {
@@ -433,7 +561,12 @@ def search_stocks(query: str, market: Optional[str] = "PK"):
         "DE": DE_STOCK_INDEX,
         "AU": AU_STOCK_INDEX,
         "SA": SA_STOCK_INDEX,
-        "AE": AE_STOCK_INDEX
+        "AE": AE_STOCK_INDEX,
+        "CN": CN_STOCK_INDEX,
+        "QA": QA_STOCK_INDEX,
+        "EG": EG_STOCK_INDEX,
+        "IR": IR_STOCK_INDEX,
+        "TR": TR_STOCK_INDEX
     }
     
     if market_str in suffixes:

@@ -102,6 +102,51 @@ const DEFAULT_CONFIG = {
       "currency": "AED",
       "defaultTicker": "EMAAR.DU",
       "watchlist": ["EMAAR.DU", "DEWA.DU", "DFM.DU"]
+    },
+    "CN": {
+      "name": "China",
+      "flag": "🇨🇳",
+      "title": "MultiStocks AI",
+      "subtitle": "Shanghai Stock Exchange (SSE)",
+      "currency": "¥",
+      "defaultTicker": "601398.SS",
+      "watchlist": ["601398.SS", "600519.SS", "601857.SS", "600028.SS"]
+    },
+    "QA": {
+      "name": "Qatar",
+      "flag": "🇶🇦",
+      "title": "MultiStocks AI",
+      "subtitle": "Qatar Stock Exchange (QSE)",
+      "currency": "QR",
+      "defaultTicker": "QNBK.QA",
+      "watchlist": ["QNBK.QA", "QGTS.QA", "IQCD.QA", "QEWS.QA"]
+    },
+    "EG": {
+      "name": "Egypt",
+      "flag": "🇪🇬",
+      "title": "MultiStocks AI",
+      "subtitle": "Egyptian Exchange (EGX)",
+      "currency": "E£",
+      "defaultTicker": "COMI.CA",
+      "watchlist": ["COMI.CA", "EAST.CA", "SWDY.CA", "FWRY.CA"]
+    },
+    "IR": {
+      "name": "Iran",
+      "flag": "🇮🇷",
+      "title": "MultiStocks AI",
+      "subtitle": "Iran Markets (IRR Proxy Feed)",
+      "currency": "IRR",
+      "defaultTicker": "IRR=X",
+      "watchlist": ["IRR=X", "GC=F", "SI=F"]
+    },
+    "TR": {
+      "name": "Turkey",
+      "flag": "🇹🇷",
+      "title": "MultiStocks AI",
+      "subtitle": "Borsa Istanbul (BIST)",
+      "currency": "₺",
+      "defaultTicker": "THYAO.IS",
+      "watchlist": ["THYAO.IS", "ASELS.IS", "AKBNK.IS", "EREGL.IS", "TUPRS.IS"]
     }
   },
   "chat": {
@@ -115,7 +160,12 @@ const DEFAULT_CONFIG = {
       "DE": "Guten Tag! I am your German Markets AI Advisor. Ask me about technical patterns, targets, or specific DAX equities.",
       "AU": "G'day! I am your ASX Australia AI Stock Advisor. Ask me about technical indicators, targets, or specific Australian stocks.",
       "SA": "Marhaban! I am your Saudi Tadawul AI Advisor. Ask me about technical analysis, targets, or specific Saudi stocks.",
-      "AE": "Marhaban! I am your UAE Stock Markets AI Advisor. Ask me about DFM/ADX technical analysis, targets, or specific UAE equities."
+      "AE": "Marhaban! I am your UAE Stock Markets AI Advisor. Ask me about DFM/ADX technical analysis, targets, or specific UAE equities.",
+      "CN": "Nǐ hǎo! I am your Shanghai Stock Exchange AI Advisor. Ask me about technical patterns, targets, or specific SSE stocks.",
+      "QA": "Marhaban! I am your Qatar Stock Exchange AI Advisor. Ask me about technical indicators, targets, or specific Qatari stocks.",
+      "EG": "Ahlan bik! I am your Egyptian Exchange AI Advisor. Ask me about technical analysis, targets, or specific EGX stocks.",
+      "IR": "Dorood! I am your Iranian Markets AI Advisor. Ask me about Rial exchange rates, bullion gold/silver targets, or custom tickers.",
+      "TR": "Merhaba! I am your Borsa Istanbul AI Advisor. Ask me about technical indicators, targets, or specific Turkish stocks."
     },
     "suggestion_chips": {
       "PK": [
@@ -177,6 +227,36 @@ const DEFAULT_CONFIG = {
         {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
         {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading DFM?"},
         {"label": "Top Real Estate Stocks", "query": "Which developers/property stocks in UAE coverage are recommended?"}
+      ],
+      "CN": [
+        {"label": "Analyze ICBC", "query": "Can you do a full analysis of 601398.SS and explain target levels?"},
+        {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+        {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading SSE?"},
+        {"label": "Top SSE Equities", "query": "Which stocks in the SSE coverage are considered the best defensive/dividend stocks?"}
+      ],
+      "QA": [
+        {"label": "Analyze QNB", "query": "Can you do a full analysis of QNBK.QA and explain target levels?"},
+        {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+        {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading QSE?"},
+        {"label": "Top QSE Equities", "query": "Which banking/financial stocks in the QSE coverage are recommended?"}
+      ],
+      "EG": [
+        {"label": "Analyze CIB Egypt", "query": "Can you do a full analysis of COMI.CA and explain target levels?"},
+        {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+        {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading EGX?"},
+        {"label": "Top EGX Equities", "query": "Which industrial and digital payment stocks in EGX coverage are recommended?"}
+      ],
+      "IR": [
+        {"label": "Analyze Gold Proxy", "query": "Can you do a full technical analysis of GC=F (Gold Spot) and explain targets?"},
+        {"label": "Check Rial Stance", "query": "What are the latest technical projections for IRR=X (USD/IRR exchange rate)?"},
+        {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading forex and commodities?"},
+        {"label": "Top Hedging Options", "query": "Which precious metal commodities in my coverage are the best hedges against inflation?"}
+      ],
+      "TR": [
+        {"label": "Analyze Turkish Airlines", "query": "Can you do a full analysis of THYAO.IS and explain target levels?"},
+        {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
+        {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading BIST?"},
+        {"label": "Top BIST Equities", "query": "Which industrial or banking stocks in BIST coverage are recommended?"}
       ]
     }
   }

@@ -37,7 +37,7 @@ def get_macro_indicators(market: str = "PK"):
             
     # Absolute local fallback in case network is down and cache is empty
     if not forex_rates_dict:
-        forex_rates_dict = {"PKR": 278.4, "INR": 83.5, "EUR": 0.92, "GBP": 0.78, "JPY": 154.0, "AED": 3.67, "CAD": 1.37}
+        forex_rates_dict = {"PKR": 278.4, "INR": 83.5, "EUR": 0.92, "GBP": 0.78, "JPY": 154.0, "AED": 3.67, "CAD": 1.37, "TRY": 33.5}
         
     usd_pkr = forex_rates_dict.get("PKR", 278.4)
     usd_inr = forex_rates_dict.get("INR", 83.5)
@@ -113,6 +113,46 @@ def get_macro_indicators(market: str = "PK"):
             {"pair": "EUR/AED", "rate": round(usd_aed / usd_eur, 2)},
             {"pair": "GBP/AED", "rate": round(usd_aed / usd_gbp, 2)},
             {"pair": "SAR/AED", "rate": round(usd_aed / forex_rates_dict.get("SAR", 3.75), 3)}
+        ]
+    elif market == "CN":
+        usd_cny = forex_rates_dict.get("CNY", 7.25)
+        forex_list = [
+            {"pair": "USD/CNY", "rate": round(usd_cny, 3)},
+            {"pair": "EUR/CNY", "rate": round(usd_cny / usd_eur, 3)},
+            {"pair": "GBP/CNY", "rate": round(usd_cny / usd_gbp, 3)},
+            {"pair": "CNY/HKD", "rate": round(forex_rates_dict.get("HKD", 7.80) / usd_cny, 3)}
+        ]
+    elif market == "QA":
+        usd_qar = forex_rates_dict.get("QAR", 3.64)
+        forex_list = [
+            {"pair": "USD/QAR", "rate": round(usd_qar, 3)},
+            {"pair": "EUR/QAR", "rate": round(usd_qar / usd_eur, 3)},
+            {"pair": "GBP/QAR", "rate": round(usd_qar / usd_gbp, 3)},
+            {"pair": "AED/QAR", "rate": round(usd_qar / usd_aed, 3)}
+        ]
+    elif market == "EG":
+        usd_egp = forex_rates_dict.get("EGP", 48.5)
+        forex_list = [
+            {"pair": "USD/EGP", "rate": round(usd_egp, 2)},
+            {"pair": "EUR/EGP", "rate": round(usd_egp / usd_eur, 2)},
+            {"pair": "GBP/EGP", "rate": round(usd_egp / usd_gbp, 2)},
+            {"pair": "SAR/EGP", "rate": round(usd_egp / forex_rates_dict.get("SAR", 3.75), 2)}
+        ]
+    elif market == "IR":
+        usd_irr = forex_rates_dict.get("IRR", 42000.0)
+        forex_list = [
+            {"pair": "USD/IRR", "rate": round(usd_irr, 1)},
+            {"pair": "EUR/IRR", "rate": round(usd_irr / usd_eur, 1)},
+            {"pair": "GBP/IRR", "rate": round(usd_irr / usd_gbp, 1)},
+            {"pair": "AED/IRR", "rate": round(usd_irr / usd_aed, 1)}
+        ]
+    elif market == "TR":
+        usd_try = forex_rates_dict.get("TRY", 33.5)
+        forex_list = [
+            {"pair": "USD/TRY", "rate": round(usd_try, 2)},
+            {"pair": "EUR/TRY", "rate": round(usd_try / usd_eur, 2)},
+            {"pair": "GBP/TRY", "rate": round(usd_try / usd_gbp, 2)},
+            {"pair": "AED/TRY", "rate": round(usd_try / usd_aed, 2)}
         ]
     else: # US tab
         forex_list = [
@@ -339,6 +379,106 @@ def get_macro_indicators(market: str = "PK"):
                 item["localized"] = {
                     "label": "Crude Oil per bbl",
                     "price": f"{round(barrel_price, 1):,.1f} AED"
+                }
+        elif market == "CN":
+            usd_cny = forex_rates_dict.get("CNY", 7.25)
+            if name == "Gold":
+                g_price = (price_usd / 31.1034768) * usd_cny
+                item["localized"] = {
+                    "label": "Gold per Gram",
+                    "price": f"¥{round(g_price, 1):,.1f}"
+                }
+            elif name == "Silver":
+                g_price = (price_usd / 31.1034768) * usd_cny
+                item["localized"] = {
+                    "label": "Silver per Gram",
+                    "price": f"¥{round(g_price, 2):,.2f}"
+                }
+            elif name == "Crude Oil":
+                barrel_price = price_usd * usd_cny
+                item["localized"] = {
+                    "label": "Crude Oil per bbl",
+                    "price": f"¥{round(barrel_price, 1):,.1f}"
+                }
+        elif market == "QA":
+            usd_qar = forex_rates_dict.get("QAR", 3.64)
+            if name == "Gold":
+                g_price = (price_usd / 31.1034768) * usd_qar
+                item["localized"] = {
+                    "label": "Gold per Gram",
+                    "price": f"{round(g_price, 1):,.1f} QAR"
+                }
+            elif name == "Silver":
+                g_price = (price_usd / 31.1034768) * usd_qar
+                item["localized"] = {
+                    "label": "Silver per Gram",
+                    "price": f"{round(g_price, 2):,.2f} QAR"
+                }
+            elif name == "Crude Oil":
+                barrel_price = price_usd * usd_qar
+                item["localized"] = {
+                    "label": "Crude Oil per bbl",
+                    "price": f"{round(barrel_price, 1):,.1f} QAR"
+                }
+        elif market == "EG":
+            usd_egp = forex_rates_dict.get("EGP", 48.5)
+            if name == "Gold":
+                g_price = (price_usd / 31.1034768) * usd_egp
+                item["localized"] = {
+                    "label": "Gold per Gram",
+                    "price": f"E£{round(g_price, 1):,.1f}"
+                }
+            elif name == "Silver":
+                g_price = (price_usd / 31.1034768) * usd_egp
+                item["localized"] = {
+                    "label": "Silver per Gram",
+                    "price": f"E£{round(g_price, 2):,.2f}"
+                }
+            elif name == "Crude Oil":
+                barrel_price = price_usd * usd_egp
+                item["localized"] = {
+                    "label": "Crude Oil per bbl",
+                    "price": f"E£{round(barrel_price, 1):,.1f}"
+                }
+        elif market == "IR":
+            usd_irr = forex_rates_dict.get("IRR", 42000.0)
+            if name == "Gold":
+                g_price = (price_usd / 31.1034768) * usd_irr
+                item["localized"] = {
+                    "label": "Gold per Gram",
+                    "price": f"{round(g_price, 0):,.0f} IRR"
+                }
+            elif name == "Silver":
+                g_price = (price_usd / 31.1034768) * usd_irr
+                item["localized"] = {
+                    "label": "Silver per Gram",
+                    "price": f"{round(g_price, 0):,.0f} IRR"
+                }
+            elif name == "Crude Oil":
+                barrel_price = price_usd * usd_irr
+                item["localized"] = {
+                    "label": "Crude Oil per bbl",
+                    "price": f"{round(barrel_price, 0):,.0f} IRR"
+                }
+        elif market == "TR":
+            usd_try = forex_rates_dict.get("TRY", 33.5)
+            if name == "Gold":
+                g_price = (price_usd / 31.1034768) * usd_try
+                item["localized"] = {
+                    "label": "Gold per Gram",
+                    "price": f"₺{round(g_price, 1):,.1f}"
+                }
+            elif name == "Silver":
+                g_price = (price_usd / 31.1034768) * usd_try
+                item["localized"] = {
+                    "label": "Silver per Gram",
+                    "price": f"₺{round(g_price, 2):,.2f}"
+                }
+            elif name == "Crude Oil":
+                barrel_price = price_usd * usd_try
+                item["localized"] = {
+                    "label": "Crude Oil per bbl",
+                    "price": f"₺{round(barrel_price, 1):,.1f}"
                 }
         else: # US tab
             if name == "Gold":
