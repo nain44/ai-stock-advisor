@@ -632,16 +632,18 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                     <Text style={styles.stockPriceText}>
                       {stock.current_price?.toFixed(2) || '0.00'}
                     </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', justifyContent: 'flex-end', marginTop: 4 }}>
-                      <View style={[styles.changeBadge, { backgroundColor: isUp ? '#064E3B' : '#7F1D1D', alignItems: 'center', justifyContent: 'center', paddingVertical: 4, paddingHorizontal: 6, minWidth: 55, maxWidth: 65 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-end', marginTop: 4 }}>
+                      <View style={{ alignItems: 'center', marginRight: 6 }}>
                         {stock.signal && (
-                          <Text style={{ color: '#F8FAFC', fontSize: 8, fontWeight: '800', letterSpacing: 0.5, marginBottom: 2 }}>
-                            {stock.signal}
-                          </Text>
+                          <View style={[styles.miniSignalBadge, { backgroundColor: getSignalColor(stock.signal), borderColor: getSignalTextColor(stock.signal), marginLeft: 0, marginBottom: 4 }]}>
+                            <Text style={[styles.miniSignalText, { color: getSignalTextColor(stock.signal) }]}>{stock.signal}</Text>
+                          </View>
                         )}
-                        <Text style={[styles.changeText, { color: isUp ? '#34D399' : '#F87171', fontSize: 9, fontWeight: '700', textAlign: 'center' }]} numberOfLines={1}>
-                          {isUp ? '+' : ''}{stock.change_percent?.toFixed(2)}%
-                        </Text>
+                        <View style={[styles.changeBadge, { backgroundColor: isUp ? '#064E3B' : '#7F1D1D', minWidth: 55, maxWidth: 65 }]}>
+                          <Text style={[styles.changeText, { color: isUp ? '#34D399' : '#F87171', fontSize: 9, textAlign: 'center' }]} numberOfLines={1}>
+                            {isUp ? '+' : ''}{stock.change_percent?.toFixed(2)}%
+                          </Text>
+                        </View>
                       </View>
                       <TouchableOpacity 
                         style={styles.deleteRowBtn}
