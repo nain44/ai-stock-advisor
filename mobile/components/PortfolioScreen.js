@@ -9,7 +9,7 @@ const getCurrencySymbol = (m) => {
   return 'Rs.';
 };
 
-export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
+export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, triggerInterstitial }) {
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -244,6 +244,9 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl }) {
 
     setPortfolio(updatedPortfolio);
     setModalVisible(false);
+    if (triggerInterstitial) {
+      triggerInterstitial();
+    }
     // Reset fields
     setNewTicker('');
     setNewQty('');

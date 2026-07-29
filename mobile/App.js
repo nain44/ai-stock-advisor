@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, StatusBar, Modal, TextInput, Platform, Animated, Easing } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppBannerAd, MockInterstitialModal, MockRewardedModal } from './components/AdManager';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Home, MessageSquare, Briefcase, Wifi, WifiOff, Settings, AlertCircle, RefreshCw } from 'lucide-react-native';
 
@@ -213,6 +214,19 @@ export default function App() {
     setConfigModalVisible(false);
   };
 
+  // Monetization Ad States and AI credits
+  const [aiCredits, setAiCredits] = useState(5);
+  const [interstitialVisible, setInterstitialVisible] = useState(false);
+  const [rewardedVisible, setRewardedVisible] = useState(false);
+
+  const triggerInterstitial = () => {
+    setInterstitialVisible(true);
+  };
+
+  const triggerRewarded = () => {
+    setRewardedVisible(true);
+  };
+
   const renderActiveScreen = () => {
     switch (currentTab) {
       case 'dashboard':
@@ -235,6 +249,9 @@ export default function App() {
             apiUrl={apiUrl}
             market={market}
             config={config}
+            aiCredits={aiCredits}
+            setAiCredits={setAiCredits}
+            triggerRewarded={triggerRewarded}
           />
         );
       case 'portfolio':
@@ -243,6 +260,7 @@ export default function App() {
             portfolio={portfolio}
             setPortfolio={setPortfolio}
             apiUrl={apiUrl}
+            triggerInterstitial={triggerInterstitial}
           />
         );
       default:
@@ -315,6 +333,9 @@ export default function App() {
       <View style={styles.screenContainer}>
         {renderActiveScreen()}
       </View>
+
+      {/* Sticky Bottom Ad Banner */}
+      <AppBannerAd />
 
       {/* Custom Bottom Tab Navigator */}
       <View style={styles.tabBar}>
@@ -412,6 +433,17 @@ export default function App() {
           </View>
         </View>
       </Modal>
+
+      {/* Root monetization ad overlays */}
+      <MockInterstitialModal 
+        visible={interstitialVisible} 
+        onClose={() => setInterstitialVisible(false)} 
+      />
+      <MockRewardedModal 
+        visible={rewardedVisible} 
+        onClose={() => setRewardedVisible(false)} 
+        onRewardEarned={() => setAiCredits(prev => prev + 5)}
+      />
     </SafeAreaView>
   );
 }

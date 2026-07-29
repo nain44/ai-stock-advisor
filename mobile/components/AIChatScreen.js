@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { Send, Sparkles, HelpCircle } from 'lucide-react-native';
 
-export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market = 'PK', config }) {
+export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market = 'PK', config, aiCredits, setAiCredits, triggerRewarded }) {
   const getWelcomeText = () => {
     if (config && config.chat && config.chat.welcome_messages && config.chat.welcome_messages[market]) {
       return config.chat.welcome_messages[market];
@@ -48,6 +48,20 @@ export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market
   const handleSend = async (queryText) => {
     const textToSend = queryText || inputText;
     if (!textToSend.trim()) return;
+
+    if (aiCredits <= 0) {
+      Alert.alert(
+        "Out of AI Credits",
+        "You have used all of your free AI prompts. Watch a short sponsor clip to get +5 credits!",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Watch Video Ad", onPress: triggerRewarded }
+        ]
+      );
+      return;
+    }
+
+    setAiCredits(prev => Math.max(0, prev - 1));
 
     // Add user message
     const userMsg = {
@@ -113,10 +127,26 @@ export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market
     >
       {/* Active Context Header */}
       <View style={styles.contextHeader}>
-        <Sparkles size={16} color="#00D2FF" style={{ marginRight: 8 }} />
-        <Text style={styles.contextText}>
-          Active Context: <Text style={styles.boldText}>{selectedTicker || 'None'}</Text>
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Sparkles size={16} color="#00D2FF" style={{ marginRight: 8 }} />
+          <Text style={styles.contextText}>
+            Active Context: <Text style={styles.boldText}>{selectedTicker || 'None'}</Text>
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={[styles.contextText, { marginRight: 8 }]}>
+            AI Credits: <Text style={{ color: aiCredits > 0 ? '#34D399' : '#F87171', fontWeight: 'bold' }}>{aiCredits}</Text>
+          </Text>
+          {aiCredits === 0 && (
+            <TouchableOpacity 
+              style={styles.adRefillBtn} 
+              onPress={triggerRewarded}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.adRefillText}>+ Refill</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Messages Scroll Area */}
@@ -199,10 +229,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F172A',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#1E293B',
+  },
+  adRefillBtn: {
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#38BDF8',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  adRefillText: {
+    color: '#38BDF8',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   contextText: {
     color: '#94A3B8',

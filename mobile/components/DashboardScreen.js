@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppNativeAd } from './AdManager';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { TrendingUp, TrendingDown, ShieldAlert, Award, Compass, RefreshCw, BarChart2, Trash2, Plus, Search } from 'lucide-react-native';
 
@@ -600,7 +601,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
             <Text style={styles.emptyText}>No stocks match your search/filter criteria.</Text>
           </View>
         ) : (
-          filteredStocks.map((stock) => {
+          filteredStocks.map((stock, index) => {
             const isUp = stock.change >= 0;
             const isSelected = stock.ticker === selectedTicker;
             const initials = stock.ticker.substring(0, 2);
@@ -618,81 +619,83 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
             const themeColor = emblemColors[stock.sector] || "#64748B";
 
             return (
-              <TouchableOpacity
-                key={stock.ticker}
-                style={[styles.stockRow, isSelected && styles.selectedStockRow]}
-                onPress={() => {
-                  setSelectedTicker(stock.ticker);
-                  setDetailModalVisible(true);
-                }}
-              >
-                {/* Left Emblem & Name */}
-                <View style={styles.stockLeft}>
-                  <View style={[styles.emblem, { backgroundColor: themeColor }]}>
-                    <Text style={styles.emblemText}>{initials}</Text>
-                  </View>
-                  <View style={styles.nameCol}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                      <Text style={[styles.stockTickerText, { marginBottom: 0 }]}>{stock.ticker}</Text>
-                      {stock.signal && (
-                        <View style={[styles.miniSignalBadge, { backgroundColor: getSignalColor(stock.signal), borderColor: getSignalTextColor(stock.signal) }]}>
-                          <Text style={[styles.miniSignalText, { color: getSignalTextColor(stock.signal) }]}>{stock.signal}</Text>
-                        </View>
-                      )}
+              <React.Fragment key={stock.ticker}>
+                <TouchableOpacity
+                  style={[styles.stockRow, isSelected && styles.selectedStockRow]}
+                  onPress={() => {
+                    setSelectedTicker(stock.ticker);
+                    setDetailModalVisible(true);
+                  }}
+                >
+                  {/* Left Emblem & Name */}
+                  <View style={styles.stockLeft}>
+                    <View style={[styles.emblem, { backgroundColor: themeColor }]}>
+                      <Text style={styles.emblemText}>{initials}</Text>
                     </View>
-                    <Text style={styles.stockNameText} numberOfLines={1}>
-                      {stock.name}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Center 2x2 Grid */}
-                <View style={styles.stockCenter}>
-                  <View style={styles.gridRow}>
-                    <View style={styles.gridCell}>
-                      <Text style={styles.gridLabel}>HIGH</Text>
-                      <Text style={styles.gridNum}>{stock.high?.toFixed(2) || '0.00'}</Text>
-                    </View>
-                    <View style={styles.gridCell}>
-                      <Text style={styles.gridLabel}>LOW</Text>
-                      <Text style={styles.gridNum}>{stock.low?.toFixed(2) || '0.00'}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.gridRow}>
-                    <View style={styles.gridCell}>
-                      <Text style={styles.gridLabel}>VOLUME</Text>
-                      <Text style={styles.gridNum}>{formatVolume(stock.volume)}</Text>
-                    </View>
-                    <View style={styles.gridCell}>
-                      <Text style={styles.gridLabel}>LDCP</Text>
-                      <Text style={styles.gridNum}>{stock.ldcp?.toFixed(2) || '0.00'}</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Right Price & Change */}
-                <View style={styles.stockRight}>
-                  <Text style={styles.stockPriceText}>
-                    {stock.current_price?.toFixed(2) || '0.00'}
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', justifyContent: 'flex-end' }}>
-                    <View style={[styles.changeBadge, { backgroundColor: isUp ? '#064E3B' : '#7F1D1D', flex: 1, maxWidth: 60 }]}>
-                      <Text style={[styles.changeText, { color: isUp ? '#34D399' : '#F87171', fontSize: 9, textAlign: 'center' }]} numberOfLines={1}>
-                        {isUp ? '+' : ''}{stock.change_percent?.toFixed(2)}%
+                    <View style={styles.nameCol}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                        <Text style={[styles.stockTickerText, { marginBottom: 0 }]}>{stock.ticker}</Text>
+                        {stock.signal && (
+                          <View style={[styles.miniSignalBadge, { backgroundColor: getSignalColor(stock.signal), borderColor: getSignalTextColor(stock.signal) }]}>
+                            <Text style={[styles.miniSignalText, { color: getSignalTextColor(stock.signal) }]}>{stock.signal}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.stockNameText} numberOfLines={1}>
+                        {stock.name}
                       </Text>
                     </View>
-                    <TouchableOpacity 
-                      style={styles.deleteRowBtn}
-                      onPress={(e) => {
-                        e.stopPropagation(); // prevent opening details sheet
-                        handleRemoveWatchlist(stock.ticker);
-                      }}
-                    >
-                      <Trash2 size={12} color="#EF4444" />
-                    </TouchableOpacity>
                   </View>
-                </View>
-              </TouchableOpacity>
+
+                  {/* Center 2x2 Grid */}
+                  <View style={styles.stockCenter}>
+                    <View style={styles.gridRow}>
+                      <View style={styles.gridCell}>
+                        <Text style={styles.gridLabel}>HIGH</Text>
+                        <Text style={styles.gridNum}>{stock.high?.toFixed(2) || '0.00'}</Text>
+                      </View>
+                      <View style={styles.gridCell}>
+                        <Text style={styles.gridLabel}>LOW</Text>
+                        <Text style={styles.gridNum}>{stock.low?.toFixed(2) || '0.00'}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.gridRow}>
+                      <View style={styles.gridCell}>
+                        <Text style={styles.gridLabel}>VOLUME</Text>
+                        <Text style={styles.gridNum}>{formatVolume(stock.volume)}</Text>
+                      </View>
+                      <View style={styles.gridCell}>
+                        <Text style={styles.gridLabel}>LDCP</Text>
+                        <Text style={styles.gridNum}>{stock.ldcp?.toFixed(2) || '0.00'}</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Right Price & Change */}
+                  <View style={styles.stockRight}>
+                    <Text style={styles.stockPriceText}>
+                      {stock.current_price?.toFixed(2) || '0.00'}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', justifyContent: 'flex-end' }}>
+                      <View style={[styles.changeBadge, { backgroundColor: isUp ? '#064E3B' : '#7F1D1D', flex: 1, maxWidth: 60 }]}>
+                        <Text style={[styles.changeText, { color: isUp ? '#34D399' : '#F87171', fontSize: 9, textAlign: 'center' }]} numberOfLines={1}>
+                          {isUp ? '+' : ''}{stock.change_percent?.toFixed(2)}%
+                        </Text>
+                      </View>
+                      <TouchableOpacity 
+                        style={styles.deleteRowBtn}
+                        onPress={(e) => {
+                          e.stopPropagation(); // prevent opening details sheet
+                          handleRemoveWatchlist(stock.ticker);
+                        }}
+                      >
+                        <Trash2 size={12} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+                {index === 1 && <AppNativeAd />}
+              </React.Fragment>
             );
           })
         )}
