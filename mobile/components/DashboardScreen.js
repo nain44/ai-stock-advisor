@@ -583,7 +583,12 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
             return (
               <React.Fragment key={stock.ticker}>
                 <TouchableOpacity
-                  style={[styles.stockRow, isSelected && styles.selectedStockRow]}
+                  style={[
+                    styles.stockRow, 
+                    isSelected && styles.selectedStockRow,
+                    !isSelected && stock.signal === 'BUY' && { borderColor: '#10B981' },
+                    !isSelected && stock.signal === 'SELL' && { borderColor: '#EF4444' }
+                  ]}
                   onPress={() => {
                     setSelectedTicker(stock.ticker);
                     setActiveModalStock(stock);
