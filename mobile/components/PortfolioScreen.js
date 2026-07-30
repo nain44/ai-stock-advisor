@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator } from 'react-native';
-import { Plus, Trash2, ShieldAlert, CheckCircle2, X, Search } from 'lucide-react-native';
+import { Plus, Trash2, ShieldAlert, CheckCircle2, X, Search, Edit2 } from 'lucide-react-native';
 
 const getCurrencySymbol = (m) => {
   if (m === 'US') return '$';
@@ -24,6 +24,27 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
     return market === 'US' ? 'AAPL, MSFT' : 'MARI, SYS';
   };
 
+  const getSignalStatus = (ticker) => {
+    const s = stocks.find(item => item.ticker === ticker);
+    return s ? s.signal : null;
+  };
+
+  const getSignalColor = (sig) => {
+    if (!sig) return '#1E293B';
+    const s = sig.toUpperCase();
+    if (s.includes('BUY')) return '#064E3B';
+    if (s.includes('SELL')) return '#7F1D1D';
+    return '#1E293B';
+  };
+
+  const getSignalTextColor = (sig) => {
+    if (!sig) return '#94A3B8';
+    const s = sig.toUpperCase();
+    if (s.includes('BUY')) return '#34D399';
+    if (s.includes('SELL')) return '#F87171';
+    return '#94A3B8';
+  };
+
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -31,6 +52,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
   const [newQty, setNewQty] = useState('');
   const [newPrice, setNewPrice] = useState('');
   const [adding, setAdding] = useState(false);
+  const [editingHolding, setEditingHolding] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [analysisModalVisible, setAnalysisModalVisible] = useState(false);
@@ -204,6 +226,22 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
     }
   };
 
+  const handleEditHolding = (holding) => {
+    setEditingHolding(holding);
+    setNewTicker(holding.ticker);
+    setNewQty(holding.quantity.toString());
+    setNewPrice(holding.avgPrice.toString());
+    setModalVisible(true);
+  };
+
+  const handleOpenAddModal = () => {
+    setEditingHolding(null);
+    setNewTicker('');
+    setNewQty('');
+    setNewPrice('');
+    setModalVisible(true);
+  };
+
   const handleAddHolding = () => {
     if (!newTicker || !newQty || !newPrice) {
       showAlert("Error", "Please fill in all fields.", "error");
@@ -224,7 +262,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
 
     // Check if the ticker exists in coverage list
     const exists = stocks.some(s => s.ticker === newTicker);
-    if (!exists) {
+    if (!exists && !editingHolding) {
       showAlert(
         "Warning",
         `Ticker ${newTicker} is not currently monitored in KSE coverage list. Adding it might use simulated quotes.`,
@@ -232,29 +270,43 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
       );
     }
 
-    // Add or merge holding
+    // Add, merge, or edit holding
     const updatedPortfolio = [...portfolio];
-    const existingIdx = updatedPortfolio.findIndex(h => h.ticker === newTicker && h.market === market);
 
-    if (existingIdx >= 0) {
-      // Merge
-      const exist = updatedPortfolio[existingIdx];
-      const combinedQty = exist.quantity + qty;
-      const combinedCost = (exist.avgPrice * exist.quantity) + (price * qty);
-      exist.quantity = combinedQty;
-      exist.avgPrice = combinedCost / combinedQty;
+    if (editingHolding) {
+      const idx = updatedPortfolio.findIndex(
+        h => h.ticker === editingHolding.ticker && h.market === editingHolding.market
+      );
+      if (idx >= 0) {
+        updatedPortfolio[idx] = {
+          ...updatedPortfolio[idx],
+          quantity: qty,
+          avgPrice: price
+        };
+      }
     } else {
-      // Add new
-      updatedPortfolio.push({
-        ticker: newTicker,
-        quantity: qty,
-        avgPrice: price,
-        market: market
-      });
+      const existingIdx = updatedPortfolio.findIndex(h => h.ticker === newTicker && h.market === market);
+      if (existingIdx >= 0) {
+        // Merge
+        const exist = updatedPortfolio[existingIdx];
+        const combinedQty = exist.quantity + qty;
+        const combinedCost = (exist.avgPrice * exist.quantity) + (price * qty);
+        exist.quantity = combinedQty;
+        exist.avgPrice = combinedCost / combinedQty;
+      } else {
+        // Add new
+        updatedPortfolio.push({
+          ticker: newTicker,
+          quantity: qty,
+          avgPrice: price,
+          market: market
+        });
+      }
     }
 
     setPortfolio(updatedPortfolio);
     setModalVisible(false);
+    setEditingHolding(null);
     if (triggerInterstitial) {
       triggerInterstitial();
     }
@@ -354,7 +406,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
       {/* Holdings Header */}
       <View style={styles.titleRow}>
         <Text style={styles.titleText}>Your Simulated Holdings</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)}>
+        <TouchableOpacity style={styles.addBtn} onPress={handleOpenAddModal}>
           <Plus size={16} color="#0B0F19" style={{ marginRight: 4 }} />
           <Text style={styles.addBtnText}>Add Stock</Text>
         </TouchableOpacity>
@@ -379,13 +431,25 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
             return (
               <View key={holding.ticker} style={styles.holdingCard}>
                 <View style={styles.holdingHeader}>
-                  <View>
-                    <Text style={styles.holdingSymbol}>{holding.ticker}</Text>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                      <Text style={[styles.holdingSymbol, { marginBottom: 0 }]}>{holding.ticker}</Text>
+                      {getSignalStatus(holding.ticker) && (
+                        <View style={[styles.miniSignalBadge, { backgroundColor: getSignalColor(getSignalStatus(holding.ticker)), borderColor: getSignalTextColor(getSignalStatus(holding.ticker)), marginLeft: 8 }]}>
+                          <Text style={[styles.miniSignalText, { color: getSignalTextColor(getSignalStatus(holding.ticker)) }]}>{getSignalStatus(holding.ticker)}</Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={styles.holdingName} numberOfLines={1}>{stockName}</Text>
                   </View>
-                  <TouchableOpacity onPress={() => handleRemoveHolding(holding.ticker)}>
-                    <Trash2 size={16} color="#EF4444" />
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <TouchableOpacity onPress={() => handleEditHolding(holding)} style={{ marginRight: 16 }}>
+                      <Edit2 size={16} color="#00D2FF" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleRemoveHolding(holding.ticker)}>
+                      <Trash2 size={16} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 <View style={styles.statsDivider} />
@@ -429,51 +493,61 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
         <View style={styles.modalBg}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Simulated Holding</Text>
+              <Text style={styles.modalTitle}>
+                {editingHolding ? "Edit Simulated Holding" : "Add Simulated Holding"}
+              </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <X size={20} color="#94A3B8" />
               </TouchableOpacity>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Stock Ticker (e.g. {getSuggestions()})</Text>
-              <TextInput
-                style={styles.inputField}
-                placeholder="Enter stock ticker..."
-                placeholderTextColor="#64748B"
-                value={newTicker}
-                onChangeText={handleTickerChange}
-                autoCapitalize="characters"
-              />
-              
-              {/* Autocomplete overlay for search results */}
-              {searching ? (
-                <View style={styles.searchLoader}>
-                  <ActivityIndicator size="small" color="#00D2FF" />
+              <Text style={styles.inputLabel}>Stock Ticker</Text>
+              {editingHolding ? (
+                <View style={[styles.inputField, { backgroundColor: '#1E293B', justifyContent: 'center', height: 40 }]}>
+                  <Text style={{ color: '#94A3B8', fontWeight: 'bold' }}>{newTicker}</Text>
                 </View>
-              ) : searchResults.length > 0 ? (
-                <View style={styles.searchDropdown}>
-                  <ScrollView style={{ maxHeight: 120 }} keyboardShouldPersistTaps="handled">
-                    {searchResults.map((item) => (
-                      <TouchableOpacity
-                        key={item.ticker}
-                        style={styles.dropdownItem}
-                        onPress={() => selectTickerFromSearch(item.ticker)}
-                      >
-                        <Text style={styles.dropdownTicker}>{item.ticker}</Text>
-                        <Text style={styles.dropdownName} numberOfLines={1}>{item.name}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              ) : null}
-              
-              {newTicker.length > 0 && searchResults.length === 0 && (
-                <Text style={styles.helperText}>
-                  {stocks.some(s => s.ticker === newTicker)
-                    ? `Matching Stock: ${getStockName(newTicker)}`
-                    : "Ticker not found in database (will use custom price)"}
-                </Text>
+              ) : (
+                <>
+                  <TextInput
+                    style={styles.inputField}
+                    placeholder="Enter stock ticker..."
+                    placeholderTextColor="#64748B"
+                    value={newTicker}
+                    onChangeText={handleTickerChange}
+                    autoCapitalize="characters"
+                  />
+                  
+                  {/* Autocomplete overlay for search results */}
+                  {searching ? (
+                    <View style={styles.searchLoader}>
+                      <ActivityIndicator size="small" color="#00D2FF" />
+                    </View>
+                  ) : searchResults.length > 0 ? (
+                    <View style={styles.searchDropdown}>
+                      <ScrollView style={{ maxHeight: 120 }} keyboardShouldPersistTaps="handled">
+                        {searchResults.map((item) => (
+                          <TouchableOpacity
+                            key={item.ticker}
+                            style={styles.dropdownItem}
+                            onPress={() => selectTickerFromSearch(item.ticker)}
+                          >
+                            <Text style={styles.dropdownTicker}>{item.ticker}</Text>
+                            <Text style={styles.dropdownName} numberOfLines={1}>{item.name}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  ) : null}
+                  
+                  {newTicker.length > 0 && searchResults.length === 0 && (
+                    <Text style={styles.helperText}>
+                      {stocks.some(s => s.ticker === newTicker)
+                        ? `Matching Stock: ${getStockName(newTicker)}`
+                        : "Ticker not found in database (will use custom price)"}
+                    </Text>
+                  )}
+                </>
               )}
             </View>
 
@@ -508,7 +582,9 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
 
             <TouchableOpacity style={styles.modalSubmitBtn} onPress={handleAddHolding}>
               <CheckCircle2 size={16} color="#0B0F19" style={{ marginRight: 6 }} />
-              <Text style={styles.modalSubmitText}>Add to Portfolio</Text>
+              <Text style={styles.modalSubmitText}>
+                {editingHolding ? "Save Changes" : "Add to Portfolio"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1274,5 +1350,16 @@ const styles = StyleSheet.create({
   noCountryText: {
     color: '#64748B',
     fontSize: 13,
+  },
+  miniSignalBadge: {
+    marginLeft: 6,
+    paddingVertical: 1,
+    paddingHorizontal: 4,
+    borderRadius: 4,
+    borderWidth: 0.5,
+  },
+  miniSignalText: {
+    fontSize: 7,
+    fontWeight: 'bold',
   },
 });
