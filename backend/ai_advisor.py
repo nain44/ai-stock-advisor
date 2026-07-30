@@ -269,7 +269,9 @@ def get_llm_recommendation(ticker: str, price: float, tech_analysis: dict, profi
             print(f"OpenAI API execution failed, falling back: {e}")
             
     # Fallback to rules engine if no API keys or errors
-    return get_rule_based_recommendation(ticker, price, tech_analysis, profile)def generate_simulator_chat_response(query: str, portfolio: list = None, market: str = "PK") -> str:
+    return get_rule_based_recommendation(ticker, price, tech_analysis, profile)
+
+def generate_simulator_chat_response(query: str, portfolio: list = None, market: str = "PK") -> str:
     """
     Rule-based interactive agent responses for Simulator Mode.
     Simulates a highly qualified analyst chat responding to standard investor queries.
