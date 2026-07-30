@@ -7,7 +7,17 @@ import { TrendingUp, TrendingDown, ShieldAlert, Award, Compass, RefreshCw, BarCh
 
 const { width } = Dimensions.get('window');
 
-export default function DashboardScreen({ selectedTicker, setSelectedTicker, apiUrl, market, setMarket, config, refreshTrigger }) {
+export default function DashboardScreen({ selectedTicker, setSelectedTicker, apiUrl, market, setMarket, config, refreshTrigger, isDarkMode }) {
+  const theme = {
+    bg: isDarkMode ? '#0B0F19' : '#F8FAFC',
+    card: isDarkMode ? '#161B26' : '#FFFFFF',
+    border: isDarkMode ? '#222A3C' : '#E2E8F0',
+    text: isDarkMode ? '#FFFFFF' : '#0F172A',
+    subtext: isDarkMode ? '#94A3B8' : '#64748B',
+    headerBg: isDarkMode ? '#0F172A' : '#FFFFFF',
+    headerBorder: isDarkMode ? '#1E293B' : '#E2E8F0',
+  };
+
   const getCurrencySymbol = (m) => {
     const marketConfig = (config && config.markets && config.markets[m]) || {};
     return marketConfig.currency || (m === 'US' ? '$' : m === 'IN' ? '₹' : m === 'UK' ? '£' : 'Rs.');
@@ -355,9 +365,9 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
 
   if (loadingStocks && stocks.length === 0) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.bg }]}>
         <ActivityIndicator size="large" color="#00D2FF" />
-        <Text style={styles.loadingText}>Fetching Live Market Coverage...</Text>
+        <Text style={[styles.loadingText, { color: theme.subtext }]}>Fetching Live Market Coverage...</Text>
       </View>
     );
   }
@@ -454,14 +464,14 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   const idxInfo = getIndexValAndChange();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
       {/* Market Switcher & Index Banner Header Row */}
-      <View style={styles.headerIndexRow}>
+      <View style={[styles.headerIndexRow, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder }]}>
         <View style={styles.indexBannerCompact}>
           <View>
-            <Text style={styles.indexName}>{idxInfo.name}</Text>
+            <Text style={[styles.indexName, { color: theme.subtext }]}>{idxInfo.name}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.indexVal}>{idxInfo.val}</Text>
+              <Text style={[styles.indexVal, { color: theme.text }]}>{idxInfo.val}</Text>
               <Text style={idxInfo.positive ? styles.indexChangePositive : styles.indexChangeNegative}>{idxInfo.change}</Text>
             </View>
           </View>
@@ -469,11 +479,11 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
         
         {/* Country Selector Dropdown Button */}
         <TouchableOpacity 
-          style={styles.countryDropdownBtn}
+          style={[styles.countryDropdownBtn, { backgroundColor: isDarkMode ? '#1E293B' : '#E2E8F0', borderColor: theme.border }]}
           onPress={() => setCountryModalVisible(true)}
           activeOpacity={0.7}
         >
-          <Text style={styles.dropdownBtnText}>
+          <Text style={[styles.dropdownBtnText, { color: theme.text }]}>
             {((config?.markets || {})[market] || {}).flag || '🌐'} {market}
           </Text>
           <Text style={styles.dropdownArrow}>▼</Text>
@@ -485,10 +495,10 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
 
       {/* Search Bar */}
       <View style={styles.searchBarRow}>
-        <View style={styles.searchInputContainer}>
+        <View style={[styles.searchInputContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Search size={18} color="#64748B" style={styles.searchIcon} />
           <TextInput
-            style={styles.searchInputField}
+            style={[styles.searchInputField, { color: theme.text }]}
             placeholder={market === 'US' ? "Search global US stocks..." : "Search all 500+ PSX stocks..."}
             placeholderTextColor="#64748B"
             value={searchQuery}

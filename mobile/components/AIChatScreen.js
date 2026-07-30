@@ -2,7 +2,17 @@ import React, { useState, useRef } from 'react';
 import { StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { Send, Sparkles, HelpCircle } from 'lucide-react-native';
 
-export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market = 'PK', config, aiCredits, setAiCredits, triggerRewarded }) {
+export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market = 'PK', config, aiCredits, setAiCredits, triggerRewarded, isDarkMode }) {
+  const theme = {
+    bg: isDarkMode ? '#0B0F19' : '#F8FAFC',
+    card: isDarkMode ? '#161B26' : '#FFFFFF',
+    border: isDarkMode ? '#222A3C' : '#E2E8F0',
+    text: isDarkMode ? '#FFFFFF' : '#0F172A',
+    subtext: isDarkMode ? '#94A3B8' : '#64748B',
+    headerBg: isDarkMode ? '#0F172A' : '#FFFFFF',
+    headerBorder: isDarkMode ? '#1E293B' : '#E2E8F0',
+  };
+
   const getWelcomeText = () => {
     if (config && config.chat && config.chat.welcome_messages && config.chat.welcome_messages[market]) {
       return config.chat.welcome_messages[market];
@@ -121,14 +131,14 @@ export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market
 
   return (
     <KeyboardAvoidingView 
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.bg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 85}
     >
       {/* Active Context Header */}
-      <View style={[styles.contextHeader, { justifyContent: 'flex-end' }]}>
+      <View style={[styles.contextHeader, { justifyContent: 'flex-end', backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={[styles.contextText, { marginRight: 8 }]}>
+          <Text style={[styles.contextText, { marginRight: 8, color: theme.text }]}>
             AI Credits: <Text style={{ color: aiCredits > 0 ? '#34D399' : '#F87171', fontWeight: 'bold' }}>{aiCredits}</Text>
           </Text>
           {aiCredits === 0 && (

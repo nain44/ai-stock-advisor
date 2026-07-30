@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, StatusBar, Modal, TextInput, Platform, Animated, Easing } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, StatusBar, Modal, TextInput, Platform, Animated, Easing, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppBannerAd, MockInterstitialModal, MockRewardedModal } from './components/AdManager';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Home, MessageSquare, Briefcase, Wifi, WifiOff, Settings, AlertCircle, RefreshCw } from 'lucide-react-native';
+import { Home, MessageSquare, Briefcase, Wifi, WifiOff, Settings, AlertCircle, RefreshCw, Menu, X, Sun, Moon, DollarSign } from 'lucide-react-native';
 
 // Screen Components
 import DashboardScreen from './components/DashboardScreen';
@@ -262,8 +262,145 @@ const DEFAULT_CONFIG = {
   }
 };
 
+const CurrencyConverterWidget = ({ isDarkMode }) => {
+  const [amount, setAmount] = useState('100');
+  const [fromCur, setFromCur] = useState('USD');
+  const [toCur, setToCur] = useState('PKR');
+  const [converted, setConverted] = useState(null);
+
+  const rates = {
+    USD: 1.0,
+    PKR: 278.5,
+    INR: 83.5,
+    GBP: 0.78,
+    EUR: 0.92,
+    TRY: 33.1
+  };
+
+  const handleConvert = () => {
+    const amt = parseFloat(amount);
+    if (isNaN(amt) || amt <= 0) {
+      setConverted(0);
+      return;
+    }
+    const valInUSD = amt / rates[fromCur];
+    const valInTarget = valInUSD * rates[toCur];
+    setConverted(valInTarget);
+  };
+
+  useEffect(() => {
+    handleConvert();
+  }, [amount, fromCur, toCur]);
+
+  return (
+    <View style={[styles.sidebarCard, { backgroundColor: isDarkMode ? '#1F2937' : '#FFF' }]}>
+      <Text style={[styles.sidebarCardTitle, { color: isDarkMode ? '#00D2FF' : '#0284C7' }]}>Currency Converter</Text>
+      
+      <Text style={[styles.sidebarInputLabel, { color: isDarkMode ? '#94A3B8' : '#64748B' }]}>Amount</Text>
+      <TextInput
+        style={[styles.sidebarInput, { 
+          backgroundColor: isDarkMode ? '#374151' : '#F1F5F9',
+          color: isDarkMode ? '#FFF' : '#000',
+          borderColor: isDarkMode ? '#4B5563' : '#CBD5E1'
+        }]}
+        keyboardType="numeric"
+        value={amount}
+        onChangeText={setAmount}
+      />
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
+        <View style={{ width: '45%' }}>
+          <Text style={[styles.sidebarInputLabel, { color: isDarkMode ? '#94A3B8' : '#64748B', marginBottom: 4 }]}>From</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+            {['USD', 'PKR', 'INR', 'TRY'].map(cur => (
+              <TouchableOpacity 
+                key={cur}
+                onPress={() => setFromCur(cur)}
+                style={[
+                  styles.curSelectBtn, 
+                  fromCur === cur && { backgroundColor: '#00D2FF' },
+                  fromCur !== cur && { backgroundColor: isDarkMode ? '#374151' : '#E2E8F0' }
+                ]}
+              >
+                <Text style={{ fontSize: 10, color: fromCur === cur ? '#0B0F19' : (isDarkMode ? '#FFF' : '#0F172A'), fontWeight: 'bold' }}>{cur}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={{ width: '45%' }}>
+          <Text style={[styles.sidebarInputLabel, { color: isDarkMode ? '#94A3B8' : '#64748B', marginBottom: 4 }]}>To</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+            {['USD', 'PKR', 'INR', 'TRY'].map(cur => (
+              <TouchableOpacity 
+                key={cur}
+                onPress={() => setToCur(cur)}
+                style={[
+                  styles.curSelectBtn, 
+                  toCur === cur && { backgroundColor: '#00D2FF' },
+                  toCur !== cur && { backgroundColor: isDarkMode ? '#374151' : '#E2E8F0' }
+                ]}
+              >
+                <Text style={{ fontSize: 10, color: toCur === cur ? '#0B0F19' : (isDarkMode ? '#FFF' : '#0F172A'), fontWeight: 'bold' }}>{cur}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </View>
+
+      <View style={[styles.resultBox, { backgroundColor: isDarkMode ? '#111827' : '#F8FAFC', borderColor: isDarkMode ? '#374151' : '#E2E8F0' }]}>
+        <Text style={{ color: isDarkMode ? '#94A3B8' : '#64748B', fontSize: 11 }}>Result</Text>
+        <Text style={{ color: isDarkMode ? '#10B981' : '#059669', fontSize: 14, fontWeight: 'bold', marginTop: 2 }}>
+          {parseFloat(amount || 0).toLocaleString()} {fromCur} = 
+        </Text>
+        <Text style={{ color: '#34D399', fontSize: 16, fontWeight: 'bold' }}>
+          {converted ? converted.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0'} {toCur}
+        </Text>
+      </View>
+    </View>
+  );
+};
+
 export default function App() {
   const [currentTab, setCurrentTab] = useState('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const sidebarAnim = useRef(new Animated.Value(-280)).current;
+
+  // Load theme on startup
+  useEffect(() => {
+    const loadTheme = async () => {
+      try {
+        const val = await AsyncStorage.getItem('@is_dark_mode');
+        if (val !== null) {
+          setIsDarkMode(val === 'true');
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    loadTheme();
+  }, []);
+
+  const toggleTheme = async (mode) => {
+    setIsDarkMode(mode);
+    try {
+      await AsyncStorage.setItem('@is_dark_mode', mode ? 'true' : 'false');
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const toggleSidebar = () => {
+    const toValue = sidebarOpen ? -280 : 0;
+    Animated.timing(sidebarAnim, {
+      toValue,
+      duration: 250,
+      useNativeDriver: true,
+      easing: Easing.out(Easing.ease),
+    }).start();
+    setSidebarOpen(!sidebarOpen);
+  };
   const [selectedTicker, setSelectedTicker] = useState('MARI');
   const [market, setMarket] = useState('PK');
   const [isMarketLoaded, setIsMarketLoaded] = useState(false);
@@ -485,6 +622,7 @@ export default function App() {
             setMarket={setMarket}
             config={config}
             refreshTrigger={refreshTrigger}
+            isDarkMode={isDarkMode}
           />
         );
       case 'chat':
@@ -498,6 +636,7 @@ export default function App() {
             aiCredits={aiCredits}
             setAiCredits={setAiCredits}
             triggerRewarded={triggerRewarded}
+            isDarkMode={isDarkMode}
           />
         );
       case 'portfolio':
@@ -508,6 +647,8 @@ export default function App() {
             apiUrl={apiUrl}
             triggerInterstitial={triggerInterstitial}
             config={config}
+            market={market}
+            isDarkMode={isDarkMode}
           />
         );
       default:
@@ -526,172 +667,228 @@ export default function App() {
   const headerInfo = getHeaderInfo();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B0F19" />
+    <View style={{ flex: 1, backgroundColor: isDarkMode ? '#0B0F19' : '#F8FAFC' }}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: isDarkMode ? '#0B0F19' : '#F8FAFC' }]}>
+        <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={isDarkMode ? "#0B0F19" : "#F8FAFC"} />
 
-      {/* Global Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>{headerInfo.title}</Text>
-          <View style={styles.subtitleRow}>
-            <Text style={styles.headerSubtitle}>{headerInfo.subtitle}</Text>
-          </View>
-        </View>
-
-        <View style={styles.headerRightContainer}>
-          {/* Animated manual refresh button */}
-          <TouchableOpacity 
-            style={styles.refreshHeaderBtn}
-            onPress={handleManualRefresh}
-            activeOpacity={0.7}
-          >
-            <Animated.View style={{ transform: [{ rotate: spin }] }}>
-              <RefreshCw size={14} color="#94A3B8" />
-            </Animated.View>
-          </TouchableOpacity>
-
-          {/* API connection trigger badge */}
-          <TouchableOpacity 
-            style={[styles.connectionBadge, styles[`status_${connectionStatus}`]]}
-            onPress={() => {
-              setInputUrl(apiUrl);
-              setConfigModalVisible(true);
-            }}
-          >
-            {connectionStatus === 'connected' ? (
-              <Wifi size={14} color="#34D399" />
-            ) : connectionStatus === 'connecting' ? (
-              <RefreshCw size={14} color="#FBBF24" style={styles.spinAnimation} />
-            ) : (
-              <WifiOff size={14} color="#F87171" />
-            )}
-            <Text style={[styles.connectionText, { 
-              color: connectionStatus === 'connected' ? '#34D399' : 
-                     connectionStatus === 'connecting' ? '#FBBF24' : '#F87171' 
-            }]}>
-              {connectionStatus === 'connected' ? 'Live API' : 
-               connectionStatus === 'connecting' ? 'Connecting' : 'Offline'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Main Screen Content */}
-      <View style={styles.screenContainer}>
-        {renderActiveScreen()}
-      </View>
-
-      {/* Sticky Bottom Ad Banner */}
-      <AppBannerAd />
-
-      {/* Custom Bottom Tab Navigator */}
-      <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tabItem, currentTab === 'dashboard' && styles.activeTabItem]}
-          onPress={() => setCurrentTab('dashboard')}
-        >
-          <Home size={20} color={currentTab === 'dashboard' ? '#00D2FF' : '#64748B'} />
-          <Text style={[styles.tabLabel, currentTab === 'dashboard' && styles.activeTabLabel]}>
-            Dashboard
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabItem, currentTab === 'chat' && styles.activeTabItem]}
-          onPress={() => setCurrentTab('chat')}
-        >
-          <MessageSquare size={20} color={currentTab === 'chat' ? '#00D2FF' : '#64748B'} />
-          <Text style={[styles.tabLabel, currentTab === 'chat' && styles.activeTabLabel]}>
-            AI Advisor
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabItem, currentTab === 'portfolio' && styles.activeTabItem]}
-          onPress={() => setCurrentTab('portfolio')}
-        >
-          <Briefcase size={20} color={currentTab === 'portfolio' ? '#00D2FF' : '#64748B'} />
-          <Text style={[styles.tabLabel, currentTab === 'portfolio' && styles.activeTabLabel]}>
-            Portfolio
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* API Connection Setup Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={configModalVisible}
-        onRequestClose={() => setConfigModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Settings size={20} color="#00D2FF" style={{ marginRight: 8 }} />
-              <Text style={styles.modalTitle}>API Server Configuration</Text>
-            </View>
-
-            <Text style={styles.modalDesc}>
-              FastAPI backend connection. Set this to your workstation IP if running on physical device on the same Wi-Fi.
-            </Text>
-
-            <View style={styles.inputBox}>
-              <Text style={styles.inputLabel}>Endpoint URL</Text>
-              <TextInput
-                style={styles.textInput}
-                value={inputUrl}
-                onChangeText={setInputUrl}
-                placeholder="http://192.168.x.x:8000"
-                placeholderTextColor="#64748B"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-
-            {connectionStatus === 'disconnected' && (
-              <View style={styles.alertBox}>
-                <AlertCircle size={16} color="#F87171" style={{ marginRight: 6 }} />
-                <Text style={styles.alertText}>Currently unable to reach backend service.</Text>
+        {/* Global Header */}
+        <View style={[styles.header, { backgroundColor: isDarkMode ? '#111827' : '#FFFFFF', borderBottomColor: isDarkMode ? '#222A3C' : '#E2E8F0' }]}>
+          <View style={styles.headerLeft}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity onPress={toggleSidebar} style={{ marginRight: 12 }}>
+                <Menu size={22} color={isDarkMode ? '#94A3B8' : '#64748B'} />
+              </TouchableOpacity>
+              <View>
+                <Text style={[styles.headerTitle, { color: isDarkMode ? '#FFFFFF' : '#0F172A' }]}>{headerInfo.title}</Text>
+                <View style={styles.subtitleRow}>
+                  <Text style={[styles.headerSubtitle, { color: isDarkMode ? '#64748B' : '#475569' }]}>{headerInfo.subtitle}</Text>
+                </View>
               </View>
-            )}
-
-            <View style={styles.actionButtons}>
-              <TouchableOpacity 
-                style={[styles.actionBtn, styles.testBtn]}
-                onPress={() => testConnection(inputUrl)}
-              >
-                <Text style={styles.testBtnText}>Test Connect</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.actionBtn, styles.saveBtn]}
-                onPress={handleSaveApiUrl}
-              >
-                <Text style={styles.saveBtnText}>Save & Apply</Text>
-              </TouchableOpacity>
             </View>
+          </View>
 
+          <View style={styles.headerRightContainer}>
+            {/* Animated manual refresh button */}
             <TouchableOpacity 
-              style={styles.closeModalBtn}
-              onPress={() => setConfigModalVisible(false)}
+              style={styles.refreshHeaderBtn}
+              onPress={handleManualRefresh}
+              activeOpacity={0.7}
             >
-              <Text style={styles.closeModalText}>Cancel</Text>
+              <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                <RefreshCw size={14} color="#94A3B8" />
+              </Animated.View>
+            </TouchableOpacity>
+
+            {/* API connection trigger badge */}
+            <TouchableOpacity 
+              style={[styles.connectionBadge, styles[`status_${connectionStatus}`]]}
+              onPress={() => {
+                setInputUrl(apiUrl);
+                setConfigModalVisible(true);
+              }}
+            >
+              {connectionStatus === 'connected' ? (
+                <Wifi size={14} color="#34D399" />
+              ) : connectionStatus === 'connecting' ? (
+                <RefreshCw size={14} color="#FBBF24" style={styles.spinAnimation} />
+              ) : (
+                <WifiOff size={14} color="#F87171" />
+              )}
+              <Text style={[styles.connectionText, { 
+                color: connectionStatus === 'connected' ? '#34D399' : 
+                       connectionStatus === 'connecting' ? '#FBBF24' : '#F87171' 
+              }]}>
+                {connectionStatus === 'connected' ? 'Live API' : 
+                 connectionStatus === 'connecting' ? 'Connecting' : 'Offline'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
 
-      {/* Root monetization ad overlays */}
-      <MockInterstitialModal 
-        visible={interstitialVisible} 
-        onClose={() => setInterstitialVisible(false)} 
-      />
-      <MockRewardedModal 
-        visible={rewardedVisible} 
-        onClose={() => setRewardedVisible(false)} 
-        onRewardEarned={() => setAiCredits(prev => prev + 3)}
-      />
-    </SafeAreaView>
+        {/* Main Screen Content */}
+        <View style={[styles.screenContainer, { backgroundColor: isDarkMode ? '#0B0F19' : '#F8FAFC' }]}>
+          {renderActiveScreen()}
+        </View>
+
+        {/* Sticky Bottom Ad Banner */}
+        <AppBannerAd />
+
+        {/* Custom Bottom Tab Navigator */}
+        <View style={[styles.tabBar, { backgroundColor: isDarkMode ? '#111827' : '#FFFFFF', borderTopColor: isDarkMode ? '#222A3C' : '#E2E8F0' }]}>
+          <TouchableOpacity
+            style={[styles.tabItem, currentTab === 'dashboard' && styles.activeTabItem]}
+            onPress={() => setCurrentTab('dashboard')}
+          >
+            <Home size={20} color={currentTab === 'dashboard' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
+            <Text style={[styles.tabLabel, currentTab === 'dashboard' && styles.activeTabLabel, { color: currentTab === 'dashboard' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8') }]}>
+              Dashboard
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tabItem, currentTab === 'chat' && styles.activeTabItem]}
+            onPress={() => setCurrentTab('chat')}
+          >
+            <MessageSquare size={20} color={currentTab === 'chat' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
+            <Text style={[styles.tabLabel, currentTab === 'chat' && styles.activeTabLabel, { color: currentTab === 'chat' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8') }]}>
+              AI Advisor
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tabItem, currentTab === 'portfolio' && styles.activeTabItem]}
+            onPress={() => setCurrentTab('portfolio')}
+          >
+            <Briefcase size={20} color={currentTab === 'portfolio' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
+            <Text style={[styles.tabLabel, currentTab === 'portfolio' && styles.activeTabLabel, { color: currentTab === 'portfolio' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8') }]}>
+              Portfolio
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* API Connection Setup Modal */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={configModalVisible}
+          onRequestClose={() => setConfigModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeader}>
+                <Settings size={20} color="#00D2FF" style={{ marginRight: 8 }} />
+                <Text style={styles.modalTitle}>API Server Configuration</Text>
+              </View>
+
+              <Text style={styles.modalDesc}>
+                FastAPI backend connection. Set this to your workstation IP if running on physical device on the same Wi-Fi.
+              </Text>
+
+              <View style={styles.inputBox}>
+                <Text style={styles.inputLabel}>Endpoint URL</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={inputUrl}
+                  onChangeText={setInputUrl}
+                  placeholder="http://192.168.x.x:8000"
+                  placeholderTextColor="#64748B"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+
+              {connectionStatus === 'disconnected' && (
+                <View style={styles.alertBox}>
+                  <AlertCircle size={16} color="#F87171" style={{ marginRight: 6 }} />
+                  <Text style={styles.alertText}>Currently unable to reach backend service.</Text>
+                </View>
+              )}
+
+              <View style={styles.actionButtons}>
+                <TouchableOpacity 
+                  style={[styles.actionBtn, styles.testBtn]}
+                  onPress={() => testConnection(inputUrl)}
+                >
+                  <Text style={styles.testBtnText}>Test Connect</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.actionBtn, styles.saveBtn]}
+                  onPress={handleSaveApiUrl}
+                >
+                  <Text style={styles.saveBtnText}>Save & Apply</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity 
+                style={styles.closeModalBtn}
+                onPress={() => setConfigModalVisible(false)}
+              >
+                <Text style={styles.closeModalText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Root monetization ad overlays */}
+        <MockInterstitialModal 
+          visible={interstitialVisible} 
+          onClose={() => setInterstitialVisible(false)} 
+        />
+        <MockRewardedModal 
+          visible={rewardedVisible} 
+          onClose={() => setRewardedVisible(false)} 
+          onRewardEarned={() => setAiCredits(prev => prev + 3)}
+        />
+      </SafeAreaView>
+
+      {/* Sidebar Drawer Overlay */}
+      {sidebarOpen && (
+        <TouchableOpacity 
+          style={styles.sidebarOverlay} 
+          activeOpacity={1} 
+          onPress={toggleSidebar} 
+        />
+      )}
+
+      {/* Sidebar Drawer Panel */}
+      <Animated.View style={[styles.sidebarPanel, { transform: [{ translateX: sidebarAnim }], backgroundColor: isDarkMode ? '#111827' : '#F1F5F9', borderRightColor: isDarkMode ? '#1E293B' : '#E2E8F0' }]}>
+        <SafeAreaView style={{ flex: 1 }}>
+          <View style={[styles.sidebarHeader, { borderBottomColor: isDarkMode ? '#1E293B' : '#E2E8F0' }]}>
+            <Text style={[styles.sidebarTitle, { color: isDarkMode ? '#FFF' : '#0F172A' }]}>Advisor Tools</Text>
+            <TouchableOpacity onPress={toggleSidebar}>
+              <X size={20} color={isDarkMode ? '#94A3B8' : '#64748B'} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.sidebarContent}>
+            {/* Theme Toggle Widget */}
+            <View style={[styles.sidebarCard, { backgroundColor: isDarkMode ? '#1F2937' : '#FFF', borderColor: isDarkMode ? '#374151' : '#E2E8F0' }]}>
+              <Text style={[styles.sidebarCardTitle, { color: isDarkMode ? '#00D2FF' : '#0284C7' }]}>Theme Settings</Text>
+              <TouchableOpacity 
+                style={[styles.themeToggleBtn, { backgroundColor: isDarkMode ? '#374151' : '#E2E8F0' }]}
+                onPress={() => toggleTheme(!isDarkMode)}
+              >
+                {isDarkMode ? (
+                  <>
+                    <Moon size={16} color="#FBBF24" style={{ marginRight: 8 }} />
+                    <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Dark Mode</Text>
+                  </>
+                ) : (
+                  <>
+                    <Sun size={16} color="#EA580C" style={{ marginRight: 8 }} />
+                    <Text style={{ color: '#0F172A', fontWeight: 'bold' }}>Light Mode</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Currency Converter Widget */}
+            <CurrencyConverterWidget isDarkMode={isDarkMode} />
+          </ScrollView>
+        </SafeAreaView>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -907,5 +1104,89 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#334155',
+  },
+  sidebarOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    zIndex: 999,
+  },
+  sidebarPanel: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 280,
+    backgroundColor: '#111827',
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 4, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 10,
+  },
+  sidebarHeader: {
+    height: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+  },
+  sidebarTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  sidebarContent: {
+    padding: 16,
+  },
+  sidebarCard: {
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  sidebarCardTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  themeToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  sidebarInputLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 6,
+    marginTop: 8,
+  },
+  sidebarInput: {
+    height: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    fontSize: 14,
+  },
+  curSelectBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    minWidth: 42,
+    alignItems: 'center',
+  },
+  resultBox: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
   },
 });

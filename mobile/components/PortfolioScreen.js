@@ -9,7 +9,17 @@ const getCurrencySymbol = (m) => {
   return 'Rs.';
 };
 
-export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, triggerInterstitial, config, market }) {
+export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, triggerInterstitial, config, market, isDarkMode }) {
+  const theme = {
+    bg: isDarkMode ? '#0B0F19' : '#F8FAFC',
+    card: isDarkMode ? '#161B26' : '#FFFFFF',
+    border: isDarkMode ? '#222A3C' : '#E2E8F0',
+    text: isDarkMode ? '#FFFFFF' : '#0F172A',
+    subtext: isDarkMode ? '#94A3B8' : '#64748B',
+    headerBg: isDarkMode ? '#0F172A' : '#FFFFFF',
+    headerBorder: isDarkMode ? '#1E293B' : '#E2E8F0',
+  };
+
   const getCurrencySymbol = (m) => {
     const marketConfig = (config && config.markets && config.markets[m]) || {};
     return marketConfig.currency || (m === 'US' ? '$' : m === 'IN' ? '₹' : m === 'UK' ? '£' : 'Rs.');
@@ -370,23 +380,23 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
 
 
       {/* Portfolio Header Cards */}
-      <View style={styles.headerBox}>
-        <Text style={styles.headerLabel}>Simulated Portfolio Value</Text>
-        <Text style={styles.headerVal}>{getCurrencySymbol(market)} {totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+      <View style={[styles.headerBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <Text style={[styles.headerLabel, { color: theme.subtext }]}>Simulated Portfolio Value</Text>
+        <Text style={[styles.headerVal, { color: theme.text }]}>{getCurrencySymbol(market)} {totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
         
         <View style={styles.pnlRow}>
-          <Text style={styles.pnlLabel}>Total Return: </Text>
+          <Text style={[styles.pnlLabel, { color: theme.subtext }]}>Total Return: </Text>
           <Text style={[styles.pnlVal, { color: totalPnL >= 0 ? '#34D399' : '#F87171' }]}>
             {totalPnL >= 0 ? '+' : ''}{getCurrencySymbol(market)} {totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({totalPnLPercent.toFixed(2)}%)
           </Text>
         </View>
 
         <View style={styles.summaryCostRow}>
-          <Text style={styles.summaryCostText}>Total Cost: {getCurrencySymbol(market)} {totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+          <Text style={[styles.summaryCostText, { color: theme.subtext }]}>Total Cost: {getCurrencySymbol(market)} {totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
         </View>
 
         <TouchableOpacity 
@@ -405,7 +415,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
 
       {/* Holdings Header */}
       <View style={styles.titleRow}>
-        <Text style={styles.titleText}>Your Simulated Holdings</Text>
+        <Text style={[styles.titleText, { color: theme.text }]}>Your Simulated Holdings</Text>
         <TouchableOpacity style={styles.addBtn} onPress={handleOpenAddModal}>
           <Plus size={16} color="#0B0F19" style={{ marginRight: 4 }} />
           <Text style={styles.addBtnText}>Add Stock</Text>
