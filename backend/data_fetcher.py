@@ -401,9 +401,23 @@ def get_yahoo_quote(ticker: str) -> dict:
             title = content.get("title", "")
             provider = content.get("provider", {}).get("displayName", "Yahoo Finance")
             title_lower = title.lower()
-            if any(w in title_lower for w in ["rise", "surge", "gain", "growth", "jump", "higher", "beat", "bullish", "profit"]):
+            bullish_keywords = [
+                "up", "rise", "surge", "gain", "growth", "jump", "higher", "beat", 
+                "bullish", "profit", "dividend", "acquisition", "acquire", "record", 
+                "climb", "high", "upgrade", "outperform", "buy", "success", "approval", 
+                "expand", "expansion", "positive", "strong", "win", "exceed", "soar", 
+                "rally", "rebound"
+            ]
+            bearish_keywords = [
+                "down", "fall", "plummet", "loss", "drop", "lower", "miss", "bearish", 
+                "decline", "slump", "warning", "warn", "debt", "shrink", "contract", 
+                "cut", "downgrade", "underperform", "sell", "fail", "lawsuit", 
+                "regulatory", "pressure", "weak", "plunge", "slashed", "negative"
+            ]
+            
+            if any(w in title_lower for w in bullish_keywords):
                 sentiment = "bullish"
-            elif any(w in title_lower for w in ["fall", "plummet", "loss", "drop", "lower", "miss", "bearish", "decline"]):
+            elif any(w in title_lower for w in bearish_keywords):
                 sentiment = "bearish"
             else:
                 sentiment = "neutral"
