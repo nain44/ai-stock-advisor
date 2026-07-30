@@ -277,6 +277,16 @@ def get_llm_recommendation(ticker: str, price: float, tech_analysis: dict, profi
     query = query.lower()
     market_upper = (market or "PK").upper()
 
+    STOP_WORDS = {
+        "WHY", "HOW", "WHAT", "WHO", "WHEN", "WHERE", "BUY", "SELL", "HOLD", 
+        "IS", "AM", "ARE", "THE", "THIS", "THAT", "SHOULD", "COULD", "WOULD", 
+        "CAN", "YOU", "ME", "MY", "YOUR", "WE", "OUR", "THEY", "FOR", "AND", 
+        "BUT", "OR", "IF", "IN", "ON", "AT", "TO", "OF", "WITH", "BY", "AN", 
+        "AS", "DO", "DOES", "DID", "GET", "GIVE", "MAKE", "TAKE", "ANALYZE", 
+        "OPINION", "STOCK", "STOCKS", "MARKET", "MARKETS", "CHART", "CHARTS",
+        "I"
+    }
+
     market_name = "Pakistan Stock Exchange (PSX)"
     currency = "PKR"
     market_label = "PSX"
@@ -323,7 +333,11 @@ def get_llm_recommendation(ticker: str, price: float, tech_analysis: dict, profi
     ticker_in_query = None
     for word in query.split():
         cleaned_word = word.strip("?,.!:()").upper()
-        if len(cleaned_word) >= 2 and (cleaned_word.isalpha() or "." in cleaned_word):
+        if (
+            len(cleaned_word) >= 2 
+            and (cleaned_word.isalpha() or "." in cleaned_word)
+            and cleaned_word not in STOP_WORDS
+        ):
             ticker_in_query = cleaned_word
             break
 
@@ -485,7 +499,11 @@ def get_llm_recommendation(ticker: str, price: float, tech_analysis: dict, profi
         matching_ticker = "the stock"
         for word in query.split():
             cleaned_word = word.strip("?,.!:()").upper()
-            if len(cleaned_word) >= 2 and (cleaned_word.isalpha() or "." in cleaned_word):
+            if (
+                len(cleaned_word) >= 2 
+                and (cleaned_word.isalpha() or "." in cleaned_word)
+                and cleaned_word not in STOP_WORDS
+            ):
                 matching_ticker = cleaned_word
                 break
         
