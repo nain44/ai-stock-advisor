@@ -703,12 +703,12 @@ export default function App() {
           <View style={styles.headerRightContainer}>
             {/* Animated manual refresh button */}
             <TouchableOpacity 
-              style={styles.refreshHeaderBtn}
+              style={[styles.refreshHeaderBtn, !isDarkMode && { backgroundColor: '#E2E8F0', borderColor: '#CBD5E1' }]}
               onPress={handleManualRefresh}
               activeOpacity={0.7}
             >
               <Animated.View style={{ transform: [{ rotate: spin }] }}>
-                <RefreshCw size={14} color="#94A3B8" />
+                <RefreshCw size={14} color={isDarkMode ? "#94A3B8" : "#475569"} />
               </Animated.View>
             </TouchableOpacity>
 

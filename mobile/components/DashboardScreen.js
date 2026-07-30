@@ -507,13 +507,13 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
         </View>
         {/* Dynamic Autocomplete Results Dropdown */}
         {searchResults.length > 0 && (
-          <View style={styles.searchResultsContainer}>
+          <View style={[styles.searchResultsContainer, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
             {searchResults.map((result) => {
               const alreadyAdded = watchlist.some(t => t.trim().toUpperCase() === result.ticker.trim().toUpperCase());
               return (
                 <TouchableOpacity 
                   key={result.ticker} 
-                  style={styles.searchResultItem}
+                  style={[styles.searchResultItem, !isDarkMode && { borderBottomColor: '#E2E8F0' }]}
                   onPress={() => {
                     if (!alreadyAdded) {
                       handleAddWatchlist(result.ticker);
@@ -524,8 +524,8 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                   }}
                 >
                   <View style={styles.resultDetails}>
-                    <Text style={styles.resultTicker}>{result.ticker}</Text>
-                    <Text style={styles.resultName} numberOfLines={1}>{result.name}</Text>
+                    <Text style={[styles.resultTicker, !isDarkMode && { color: '#0F172A' }]}>{result.ticker}</Text>
+                    <Text style={[styles.resultName, !isDarkMode && { color: '#64748B' }]} numberOfLines={1}>{result.name}</Text>
                   </View>
                   <View style={styles.resultAction}>
                     {alreadyAdded ? (
@@ -546,18 +546,18 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
 
       {/* Filters Row */}
       <View style={styles.filtersRow}>
-        <TouchableOpacity style={styles.filterBtn} onPress={() => setSectorModalVisible(true)}>
-          <Text style={styles.filterBtnText} numberOfLines={1}>
+        <TouchableOpacity style={[styles.filterBtn, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]} onPress={() => setSectorModalVisible(true)}>
+          <Text style={[styles.filterBtnText, !isDarkMode && { color: '#0F172A' }]} numberOfLines={1}>
             Sector: {selectedSector}
           </Text>
-          <Text style={styles.arrowDown}>▼</Text>
+          <Text style={[styles.arrowDown, !isDarkMode && { color: '#64748B' }]}>▼</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.filterBtn} onPress={() => setSortModalVisible(true)}>
-          <Text style={styles.filterBtnText} numberOfLines={1}>
+        <TouchableOpacity style={[styles.filterBtn, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]} onPress={() => setSortModalVisible(true)}>
+          <Text style={[styles.filterBtnText, !isDarkMode && { color: '#0F172A' }]} numberOfLines={1}>
             Sort By: {sortBy}
           </Text>
-          <Text style={styles.arrowDown}>▼</Text>
+          <Text style={[styles.arrowDown, !isDarkMode && { color: '#64748B' }]}>▼</Text>
         </TouchableOpacity>
       </View>
 
@@ -691,26 +691,26 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
         }}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.countryModalContent}>
+          <View style={[styles.countryModalContent, !isDarkMode && { backgroundColor: '#FFFFFF', borderTopColor: '#E2E8F0' }]}>
             {/* Modal Drag/Indicator Bar */}
-            <View style={styles.modalDragBar} />
+            <View style={[styles.modalDragBar, !isDarkMode && { backgroundColor: '#E2E8F0' }]} />
             
             {/* Modal Header */}
-            <View style={styles.countryModalHeader}>
-              <Text style={styles.countryModalTitle}>Select Market / Region</Text>
+            <View style={[styles.countryModalHeader, !isDarkMode && { borderBottomColor: '#E2E8F0' }]}>
+              <Text style={[styles.countryModalTitle, !isDarkMode && { color: '#0F172A' }]}>Select Market / Region</Text>
               <TouchableOpacity onPress={() => {
                 setCountryModalVisible(false);
                 setCountrySearchQuery('');
               }}>
-                <Text style={styles.closeCountryText}>Done</Text>
+                <Text style={[styles.closeCountryText, !isDarkMode && { color: '#0284C7' }]}>Done</Text>
               </TouchableOpacity>
             </View>
 
             {/* Country Search Input */}
-            <View style={styles.countrySearchContainer}>
+            <View style={[styles.countrySearchContainer, !isDarkMode && { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}>
               <Search size={14} color="#64748B" style={styles.countrySearchIcon} />
               <TextInput
-                style={styles.countrySearchInput}
+                style={[styles.countrySearchInput, !isDarkMode && { color: '#0F172A' }]}
                 placeholder="Search country, code or currency..."
                 placeholderTextColor="#64748B"
                 value={countrySearchQuery}
@@ -755,7 +755,12 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                   return (
                     <TouchableOpacity
                       key={key}
-                      style={[styles.countryItem, isSelected && styles.selectedCountryItem]}
+                      style={[
+                        styles.countryItem, 
+                        isSelected && styles.selectedCountryItem,
+                        !isDarkMode && { backgroundColor: '#F1F5F9' },
+                        isSelected && !isDarkMode && { backgroundColor: '#E0F2FE', borderColor: '#38BDF8' }
+                      ]}
                       onPress={() => {
                         setMarket(key);
                         setSelectedTicker(null);
@@ -765,10 +770,10 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                     >
                       <Text style={styles.countryItemFlag}>{flag}</Text>
                       <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={[styles.countryItemName, isSelected && styles.selectedCountryItemText]}>
+                        <Text style={[styles.countryItemName, isSelected && styles.selectedCountryItemText, !isDarkMode && { color: '#0F172A' }, isSelected && !isDarkMode && { color: '#0284C7' }]}>
                           {countryName} ({key})
                         </Text>
-                        <Text style={styles.countryItemSub} numberOfLines={1}>{item.subtitle || ''}</Text>
+                        <Text style={[styles.countryItemSub, !isDarkMode && { color: '#64748B' }]} numberOfLines={1}>{item.subtitle || ''}</Text>
                       </View>
                       {isSelected && (
                         <View style={styles.selectedCheck}>
@@ -1019,19 +1024,28 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
         onRequestClose={() => setSectorModalVisible(false)}
       >
         <TouchableOpacity style={styles.selectorOverlay} onPress={() => setSectorModalVisible(false)}>
-          <View style={styles.selectorCard}>
-            <Text style={styles.selectorTitle}>Filter by Sector</Text>
+          <View style={[styles.selectorCard, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
+            <Text style={[styles.selectorTitle, !isDarkMode && { color: '#0F172A' }]}>Filter by Sector</Text>
             <ScrollView style={{ maxHeight: 300 }}>
               {sectors.map(sector => (
                 <TouchableOpacity
                   key={sector}
-                  style={[styles.selectorItem, selectedSector === sector && styles.activeSelectorItem]}
+                  style={[
+                    styles.selectorItem, 
+                    selectedSector === sector && styles.activeSelectorItem,
+                    selectedSector === sector && !isDarkMode && { backgroundColor: '#E0F2FE' },
+                    !isDarkMode && { borderBottomColor: '#E2E8F0' }
+                  ]}
                   onPress={() => {
                     setSelectedSector(sector);
                     setSectorModalVisible(false);
                   }}
                 >
-                  <Text style={[styles.selectorText, selectedSector === sector && styles.activeSelectorText]}>
+                  <Text style={[
+                    styles.selectorText, 
+                    selectedSector === sector && styles.activeSelectorText,
+                    selectedSector !== sector && !isDarkMode && { color: '#475569' }
+                  ]}>
                     {sector === 'All' ? 'All Sectors' : sector}
                   </Text>
                 </TouchableOpacity>
@@ -1049,23 +1063,32 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
         onRequestClose={() => setSortModalVisible(false)}
       >
         <TouchableOpacity style={styles.selectorOverlay} onPress={() => setSortModalVisible(false)}>
-          <View style={styles.selectorCard}>
-            <Text style={styles.selectorTitle}>Sort Stocks By</Text>
+          <View style={[styles.selectorCard, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
+            <Text style={[styles.selectorTitle, !isDarkMode && { color: '#0F172A' }]}>Sort Stocks By</Text>
             {['Default', 'Volume', 'Gainers', 'Losers'].map(option => (
               <TouchableOpacity
                 key={option}
-                style={[styles.selectorItem, sortBy === option && styles.activeSelectorItem]}
+                style={[
+                  styles.selectorItem, 
+                  sortBy === option && styles.activeSelectorItem,
+                  sortBy === option && !isDarkMode && { backgroundColor: '#E0F2FE' },
+                  !isDarkMode && { borderBottomColor: '#E2E8F0' }
+                ]}
                 onPress={() => {
                   setSortBy(option);
                   setSortModalVisible(false);
                 }}
               >
-                <Text style={[styles.selectorText, sortBy === option && styles.activeSelectorText]}>
+                <Text style={[
+                  styles.selectorText, 
+                  sortBy === option && styles.activeSelectorText,
+                  sortBy !== option && !isDarkMode && { color: '#475569' }
+                ]}>
                   {option === 'Default' ? 'Default Order' : 
                    option === 'Volume' ? 'Trading Volume 📊' :
                    option === 'Gainers' ? 'Top Gainers 📈' : 'Top Losers 📉'}
                 </Text>
-</TouchableOpacity>
+              </TouchableOpacity>
             ))}
           </View>
         </TouchableOpacity>
