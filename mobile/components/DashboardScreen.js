@@ -431,12 +431,12 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
             const unitLabel = item.localized ? item.localized.label : `${item.name} (${item.ticker})`;
             
             return (
-              <View key={`commodity-${idx}`} style={styles.macroCard}>
+              <View key={`commodity-${idx}`} style={[styles.macroCard, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
                 <View style={styles.macroCardHeader}>
                   <View style={[styles.macroDot, { backgroundColor: item.name === 'Gold' ? '#F59E0B' : item.name === 'Silver' ? '#94A3B8' : '#34D399' }]} />
                   <Text style={styles.macroUnitLabel} numberOfLines={1}>{unitLabel}</Text>
                 </View>
-                <Text style={styles.macroPrice}>{priceLabel}</Text>
+                <Text style={[styles.macroPrice, !isDarkMode && { color: '#0F172A' }]}>{priceLabel}</Text>
                 <View style={styles.macroChangeRow}>
                   <Text style={[styles.macroChangeText, isUp ? styles.positiveText : styles.negativeText]}>
                     {isUp ? '▲' : '▼'} {Math.abs(item.pct_change).toFixed(2)}%
@@ -449,9 +449,9 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
           {/* Forex */}
           {macroData.forex?.map((item, idx) => {
             return (
-              <View key={`forex-${idx}`} style={[styles.macroCard, styles.forexCard]}>
-                <Text style={styles.forexPair}>{item.pair}</Text>
-                <Text style={styles.forexRate}>{item.rate}</Text>
+              <View key={`forex-${idx}`} style={[styles.macroCard, styles.forexCard, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
+                <Text style={[styles.forexPair, !isDarkMode && { color: '#0284C7' }]}>{item.pair}</Text>
+                <Text style={[styles.forexRate, !isDarkMode && { color: '#0F172A' }]}>{item.rate}</Text>
                 <Text style={styles.forexSub}>Live Forex Rate</Text>
               </View>
             );
@@ -594,7 +594,12 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
             return (
               <React.Fragment key={stock.ticker}>
                 <TouchableOpacity
-                  style={[styles.stockRow, isSelected && styles.selectedStockRow]}
+                  style={[
+                    styles.stockRow, 
+                    isSelected && styles.selectedStockRow,
+                    !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' },
+                    isSelected && !isDarkMode && { backgroundColor: '#E0F2FE', borderColor: '#38BDF8' }
+                  ]}
                   onPress={() => {
                     setSelectedTicker(stock.ticker);
                     setActiveModalStock(stock);
@@ -607,8 +612,8 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                       <Text style={styles.emblemText}>{initials}</Text>
                     </View>
                     <View style={styles.nameCol}>
-                      <Text style={styles.stockTickerText}>{stock.ticker}</Text>
-                      <Text style={styles.stockNameText} numberOfLines={1}>
+                      <Text style={[styles.stockTickerText, !isDarkMode && { color: '#0F172A' }]}>{stock.ticker}</Text>
+                      <Text style={[styles.stockNameText, !isDarkMode && { color: '#64748B' }]} numberOfLines={1}>
                         {stock.name}
                       </Text>
                     </View>
@@ -618,29 +623,29 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                   <View style={styles.stockCenter}>
                     <View style={styles.gridRow}>
                       <View style={styles.gridCell}>
-                        <Text style={styles.gridLabel}>HIGH</Text>
-                        <Text style={styles.gridNum}>{stock.high?.toFixed(2) || '0.00'}</Text>
+                        <Text style={[styles.gridLabel, !isDarkMode && { color: '#64748B' }]}>HIGH</Text>
+                        <Text style={[styles.gridNum, !isDarkMode && { color: '#334155' }]}>{stock.high?.toFixed(2) || '0.00'}</Text>
                       </View>
                       <View style={styles.gridCell}>
-                        <Text style={styles.gridLabel}>LOW</Text>
-                        <Text style={styles.gridNum}>{stock.low?.toFixed(2) || '0.00'}</Text>
+                        <Text style={[styles.gridLabel, !isDarkMode && { color: '#64748B' }]}>LOW</Text>
+                        <Text style={[styles.gridNum, !isDarkMode && { color: '#334155' }]}>{stock.low?.toFixed(2) || '0.00'}</Text>
                       </View>
                     </View>
                     <View style={styles.gridRow}>
                       <View style={styles.gridCell}>
-                        <Text style={styles.gridLabel}>VOLUME</Text>
-                        <Text style={styles.gridNum}>{formatVolume(stock.volume)}</Text>
+                        <Text style={[styles.gridLabel, !isDarkMode && { color: '#64748B' }]}>VOLUME</Text>
+                        <Text style={[styles.gridNum, !isDarkMode && { color: '#334155' }]}>{formatVolume(stock.volume)}</Text>
                       </View>
                       <View style={styles.gridCell}>
-                        <Text style={styles.gridLabel}>LDCP</Text>
-                        <Text style={styles.gridNum}>{stock.ldcp?.toFixed(2) || '0.00'}</Text>
+                        <Text style={[styles.gridLabel, !isDarkMode && { color: '#64748B' }]}>LDCP</Text>
+                        <Text style={[styles.gridNum, !isDarkMode && { color: '#334155' }]}>{stock.ldcp?.toFixed(2) || '0.00'}</Text>
                       </View>
                     </View>
                   </View>
 
                   {/* Right Price & Change */}
                   <View style={styles.stockRight}>
-                    <Text style={styles.stockPriceText}>
+                    <Text style={[styles.stockPriceText, !isDarkMode && { color: '#0F172A' }]}>
                       {stock.current_price?.toFixed(2) || '0.00'}
                     </Text>
                     <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-end', marginTop: 4 }}>
@@ -668,7 +673,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                     </View>
                   </View>
                 </TouchableOpacity>
-                {index === 2 && <AppNativeAd />}
+                {index === 2 && <AppNativeAd isDarkMode={isDarkMode} />}
               </React.Fragment>
             );
           })

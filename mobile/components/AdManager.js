@@ -35,7 +35,7 @@ try {
 const hasNativeAdMob = !!(gma && BannerAdComponent && Platform.OS !== 'web');
 
 // 1. Banner Ad Component
-export const AppBannerAd = () => {
+export const AppBannerAd = ({ isDarkMode = true }) => {
   if (hasNativeAdMob) {
     try {
       return (
@@ -57,24 +57,24 @@ export const AppBannerAd = () => {
 
   // Beautiful mock fallback
   return (
-    <View style={styles.mockBanner}>
+    <View style={[styles.mockBanner, !isDarkMode && { backgroundColor: '#FFFFFF', borderTopColor: '#E2E8F0' }]}>
       <Text style={styles.mockAdBadge}>SPONSORED</Text>
-      <Text style={styles.mockBannerText}>Trade Commodities & Stocks with 0% commission. Open MultiInvest Pro Account!</Text>
+      <Text style={[styles.mockBannerText, !isDarkMode && { color: '#475569' }]}>Trade Commodities & Stocks with 0% commission. Open MultiInvest Pro Account!</Text>
     </View>
   );
 };
 
 // 2. Native Advanced Ad Component (Inline inside list)
-export const AppNativeAd = () => {
+export const AppNativeAd = ({ isDarkMode = true }) => {
   return (
-    <View style={styles.mockNativeCard}>
+    <View style={[styles.mockNativeCard, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
       <View style={styles.nativeCardHeader}>
-        <View style={styles.nativeAdBadgeContainer}>
-          <Text style={styles.nativeAdBadgeText}>SPONSORED</Text>
+        <View style={[styles.nativeAdBadgeContainer, !isDarkMode && { backgroundColor: '#E0F2FE', borderColor: '#0284C7' }]}>
+          <Text style={[styles.nativeAdBadgeText, !isDarkMode && { color: '#0284C7' }]}>SPONSORED</Text>
         </View>
-        <Text style={styles.nativeCardTitle}>MultiStocks AI Pro</Text>
+        <Text style={[styles.nativeCardTitle, !isDarkMode && { color: '#0F172A' }]}>MultiStocks AI Pro</Text>
       </View>
-      <Text style={styles.nativeCardDescription}>
+      <Text style={[styles.nativeCardDescription, !isDarkMode && { color: '#475569' }]}>
         Unlock unlimited AI market prompts, multi-country portfolio analytics, and automated push alerts for KSE and NYSE.
       </Text>
       <TouchableOpacity style={styles.nativeCardBtn} activeOpacity={0.8}>

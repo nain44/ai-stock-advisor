@@ -364,6 +364,7 @@ const CurrencyConverterWidget = ({ isDarkMode }) => {
 export default function App() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarRendered, setSidebarRendered] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const sidebarAnim = useRef(new Animated.Value(-320)).current;
 
@@ -392,14 +393,26 @@ export default function App() {
   };
 
   const toggleSidebar = () => {
-    const toValue = sidebarOpen ? -320 : 0;
-    Animated.timing(sidebarAnim, {
-      toValue,
-      duration: 250,
-      useNativeDriver: true,
-      easing: Easing.out(Easing.ease),
-    }).start();
-    setSidebarOpen(!sidebarOpen);
+    if (!sidebarOpen) {
+      setSidebarRendered(true);
+      Animated.timing(sidebarAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.ease),
+      }).start();
+      setSidebarOpen(true);
+    } else {
+      Animated.timing(sidebarAnim, {
+        toValue: -320,
+        duration: 250,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.ease),
+      }).start(() => {
+        setSidebarRendered(false);
+      });
+      setSidebarOpen(false);
+    }
   };
   const [selectedTicker, setSelectedTicker] = useState('MARI');
   const [market, setMarket] = useState('PK');
@@ -731,7 +744,7 @@ export default function App() {
         </View>
 
         {/* Sticky Bottom Ad Banner */}
-        <AppBannerAd />
+        <AppBannerAd isDarkMode={isDarkMode} />
 
         {/* Custom Bottom Tab Navigator */}
         <View style={[styles.tabBar, { backgroundColor: isDarkMode ? '#111827' : '#FFFFFF', borderTopColor: isDarkMode ? '#222A3C' : '#E2E8F0' }]}>
@@ -852,42 +865,44 @@ export default function App() {
       )}
 
       {/* Sidebar Drawer Panel */}
-      <Animated.View style={[styles.sidebarPanel, { transform: [{ translateX: sidebarAnim }], backgroundColor: isDarkMode ? '#111827' : '#F1F5F9', borderRightColor: isDarkMode ? '#1E293B' : '#E2E8F0' }]}>
-        <SafeAreaView style={{ flex: 1 }}>
-          <View style={[styles.sidebarHeader, { borderBottomColor: isDarkMode ? '#1E293B' : '#E2E8F0' }]}>
-            <Text style={[styles.sidebarTitle, { color: isDarkMode ? '#FFF' : '#0F172A' }]}>Advisor Tools</Text>
-            <TouchableOpacity onPress={toggleSidebar}>
-              <X size={20} color={isDarkMode ? '#94A3B8' : '#64748B'} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.sidebarContent}>
-            {/* Theme Toggle Widget */}
-            <View style={[styles.sidebarCard, { backgroundColor: isDarkMode ? '#1F2937' : '#FFF', borderColor: isDarkMode ? '#374151' : '#E2E8F0' }]}>
-              <Text style={[styles.sidebarCardTitle, { color: isDarkMode ? '#00D2FF' : '#0284C7' }]}>Theme Settings</Text>
-              <TouchableOpacity 
-                style={[styles.themeToggleBtn, { backgroundColor: isDarkMode ? '#374151' : '#E2E8F0' }]}
-                onPress={() => toggleTheme(!isDarkMode)}
-              >
-                {isDarkMode ? (
-                  <>
-                    <Moon size={16} color="#FBBF24" style={{ marginRight: 8 }} />
-                    <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Dark Mode</Text>
-                  </>
-                ) : (
-                  <>
-                    <Sun size={16} color="#EA580C" style={{ marginRight: 8 }} />
-                    <Text style={{ color: '#0F172A', fontWeight: 'bold' }}>Light Mode</Text>
-                  </>
-                )}
+      {sidebarRendered && (
+        <Animated.View style={[styles.sidebarPanel, { transform: [{ translateX: sidebarAnim }], backgroundColor: isDarkMode ? '#111827' : '#F1F5F9', borderRightColor: isDarkMode ? '#1E293B' : '#E2E8F0' }]}>
+          <SafeAreaView style={{ flex: 1 }}>
+            <View style={[styles.sidebarHeader, { borderBottomColor: isDarkMode ? '#1E293B' : '#E2E8F0' }]}>
+              <Text style={[styles.sidebarTitle, { color: isDarkMode ? '#FFF' : '#0F172A' }]}>Advisor Tools</Text>
+              <TouchableOpacity onPress={toggleSidebar}>
+                <X size={20} color={isDarkMode ? '#94A3B8' : '#64748B'} />
               </TouchableOpacity>
             </View>
 
-            {/* Currency Converter Widget */}
-            <CurrencyConverterWidget isDarkMode={isDarkMode} />
-          </ScrollView>
-        </SafeAreaView>
-      </Animated.View>
+            <ScrollView style={styles.sidebarContent}>
+              {/* Theme Toggle Widget */}
+              <View style={[styles.sidebarCard, { backgroundColor: isDarkMode ? '#1F2937' : '#FFF', borderColor: isDarkMode ? '#374151' : '#E2E8F0' }]}>
+                <Text style={[styles.sidebarCardTitle, { color: isDarkMode ? '#00D2FF' : '#0284C7' }]}>Theme Settings</Text>
+                <TouchableOpacity 
+                  style={[styles.themeToggleBtn, { backgroundColor: isDarkMode ? '#374151' : '#E2E8F0' }]}
+                  onPress={() => toggleTheme(!isDarkMode)}
+                >
+                  {isDarkMode ? (
+                    <>
+                      <Moon size={16} color="#FBBF24" style={{ marginRight: 8 }} />
+                      <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Dark Mode</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Sun size={16} color="#EA580C" style={{ marginRight: 8 }} />
+                      <Text style={{ color: '#0F172A', fontWeight: 'bold' }}>Light Mode</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Currency Converter Widget */}
+              <CurrencyConverterWidget isDarkMode={isDarkMode} />
+            </ScrollView>
+          </SafeAreaView>
+        </Animated.View>
+      )}
     </View>
   );
 }
