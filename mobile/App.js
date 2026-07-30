@@ -365,7 +365,7 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const sidebarAnim = useRef(new Animated.Value(0)).current;
+  const sidebarAnim = useRef(new Animated.Value(-320)).current;
 
   // Load theme on startup
   useEffect(() => {
@@ -392,7 +392,7 @@ export default function App() {
   };
 
   const toggleSidebar = () => {
-    const toValue = sidebarOpen ? 0 : 300;
+    const toValue = sidebarOpen ? -320 : 0;
     Animated.timing(sidebarAnim, {
       toValue,
       duration: 250,
@@ -1118,7 +1118,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     bottom: 0,
-    left: -300,
+    left: 0,
     width: 280,
     backgroundColor: '#111827',
     zIndex: 1000,
