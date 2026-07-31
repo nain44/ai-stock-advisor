@@ -1058,34 +1058,6 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                                   {getCurrencySymbol(market)}{minPrice.toLocaleString(undefined, { maximumFractionDigits: 1 })}
                                 </SvgText>
                               </Svg>
-
-                              {/* X-Axis Date Labels Row */}
-                              {(() => {
-                                const dStart = formatDateLabel(historical[0]?.Date || historical[0]?.date);
-                                const dEnd = formatDateLabel(historical[historical.length - 1]?.Date || historical[historical.length - 1]?.date);
-                                let dMid = '';
-                                if (historical.length >= 3) {
-                                  const midVal = formatDateLabel(historical[Math.floor(historical.length / 2)]?.Date || historical[Math.floor(historical.length / 2)]?.date);
-                                  if (midVal !== dStart && midVal !== dEnd) {
-                                    dMid = midVal;
-                                  }
-                                }
-                                return (
-                                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 4 }}>
-                                    <Text style={[styles.axisText, !isDarkMode && { color: '#64748B' }]}>
-                                      {dStart}
-                                    </Text>
-                                    {dMid ? (
-                                      <Text style={[styles.axisText, !isDarkMode && { color: '#64748B' }]}>
-                                        {dMid}
-                                      </Text>
-                                    ) : null}
-                                    <Text style={[styles.axisText, !isDarkMode && { color: '#64748B' }]}>
-                                      {dEnd}
-                                    </Text>
-                                  </View>
-                                );
-                              })()}
                             </View>
                           );
                         })()}
