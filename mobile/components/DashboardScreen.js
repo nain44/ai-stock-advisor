@@ -1064,6 +1064,11 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                     </View>
                   </View>
 
+                  {/* Native Ad Placement directly under AI Recommendation */}
+                  <View style={{ marginTop: 12, marginBottom: 16 }}>
+                    <AppNativeAd isDarkMode={isDarkMode} />
+                  </View>
+
                   {/* Technical Readouts */}
                   <View style={styles.sectionHeader}>
                     <BarChart2 size={18} color="#00D2FF" style={{ marginRight: 6 }} />
@@ -1154,11 +1159,6 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                         <Text style={styles.fundVal}>{analysis.profile?.volume_avg ? analysis.profile.volume_avg.toLocaleString() : 'N/A'}</Text>
                       </View>
                     </View>
-                  </View>
-
-                  {/* Native Ad Placement */}
-                  <View style={{ marginTop: 16, marginBottom: 8 }}>
-                    <AppNativeAd isDarkMode={isDarkMode} />
                   </View>
                 </View>
               ) : null}
