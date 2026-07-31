@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppNativeAd } from './AdManager';
 import Svg, { Path, Defs, LinearGradient, Stop, Rect, Line, Text as SvgText } from 'react-native-svg';
-import { TrendingUp, TrendingDown, ShieldAlert, Award, Compass, RefreshCw, BarChart2, Trash2, Plus, Search } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, ShieldAlert, Award, Compass, RefreshCw, BarChart2, Trash2, Plus, Search, ArrowLeft } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -872,26 +872,24 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
           setActiveModalStock(null);
         }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            {/* Modal Drag/Indicator Bar */}
-            <View style={styles.modalDragBar} />
+        <View style={[styles.modalOverlay, !isDarkMode && { backgroundColor: theme.bg }]}>
+          <View style={[styles.modalContent, !isDarkMode && { backgroundColor: theme.bg, borderColor: 'transparent' }]}>
             
             {/* Modal Header */}
-            <View style={styles.modalHeaderRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.modalStockTicker}>{(activeModalStock || selectedStockObj).ticker}</Text>
-                <Text style={styles.modalStockName} numberOfLines={1}>{(activeModalStock || selectedStockObj).name}</Text>
-              </View>
+            <View style={[styles.modalHeaderRow, !isDarkMode && { borderBottomColor: theme.border }]}>
               <TouchableOpacity
                 onPress={() => {
                   setDetailModalVisible(false);
                   setActiveModalStock(null);
                 }}
-                style={styles.closeModalBtn}
+                style={{ marginRight: 12, paddingVertical: 4, paddingHorizontal: 2 }}
               >
-                <Text style={styles.closeModalText}>✕ Close</Text>
+                <ArrowLeft size={22} color={isDarkMode ? '#FFFFFF' : '#0F172A'} />
               </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modalStockTicker, !isDarkMode && { color: theme.text }]}>{(activeModalStock || selectedStockObj).ticker}</Text>
+                <Text style={[styles.modalStockName, !isDarkMode && { color: theme.subtext }]} numberOfLines={1}>{(activeModalStock || selectedStockObj).name}</Text>
+              </View>
             </View>
 
             {/* Scrollable details details */}
@@ -969,10 +967,10 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                           })}
                         </View>
                       </View>
-                      <View style={styles.svgContainer}>
+                      <View style={[styles.svgContainer, { height: 180 }]}>
                         {(() => {
                           const chartW = width - 48; // Padding offset
-                          const chartH = 100;
+                          const chartH = 180;
 
                           // Find global min and max for Y-axis scaling
                           const highs = historical.map(d => d.High || d.high || d.Close || d.close || 0);
@@ -1561,17 +1559,12 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(5, 8, 16, 0.85)',
-    justifyContent: 'flex-end',
+    backgroundColor: '#0B0F19',
   },
   modalContent: {
+    flex: 1,
     backgroundColor: '#0B0F19',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '90%',
-    minHeight: '60%',
-    borderWidth: 1,
-    borderColor: '#1E293B',
+    paddingTop: 45,
   },
   modalDragBar: {
     width: 40,
