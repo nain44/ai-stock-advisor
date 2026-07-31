@@ -286,7 +286,19 @@ def generate_simulator_chat_response(query: str, portfolio: list = None, market:
         "BUT", "OR", "IF", "IN", "ON", "AT", "TO", "OF", "WITH", "BY", "AN", 
         "AS", "DO", "DOES", "DID", "GET", "GIVE", "MAKE", "TAKE", "ANALYZE", 
         "OPINION", "STOCK", "STOCKS", "MARKET", "MARKETS", "CHART", "CHARTS",
-        "I"
+        "I", "WHICH", "SHARE", "SHARES", "ANY", "SOME", "MANY", "ALL", "GOOD",
+        "BEST", "TOP", "PORTFOLIO", "INVEST", "INVESTMENT", "INVESTMENTS", "TRADE",
+        "TRADING", "EXCHANGE", "EXCHANGES", "PRICE", "PRICES", "GRAPH", "GRAPHS",
+        "VALUE", "VALUATION", "ANALYSIS", "RECOMMEND", "RECOMMENDATION", "RECOMMENDATIONS",
+        "ADVISE", "ADVICE", "ADVISOR", "PERFORMANCE", "TREND", "TRENDS", "PATTERN",
+        "PATTERNS", "INDICATOR", "INDICATORS", "RSI", "MACD", "BOLLINGER", "EMA",
+        "SMA", "MOVING", "AVERAGE", "DIVIDEND", "DIVIDENDS", "YIELD", "GROWTH",
+        "TECH", "DEFENSIVE", "INTEREST", "RATE", "RATES", "INFLATION", "SBP",
+        "FED", "POLICY", "CEMENT", "STEEL", "BANK", "BANKS", "ENERGY", "FERTILIZER",
+        "NEWS", "ANNOUNCEMENT", "ANNOUNCEMENTS", "FALL", "FELL", "DOWN", "UP",
+        "RISE", "ROSE", "GAIN", "GAINS", "LOSS", "LOSSES", "TODAY", "YESTERDAY",
+        "WEEK", "MONTH", "YEAR", "DAY", "DAYS", "ONE", "TWO", "THREE", "TEN",
+        "HI", "HELLO", "HEY", "PLEASE"
     }
 
     market_name = "Pakistan Stock Exchange (PSX)"
