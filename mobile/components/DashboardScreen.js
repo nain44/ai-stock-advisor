@@ -261,9 +261,11 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
 
     const fetchHistory = async (ticker, daysNum) => {
       try {
+        console.log(`[Frontend] Fetching history for ${ticker}, daysNum=${daysNum}, market=${market}`);
         const historicalRes = await fetch(`${apiUrl}/api/historical/${ticker}?days=${daysNum}&market=${market}`);
         if (historicalRes.ok) {
           const historicalData = await historicalRes.json();
+          console.log(`[Frontend] Received ${historicalData.length} records. Dates:`, historicalData.map(d => d.Date || d.date));
           if (!ignore) {
             setHistorical(historicalData);
           }
@@ -588,6 +590,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                       handleAddWatchlist(result.ticker);
                     }
                     setSelectedTicker(result.ticker); // Focus and select the newly added stock immediately!
+                    setTimeframe('1M'); // Reset to default 1 Month timeframe when focusing a stock!
                     setSearchQuery('');
                     setSearchResults([]);
                   }}
@@ -672,6 +675,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                   onPress={() => {
                     setSelectedTicker(stock.ticker);
                     setActiveModalStock(stock);
+                    setTimeframe('1M'); // Reset to default 1 Month timeframe when opening a stock's details!
                     setDetailModalVisible(true);
                   }}
                 >
