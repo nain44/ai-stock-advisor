@@ -1155,6 +1155,11 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                       </View>
                     </View>
                   </View>
+
+                  {/* Native Ad Placement */}
+                  <View style={{ marginTop: 16, marginBottom: 8 }}>
+                    <AppNativeAd isDarkMode={isDarkMode} />
+                  </View>
                 </View>
               ) : null}
             </ScrollView>
