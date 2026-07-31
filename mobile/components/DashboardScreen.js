@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppNativeAd } from './AdManager';
-import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Path, Defs, LinearGradient, Stop, Rect, Line } from 'react-native-svg';
 import { TrendingUp, TrendingDown, ShieldAlert, Award, Compass, RefreshCw, BarChart2, Trash2, Plus, Search } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
@@ -197,6 +197,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
 
   // Timeframe state
   const [timeframe, setTimeframe] = useState('1M');
+  const [chartType, setChartType] = useState('line');
 
   // Fetch analysis when selectedTicker or market changes (with race condition handling)
   useEffect(() => {
@@ -299,6 +300,61 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
     const areaPath = `${linePath} L ${w} ${h} L 0 ${h} Z`;
 
     return { linePath, areaPath };
+  };
+
+  // Candlestick Chart SVG Coordinates Generator
+  const generateCandles = (data, w, h) => {
+    if (!data || data.length === 0) return [];
+    
+    // Find min and max across all High and Low values to scale correctly
+    const highs = data.map(d => d.High || d.high || d.Close || d.close || 0);
+    const lows = data.map(d => d.Low || d.low || d.Close || d.close || 0);
+    const minPrice = Math.min(...lows);
+    const maxPrice = Math.max(...highs);
+    const priceRange = maxPrice - minPrice || 1;
+    const padding = 5;
+    const chartH = h - 2 * padding;
+    
+    const n = data.length;
+    // Calculate candle width. Leave 35% gap between candles
+    const rawCandleW = w / n;
+    const gap = rawCandleW * 0.35;
+    const candleW = Math.max(1.5, rawCandleW - gap);
+    
+    return data.map((item, idx) => {
+      const open = item.Open || item.open || item.Close || item.close || 0;
+      const high = item.High || item.high || item.Close || item.close || 0;
+      const low = item.Low || item.low || item.Close || item.close || 0;
+      const close = item.Close || item.close || 0;
+      
+      const scaleY = (val) => {
+        return h - padding - ((val - minPrice) / priceRange) * chartH;
+      };
+      
+      const x = idx * rawCandleW + gap / 2;
+      const yHigh = scaleY(high);
+      const yLow = scaleY(low);
+      const yOpen = scaleY(open);
+      const yClose = scaleY(close);
+      
+      const isGreen = close >= open;
+      const color = isGreen ? '#10B981' : '#EF4444';
+      
+      const bodyH = Math.max(1.5, Math.abs(yOpen - yClose));
+      const bodyY = Math.min(yOpen, yClose);
+      
+      return {
+        x,
+        yHigh,
+        yLow,
+        bodyX: x,
+        bodyY,
+        bodyW: candleW,
+        bodyH,
+        color,
+        wickX: x + candleW / 2
+      };
+    });
   };
 
   const handleAddWatchlist = (ticker) => {
@@ -853,7 +909,17 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                   {historical.length > 0 && (
                     <View style={styles.chartWrapper}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <Text style={[styles.chartTitle, !isDarkMode && { color: '#0F172A' }]}>Performance Trend</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.chartTitle, !isDarkMode && { color: '#0F172A' }]}>Performance Trend</Text>
+                          <TouchableOpacity 
+                            style={[styles.chartTypeToggleBtn, !isDarkMode && { backgroundColor: '#E2E8F0', borderColor: '#CBD5E1' }]} 
+                            onPress={() => setChartType(chartType === 'line' ? 'candle' : 'line')}
+                          >
+                            <Text style={[styles.chartTypeToggleText, !isDarkMode && { color: '#0284C7' }]}>
+                              {chartType === 'line' ? '🕯️ Candles' : '📈 Line'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
                         <ScrollView 
                           horizontal 
                           showsHorizontalScrollIndicator={false}
@@ -898,21 +964,52 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                         {(() => {
                           const chartW = width - 48; // Padding offset
                           const chartH = 100;
-                          const { linePath, areaPath } = generateSparklinePaths(historical, chartW, chartH);
-                          const strokeColor = (analysis.profile?.change_percent ?? 0) >= 0 ? '#00D2FF' : '#F87171';
-                          const gradientStopColor = (analysis.profile?.change_percent ?? 0) >= 0 ? '#00D2FF' : '#F87171';
-                          return (
-                            <Svg width={chartW} height={chartH}>
-                              <Defs>
-                                <LinearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                                  <Stop offset="0%" stopColor={gradientStopColor} stopOpacity="0.2" />
-                                  <Stop offset="100%" stopColor={gradientStopColor} stopOpacity="0.0" />
-                                </LinearGradient>
-                              </Defs>
-                              <Path d={areaPath} fill="url(#chartGrad)" />
-                              <Path d={linePath} fill="none" stroke={strokeColor} strokeWidth="2.5" />
-                            </Svg>
-                          );
+
+                          if (chartType === 'candle') {
+                            const candles = generateCandles(historical, chartW, chartH);
+                            return (
+                              <Svg width={chartW} height={chartH}>
+                                {candles.map((c, idx) => (
+                                  <React.Fragment key={idx}>
+                                    <Line 
+                                      x1={c.wickX} 
+                                      y1={c.yHigh} 
+                                      x2={c.wickX} 
+                                      y2={c.yLow} 
+                                      stroke={c.color} 
+                                      strokeWidth="1.2" 
+                                    />
+                                    <Rect 
+                                      x={c.bodyX} 
+                                      y={c.bodyY} 
+                                      width={c.bodyW} 
+                                      height={c.bodyH} 
+                                      fill={c.color} 
+                                      stroke={c.color}
+                                      strokeWidth="0.5"
+                                      rx="0.5"
+                                    />
+                                  </React.Fragment>
+                                ))}
+                              </Svg>
+                            );
+                          } else {
+                            const { linePath, areaPath } = generateSparklinePaths(historical, chartW, chartH);
+                            const strokeColor = (analysis.profile?.change_percent ?? 0) >= 0 ? '#00D2FF' : '#F87171';
+                            const gradientStopColor = (analysis.profile?.change_percent ?? 0) >= 0 ? '#00D2FF' : '#F87171';
+                            return (
+                              <Svg width={chartW} height={chartH}>
+                                <Defs>
+                                  <LinearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <Stop offset="0%" stopColor={gradientStopColor} stopOpacity="0.2" />
+                                    <Stop offset="100%" stopColor={gradientStopColor} stopOpacity="0.0" />
+                                  </LinearGradient>
+                                </Defs>
+                                <Path d={areaPath} fill="url(#chartGrad)" />
+                                <Path d={linePath} fill="none" stroke={strokeColor} strokeWidth="2.5" />
+                              </Svg>
+                            );
+                          }
                         })()}
                       </View>
                     </View>
@@ -2035,5 +2132,18 @@ const styles = StyleSheet.create({
   noCountryText: {
     color: '#64748B',
     fontSize: 13,
+  },
+  chartTypeToggleBtn: {
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+  },
+  chartTypeToggleText: {
+    fontSize: 9.5,
+    color: '#00D2FF',
+    fontWeight: 'bold',
   },
 });
