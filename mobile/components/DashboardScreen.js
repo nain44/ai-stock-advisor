@@ -1415,7 +1415,6 @@ const styles = StyleSheet.create({
   },
   searchBarRow: {
     padding: 12,
-    backgroundColor: '#0B0F19',
   },
   searchInput: {
     backgroundColor: '#161B26',
