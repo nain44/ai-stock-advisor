@@ -1043,30 +1043,45 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                                   })()
                                 )}
 
-                                {/* Y-Axis Price Labels overlaid on the right edge */}
-                                <SvgText x={chartW - 2} y={14} fill={axisTextColor} fontSize="8" fontWeight="bold" textAnchor="end">
+                                {/* Y-Axis Price Labels overlaid on the left edge */}
+                                <SvgText x={4} y={14} fill={axisTextColor} fontSize="8" fontWeight="bold" textAnchor="start">
                                   {getCurrencySymbol(market)}{maxPrice.toLocaleString(undefined, { maximumFractionDigits: 1 })}
                                 </SvgText>
-                                <SvgText x={chartW - 2} y={chartH / 2 + 3} fill={axisTextColor} fontSize="8" fontWeight="bold" textAnchor="end">
+                                <SvgText x={4} y={chartH / 2 + 3} fill={axisTextColor} fontSize="8" fontWeight="bold" textAnchor="start">
                                   {getCurrencySymbol(market)}{midPrice.toLocaleString(undefined, { maximumFractionDigits: 1 })}
                                 </SvgText>
-                                <SvgText x={chartW - 2} y={chartH - 4} fill={axisTextColor} fontSize="8" fontWeight="bold" textAnchor="end">
+                                <SvgText x={4} y={chartH - 4} fill={axisTextColor} fontSize="8" fontWeight="bold" textAnchor="start">
                                   {getCurrencySymbol(market)}{minPrice.toLocaleString(undefined, { maximumFractionDigits: 1 })}
                                 </SvgText>
                               </Svg>
 
                               {/* X-Axis Date Labels Row */}
-                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 4 }}>
-                                <Text style={[styles.axisText, !isDarkMode && { color: '#64748B' }]}>
-                                  {formatDateLabel(historical[0]?.Date || historical[0]?.date)}
-                                </Text>
-                                <Text style={[styles.axisText, !isDarkMode && { color: '#64748B' }]}>
-                                  {formatDateLabel(historical[Math.floor(historical.length / 2)]?.Date || historical[Math.floor(historical.length / 2)]?.date)}
-                                </Text>
-                                <Text style={[styles.axisText, !isDarkMode && { color: '#64748B' }]}>
-                                  {formatDateLabel(historical[historical.length - 1]?.Date || historical[historical.length - 1]?.date)}
-                                </Text>
-                              </View>
+                              {(() => {
+                                const dStart = formatDateLabel(historical[0]?.Date || historical[0]?.date);
+                                const dEnd = formatDateLabel(historical[historical.length - 1]?.Date || historical[historical.length - 1]?.date);
+                                let dMid = '';
+                                if (historical.length >= 3) {
+                                  const midVal = formatDateLabel(historical[Math.floor(historical.length / 2)]?.Date || historical[Math.floor(historical.length / 2)]?.date);
+                                  if (midVal !== dStart && midVal !== dEnd) {
+                                    dMid = midVal;
+                                  }
+                                }
+                                return (
+                                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 4 }}>
+                                    <Text style={[styles.axisText, !isDarkMode && { color: '#64748B' }]}>
+                                      {dStart}
+                                    </Text>
+                                    {dMid ? (
+                                      <Text style={[styles.axisText, !isDarkMode && { color: '#64748B' }]}>
+                                        {dMid}
+                                      </Text>
+                                    ) : null}
+                                    <Text style={[styles.axisText, !isDarkMode && { color: '#64748B' }]}>
+                                      {dEnd}
+                                    </Text>
+                                  </View>
+                                );
+                              })()}
                             </View>
                           );
                         })()}
