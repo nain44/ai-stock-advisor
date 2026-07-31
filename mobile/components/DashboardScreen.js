@@ -923,24 +923,17 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                   {/* SVG Sparkline Chart */}
                   {historical.length > 0 && (
                     <View style={styles.chartWrapper}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Text style={[styles.chartTitle, !isDarkMode && { color: '#0F172A' }]}>Performance Trend</Text>
-                          <TouchableOpacity 
-                            style={[styles.chartTypeToggleBtn, !isDarkMode && { backgroundColor: '#E2E8F0', borderColor: '#CBD5E1' }]} 
-                            onPress={() => setChartType(chartType === 'line' ? 'candle' : 'line')}
-                          >
-                            <Text style={[styles.chartTypeToggleText, !isDarkMode && { color: '#0284C7' }]}>
-                              {chartType === 'line' ? '🕯️ Candles' : '📈 Line'}
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                        <ScrollView 
-                          horizontal 
-                          showsHorizontalScrollIndicator={false}
-                          style={{ maxWidth: '65%', flexGrow: 0 }}
-                          contentContainerStyle={[styles.timeframeRow, !isDarkMode && { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 8 }}>
+                        <TouchableOpacity 
+                          style={[styles.chartTypeToggleBtn, !isDarkMode && { backgroundColor: '#E2E8F0', borderColor: '#CBD5E1' }]} 
+                          onPress={() => setChartType(chartType === 'line' ? 'candle' : 'line')}
                         >
+                          <Text style={[styles.chartTypeToggleText, !isDarkMode && { color: '#0284C7' }]}>
+                            {chartType === 'line' ? '🕯️ Candles' : '📈 Line'}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <View style={[styles.timeframeRow, { flex: 1, flexDirection: 'row', justifyContent: 'space-around' }, !isDarkMode && { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}>
                           {['1D', '3D', '1W', '1M', '3M', '6M', '1Y', '3Y'].map((tf) => {
                             const labelMap = {
                               '1D': 'Today',
@@ -958,6 +951,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                                 key={tf}
                                 style={[
                                   styles.timeframeBtn, 
+                                  { flex: 1, alignItems: 'center', paddingHorizontal: 0 },
                                   isActive && styles.activeTimeframeBtn,
                                   isActive && !isDarkMode && { backgroundColor: '#E2E8F0' }
                                 ]}
@@ -973,7 +967,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                               </TouchableOpacity>
                             );
                           })}
-                        </ScrollView>
+                        </View>
                       </View>
                       <View style={styles.svgContainer}>
                         {(() => {
