@@ -390,7 +390,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
         
         <View style={styles.pnlRow}>
           <Text style={[styles.pnlLabel, { color: theme.subtext }]}>Total Return: </Text>
-          <Text style={[styles.pnlVal, { color: totalPnL >= 0 ? '#34D399' : '#F87171' }]}>
+          <Text style={[styles.pnlVal, { color: totalPnL >= 0 ? (isDarkMode ? '#34D399' : '#059669') : (isDarkMode ? '#F87171' : '#DC2626') }]}>
             {totalPnL >= 0 ? '+' : ''}{getCurrencySymbol(market)} {totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({totalPnLPercent.toFixed(2)}%)
           </Text>
         </View>
@@ -400,14 +400,14 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
         </View>
 
         <TouchableOpacity 
-          style={[styles.aiDiagnoseBtn, portfolio.length === 0 && { opacity: 0.5 }]} 
+          style={[styles.aiDiagnoseBtn, portfolio.length === 0 && { opacity: 0.5 }, !isDarkMode && { backgroundColor: '#0284C7' }]} 
           onPress={handleFetchPortfolioAnalysis}
           disabled={portfolio.length === 0 || loadingAnalysis}
         >
           {loadingAnalysis ? (
-            <ActivityIndicator size="small" color="#0B0F19" style={{ marginRight: 6 }} />
+            <ActivityIndicator size="small" color={isDarkMode ? '#0B0F19' : '#FFFFFF'} style={{ marginRight: 6 }} />
           ) : null}
-          <Text style={styles.aiDiagnoseText}>
+          <Text style={[styles.aiDiagnoseText, !isDarkMode && { color: '#FFFFFF' }]}>
             {loadingAnalysis ? "Diagnosing Portfolio..." : "Analyze Portfolio with AI"}
           </Text>
         </TouchableOpacity>
@@ -416,17 +416,17 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
       {/* Holdings Header */}
       <View style={styles.titleRow}>
         <Text style={[styles.titleText, { color: theme.text }]}>Your Simulated Holdings</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={handleOpenAddModal}>
-          <Plus size={16} color="#0B0F19" style={{ marginRight: 4 }} />
-          <Text style={styles.addBtnText}>Add Stock</Text>
+        <TouchableOpacity style={[styles.addBtn, !isDarkMode && { backgroundColor: '#0284C7' }]} onPress={handleOpenAddModal}>
+          <Plus size={16} color={isDarkMode ? '#0B0F19' : '#FFFFFF'} style={{ marginRight: 4 }} />
+          <Text style={[styles.addBtnText, !isDarkMode && { color: '#FFFFFF' }]}>Add Stock</Text>
         </TouchableOpacity>
       </View>
 
       {activeHoldings.length === 0 ? (
         <View style={styles.emptyContainer}>
           <ShieldAlert size={28} color="#64748B" />
-          <Text style={styles.emptyText}>No active holdings in your simulated {((config?.markets || {})[market] || {}).name || market} portfolio.</Text>
-          <Text style={styles.emptySubText}>Tap 'Add Stock' above to simulate a stock transaction and track performance.</Text>
+          <Text style={[styles.emptyText, !isDarkMode && { color: '#475569' }]}>No active holdings in your simulated {((config?.markets || {})[market] || {}).name || market} portfolio.</Text>
+          <Text style={[styles.emptySubText, !isDarkMode && { color: '#64748B' }]}>Tap 'Add Stock' above to simulate a stock transaction and track performance.</Text>
         </View>
       ) : (
         <ScrollView style={styles.holdingsScroll}>
@@ -439,18 +439,18 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
             const stockName = getStockName(holding.ticker);
 
             return (
-              <View key={holding.ticker} style={styles.holdingCard}>
+              <View key={holding.ticker} style={[styles.holdingCard, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
                 <View style={styles.holdingHeader}>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                      <Text style={[styles.holdingSymbol, { marginBottom: 0 }]}>{holding.ticker}</Text>
+                      <Text style={[styles.holdingSymbol, { marginBottom: 0 }, !isDarkMode && { color: '#0F172A' }]}>{holding.ticker}</Text>
                       {getSignalStatus(holding.ticker) && (
                         <View style={[styles.miniSignalBadge, { backgroundColor: getSignalColor(getSignalStatus(holding.ticker)), borderColor: getSignalTextColor(getSignalStatus(holding.ticker)), marginLeft: 8 }]}>
                           <Text style={[styles.miniSignalText, { color: getSignalTextColor(getSignalStatus(holding.ticker)) }]}>{getSignalStatus(holding.ticker)}</Text>
                         </View>
                       )}
                     </View>
-                    <Text style={styles.holdingName} numberOfLines={1}>{stockName}</Text>
+                    <Text style={[styles.holdingName, !isDarkMode && { color: '#64748B' }]} numberOfLines={1}>{stockName}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <TouchableOpacity onPress={() => handleEditHolding(holding)} style={{ marginRight: 16 }}>
@@ -462,28 +462,28 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
                   </View>
                 </View>
 
-                <View style={styles.statsDivider} />
+                <View style={[styles.statsDivider, !isDarkMode && { backgroundColor: '#E2E8F0' }]} />
 
                 <View style={styles.holdingGrid}>
                   <View style={styles.gridCol}>
-                    <Text style={styles.gridLabel}>Qty / Avg Buy</Text>
-                    <Text style={styles.gridVal}>
+                    <Text style={[styles.gridLabel, !isDarkMode && { color: '#64748B' }]}>Qty / Avg Buy</Text>
+                    <Text style={[styles.gridVal, !isDarkMode && { color: '#0F172A' }]}>
                       {holding.quantity} @ {getCurrencySymbol(market)}{holding.avgPrice.toFixed(1)}
                     </Text>
                   </View>
                   <View style={styles.gridCol}>
-                    <Text style={styles.gridLabel}>Live Price</Text>
-                    <Text style={styles.gridVal}>{getCurrencySymbol(market)} {livePrice.toLocaleString()}</Text>
+                    <Text style={[styles.gridLabel, !isDarkMode && { color: '#64748B' }]}>Live Price</Text>
+                    <Text style={[styles.gridVal, !isDarkMode && { color: '#0F172A' }]}>{getCurrencySymbol(market)} {livePrice.toLocaleString()}</Text>
                   </View>
                   <View style={styles.gridCol}>
-                    <Text style={styles.gridLabel}>Current Value</Text>
-                    <Text style={styles.gridVal}>{getCurrencySymbol(market)} {currentVal.toLocaleString()}</Text>
+                    <Text style={[styles.gridLabel, !isDarkMode && { color: '#64748B' }]}>Current Value</Text>
+                    <Text style={[styles.gridVal, !isDarkMode && { color: '#0F172A' }]}>{getCurrencySymbol(market)} {currentVal.toLocaleString()}</Text>
                   </View>
                 </View>
 
                 <View style={styles.holdingFooter}>
-                  <Text style={styles.footerPnLLabel}>Gain / Loss:</Text>
-                  <Text style={[styles.footerPnLVal, { color: holdingPnL >= 0 ? '#34D399' : '#F87171' }]}>
+                  <Text style={[styles.footerPnLLabel, !isDarkMode && { color: '#64748B' }]}>Gain / Loss:</Text>
+                  <Text style={[styles.footerPnLVal, { color: holdingPnL >= 0 ? (isDarkMode ? '#34D399' : '#059669') : (isDarkMode ? '#F87171' : '#DC2626') }]}>
                     {holdingPnL >= 0 ? '+' : ''}{getCurrencySymbol(market)} {holdingPnL.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ({holdingPnLPercent.toFixed(2)}%)
                   </Text>
                 </View>
@@ -501,26 +501,26 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalBg}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
+          <View style={[styles.modalContent, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
+            <View style={[styles.modalHeader, !isDarkMode && { borderBottomColor: '#E2E8F0' }]}>
+              <Text style={[styles.modalTitle, !isDarkMode && { color: '#0F172A' }]}>
                 {editingHolding ? "Edit Simulated Holding" : "Add Simulated Holding"}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <X size={20} color="#94A3B8" />
+                <X size={20} color={isDarkMode ? '#94A3B8' : '#64748B'} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Stock Ticker</Text>
+              <Text style={[styles.inputLabel, !isDarkMode && { color: '#64748B' }]}>Stock Ticker</Text>
               {editingHolding ? (
-                <View style={[styles.inputField, { backgroundColor: '#1E293B', justifyContent: 'center', height: 40 }]}>
-                  <Text style={{ color: '#94A3B8', fontWeight: 'bold' }}>{newTicker}</Text>
+                <View style={[styles.inputField, { backgroundColor: '#1E293B', justifyContent: 'center', height: 40 }, !isDarkMode && { backgroundColor: '#F1F5F9', borderColor: '#CBD5E1' }]}>
+                  <Text style={{ color: isDarkMode ? '#94A3B8' : '#334155', fontWeight: 'bold' }}>{newTicker}</Text>
                 </View>
               ) : (
                 <>
                   <TextInput
-                    style={styles.inputField}
+                    style={[styles.inputField, !isDarkMode && { backgroundColor: '#F1F5F9', color: '#000000', borderColor: '#CBD5E1' }]}
                     placeholder="Enter stock ticker..."
                     placeholderTextColor="#64748B"
                     value={newTicker}
@@ -534,16 +534,16 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
                       <ActivityIndicator size="small" color="#00D2FF" />
                     </View>
                   ) : searchResults.length > 0 ? (
-                    <View style={styles.searchDropdown}>
+                    <View style={[styles.searchDropdown, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#CBD5E1' }]}>
                       <ScrollView style={{ maxHeight: 120 }} keyboardShouldPersistTaps="handled">
                         {searchResults.map((item) => (
                           <TouchableOpacity
                             key={item.ticker}
-                            style={styles.dropdownItem}
+                            style={[styles.dropdownItem, !isDarkMode && { borderBottomColor: '#E2E8F0' }]}
                             onPress={() => selectTickerFromSearch(item.ticker)}
                           >
-                            <Text style={styles.dropdownTicker}>{item.ticker}</Text>
-                            <Text style={styles.dropdownName} numberOfLines={1}>{item.name}</Text>
+                            <Text style={[styles.dropdownTicker, !isDarkMode && { color: '#0F172A' }]}>{item.ticker}</Text>
+                            <Text style={[styles.dropdownName, !isDarkMode && { color: '#64748B' }]} numberOfLines={1}>{item.name}</Text>
                           </TouchableOpacity>
                         ))}
                       </ScrollView>
@@ -562,9 +562,9 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Quantity</Text>
+              <Text style={[styles.inputLabel, !isDarkMode && { color: '#64748B' }]}>Quantity</Text>
               <TextInput
-                style={styles.inputField}
+                style={[styles.inputField, !isDarkMode && { backgroundColor: '#F1F5F9', color: '#000000', borderColor: '#CBD5E1' }]}
                 placeholder="Enter shares quantity..."
                 placeholderTextColor="#64748B"
                 keyboardType="numeric"
@@ -574,10 +574,10 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Purchase Price ({getCurrencySymbol(market)} per share)</Text>
+              <Text style={[styles.inputLabel, !isDarkMode && { color: '#64748B' }]}>Purchase Price ({getCurrencySymbol(market)} per share)</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <TextInput
-                  style={[styles.inputField, { flex: 1 }]}
+                  style={[styles.inputField, { flex: 1 }, !isDarkMode && { backgroundColor: '#F1F5F9', color: '#000000', borderColor: '#CBD5E1' }]}
                   placeholder="Enter purchase price..."
                   placeholderTextColor="#64748B"
                   keyboardType="numeric"
@@ -590,9 +590,9 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
               </View>
             </View>
 
-            <TouchableOpacity style={styles.modalSubmitBtn} onPress={handleAddHolding}>
-              <CheckCircle2 size={16} color="#0B0F19" style={{ marginRight: 6 }} />
-              <Text style={styles.modalSubmitText}>
+            <TouchableOpacity style={[styles.modalSubmitBtn, !isDarkMode && { backgroundColor: '#0284C7' }]} onPress={handleAddHolding}>
+              <CheckCircle2 size={16} color={isDarkMode ? '#0B0F19' : '#FFFFFF'} style={{ marginRight: 6 }} />
+              <Text style={[styles.modalSubmitText, !isDarkMode && { color: '#FFFFFF' }]}>
                 {editingHolding ? "Save Changes" : "Add to Portfolio"}
               </Text>
             </TouchableOpacity>
@@ -608,11 +608,11 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
         onRequestClose={() => setAnalysisModalVisible(false)}
       >
         <View style={styles.modalBg}>
-          <View style={[styles.modalContent, { maxHeight: '85%' }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>AI Portfolio Diagnostics</Text>
+          <View style={[styles.modalContent, { maxHeight: '85%' }, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
+            <View style={[styles.modalHeader, !isDarkMode && { borderBottomColor: '#E2E8F0' }]}>
+              <Text style={[styles.modalTitle, !isDarkMode && { color: '#0F172A' }]}>AI Portfolio Diagnostics</Text>
               <TouchableOpacity onPress={() => setAnalysisModalVisible(false)}>
-                <X size={20} color="#94A3B8" />
+                <X size={20} color={isDarkMode ? '#94A3B8' : '#64748B'} />
               </TouchableOpacity>
             </View>
 
@@ -620,14 +620,14 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
               {portfolioAnalysis && (
                 <View>
                   {/* Score Card */}
-                  <View style={styles.scoreCard}>
+                  <View style={[styles.scoreCard, !isDarkMode && { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}>
                     <View style={styles.scoreRow}>
                       <View style={styles.scoreGauge}>
-                        <Text style={styles.scoreNum}>{portfolioAnalysis.analysis?.health_score}</Text>
+                        <Text style={[styles.scoreNum, !isDarkMode && { color: '#0F172A' }]}>{portfolioAnalysis.analysis?.health_score}</Text>
                         <Text style={styles.scoreMax}>/100</Text>
                       </View>
                       <View style={{ marginLeft: 16 }}>
-                        <Text style={styles.scoreLabel}>Diversification Rating</Text>
+                        <Text style={[styles.scoreLabel, !isDarkMode && { color: '#64748B' }]}>Diversification Rating</Text>
                         <Text style={[styles.scoreValue, { color: getRatingColor(portfolioAnalysis.analysis?.diversification_rating) }]}>
                           {portfolioAnalysis.analysis?.diversification_rating}
                         </Text>
@@ -636,37 +636,37 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
                   </View>
 
                   {/* Analysis Bullets */}
-                  <Text style={styles.analysisTitle}>AI Diagnostics & Analysis</Text>
-                  <View style={styles.analysisBox}>
+                  <Text style={[styles.analysisTitle, !isDarkMode && { color: '#0F172A' }]}>AI Diagnostics & Analysis</Text>
+                  <View style={[styles.analysisBox, !isDarkMode && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
                     {portfolioAnalysis.analysis?.analysis_bullets?.map((bullet, idx) => (
                       <View key={idx} style={styles.bulletRow}>
                         <Text style={styles.bulletDot}>•</Text>
-                        <Text style={styles.bulletText}>{bullet}</Text>
+                        <Text style={[styles.bulletText, !isDarkMode && { color: '#334155' }]}>{bullet}</Text>
                       </View>
                     ))}
                   </View>
 
                   {/* Rebalancing Advice */}
-                  <Text style={styles.analysisTitle}>Actionable Rebalancing Advice</Text>
-                  <View style={styles.rebalanceBox}>
+                  <Text style={[styles.analysisTitle, !isDarkMode && { color: '#0F172A' }]}>Actionable Rebalancing Advice</Text>
+                  <View style={[styles.rebalanceBox, !isDarkMode && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
                     {portfolioAnalysis.analysis?.rebalancing_actions?.map((action, idx) => (
                       <View key={idx} style={styles.bulletRow}>
                         <Text style={[styles.bulletDot, { color: '#00D2FF' }]}>➔</Text>
-                        <Text style={styles.bulletText}>{action}</Text>
+                        <Text style={[styles.bulletText, !isDarkMode && { color: '#334155' }]}>{action}</Text>
                       </View>
                     ))}
                   </View>
                   
                   {/* Sector Distribution List */}
-                  <Text style={styles.analysisTitle}>Sector Allocations</Text>
-                  <View style={styles.analysisBox}>
+                  <Text style={[styles.analysisTitle, !isDarkMode && { color: '#0F172A' }]}>Sector Allocations</Text>
+                  <View style={[styles.analysisBox, !isDarkMode && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
                     {Object.entries(portfolioAnalysis.summary?.sector_allocation || {}).map(([sector, weight]) => (
                       <View key={sector} style={styles.sectorRow}>
-                        <Text style={styles.sectorName}>{sector}</Text>
-                        <View style={styles.sectorBarWrapper}>
+                        <Text style={[styles.sectorName, !isDarkMode && { color: '#334155' }]}>{sector}</Text>
+                        <View style={[styles.sectorBarWrapper, !isDarkMode && { backgroundColor: '#E2E8F0' }]}>
                           <View style={[styles.sectorBar, { width: `${weight}%` }]} />
                         </View>
-                        <Text style={styles.sectorWeight}>{weight}%</Text>
+                        <Text style={[styles.sectorWeight, !isDarkMode && { color: '#0F172A' }]}>{weight}%</Text>
                       </View>
                     ))}
                   </View>
@@ -685,25 +685,25 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
         onRequestClose={() => setCustomAlert(prev => ({ ...prev, visible: false }))}
       >
         <View style={styles.alertOverlay}>
-          <View style={styles.alertCard}>
+          <View style={[styles.alertCard, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
             <View style={styles.alertHeader}>
               {customAlert.type === 'error' && <ShieldAlert size={24} color="#EF4444" />}
               {customAlert.type === 'warning' && <ShieldAlert size={24} color="#F59E0B" />}
               {customAlert.type === 'confirm' && <Trash2 size={24} color="#EC4899" />}
               {customAlert.type === 'info' && <CheckCircle2 size={24} color="#10B981" />}
-              <Text style={styles.alertTitle}>{customAlert.title}</Text>
+              <Text style={[styles.alertTitle, !isDarkMode && { color: '#0F172A' }]}>{customAlert.title}</Text>
             </View>
             
-            <Text style={styles.alertMessage}>{customAlert.message}</Text>
+            <Text style={[styles.alertMessage, !isDarkMode && { color: '#475569' }]}>{customAlert.message}</Text>
             
             <View style={styles.alertActions}>
               {customAlert.type === 'confirm' ? (
                 <>
                   <TouchableOpacity 
-                    style={[styles.alertBtn, styles.alertCancelBtn]}
+                    style={[styles.alertBtn, styles.alertCancelBtn, !isDarkMode && { backgroundColor: '#F1F5F9', borderColor: '#CBD5E1' }]}
                     onPress={() => setCustomAlert(prev => ({ ...prev, visible: false }))}
                   >
-                    <Text style={styles.alertCancelBtnText}>Cancel</Text>
+                    <Text style={[styles.alertCancelBtnText, !isDarkMode && { color: '#475569' }]}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={[styles.alertBtn, styles.alertConfirmBtn]}

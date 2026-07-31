@@ -164,12 +164,20 @@ export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market
           const isAI = msg.sender === 'ai';
           return (
             <View key={msg.id} style={[styles.messageRow, isAI ? styles.aiRow : styles.userRow]}>
-              <View style={[styles.bubble, isAI ? styles.aiBubble : styles.userBubble]}>
-                <Text style={[styles.bubbleText, isAI ? styles.aiText : styles.userText]}>
+              <View style={[
+                styles.bubble, 
+                isAI ? styles.aiBubble : styles.userBubble, 
+                isAI && !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }
+              ]}>
+                <Text style={[
+                  styles.bubbleText, 
+                  isAI ? styles.aiText : styles.userText, 
+                  isAI && !isDarkMode && { color: '#0F172A' }
+                ]}>
                   {msg.text}
                 </Text>
               </View>
-              <Text style={styles.timeText}>
+              <Text style={[styles.timeText, !isDarkMode && { color: '#64748B' }]}>
                 {msg.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </Text>
             </View>
@@ -177,7 +185,12 @@ export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market
         })}
         {loading && (
           <View style={[styles.messageRow, styles.aiRow]}>
-            <View style={[styles.bubble, styles.aiBubble, styles.loadingBubble]}>
+            <View style={[
+              styles.bubble, 
+              styles.aiBubble, 
+              styles.loadingBubble,
+              !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }
+            ]}>
               <ActivityIndicator size="small" color="#00D2FF" />
             </View>
           </View>
@@ -185,26 +198,26 @@ export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market
       </ScrollView>
 
       {/* Floating Suggestion Chips */}
-      <View style={styles.chipsWrapper}>
+      <View style={[styles.chipsWrapper, !isDarkMode && { backgroundColor: '#F8FAFC', borderTopColor: '#E2E8F0' }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
           {suggestionChips.map((chip, idx) => (
             <TouchableOpacity
               key={idx}
-              style={styles.chip}
+              style={[styles.chip, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}
               onPress={() => handleSend(chip.query)}
               disabled={loading}
             >
               <HelpCircle size={12} color="#00D2FF" style={{ marginRight: 4 }} />
-              <Text style={styles.chipText}>{chip.label}</Text>
+              <Text style={[styles.chipText, !isDarkMode && { color: '#475569' }]}>{chip.label}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
 
       {/* Input Bar */}
-      <View style={styles.inputBar}>
+      <View style={[styles.inputBar, !isDarkMode && { backgroundColor: '#FFFFFF', borderTopColor: '#E2E8F0' }]}>
         <TextInput
-          style={styles.textInput}
+          style={[styles.textInput, !isDarkMode && { backgroundColor: '#F1F5F9', color: '#0F172A', borderColor: '#CBD5E1' }]}
           placeholder={`Ask AI Advisor about ${marketLabel} stocks...`}
           placeholderTextColor="#64748B"
           value={inputText}
@@ -213,11 +226,11 @@ export default function AIChatScreen({ selectedTicker, portfolio, apiUrl, market
           editable={!loading}
         />
         <TouchableOpacity
-          style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
+          style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled, !isDarkMode && { backgroundColor: '#0284C7' }]}
           onPress={() => handleSend()}
           disabled={loading || !inputText.trim()}
         >
-          <Send size={18} color="#0B0F19" />
+          <Send size={18} color={isDarkMode ? '#0B0F19' : '#FFFFFF'} />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
