@@ -250,8 +250,10 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
     let ignore = false;
     let days = 30;
     if (timeframe === '1D') days = 2;
+    else if (timeframe === '3D') days = 3;
     else if (timeframe === '1W') days = 7;
     else if (timeframe === '1M') days = 30;
+    else if (timeframe === '3M') days = 90;
     else if (timeframe === '6M') days = 180;
     else if (timeframe === '1Y') days = 365;
     else if (timeframe === '3Y') days = 1095;
@@ -851,13 +853,20 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                   {historical.length > 0 && (
                     <View style={styles.chartWrapper}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <Text style={styles.chartTitle}>Performance Trend</Text>
-                        <View style={styles.timeframeRow}>
-                          {['1D', '1W', '1M', '6M', '1Y', '3Y'].map((tf) => {
+                        <Text style={[styles.chartTitle, !isDarkMode && { color: '#0F172A' }]}>Performance Trend</Text>
+                        <ScrollView 
+                          horizontal 
+                          showsHorizontalScrollIndicator={false}
+                          style={{ maxWidth: '65%', flexGrow: 0 }}
+                          contentContainerStyle={[styles.timeframeRow, !isDarkMode && { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}
+                        >
+                          {['1D', '3D', '1W', '1M', '3M', '6M', '1Y', '3Y'].map((tf) => {
                             const labelMap = {
                               '1D': 'Today',
+                              '3D': '3D',
                               '1W': '1W',
                               '1M': '1M',
+                              '3M': '3M',
                               '6M': '6M',
                               '1Y': '1Y',
                               '3Y': '3Y'
@@ -866,16 +875,24 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                             return (
                               <TouchableOpacity
                                 key={tf}
-                                style={[styles.timeframeBtn, isActive && styles.activeTimeframeBtn]}
+                                style={[
+                                  styles.timeframeBtn, 
+                                  isActive && styles.activeTimeframeBtn,
+                                  isActive && !isDarkMode && { backgroundColor: '#E2E8F0' }
+                                ]}
                                 onPress={() => setTimeframe(tf)}
                               >
-                                <Text style={[styles.timeframeBtnText, isActive && styles.activeTimeframeBtnText]}>
+                                <Text style={[
+                                  styles.timeframeBtnText, 
+                                  isActive && styles.activeTimeframeBtnText,
+                                  isActive && !isDarkMode && { color: '#0284C7' }
+                                ]}>
                                   {labelMap[tf]}
                                 </Text>
                               </TouchableOpacity>
                             );
                           })}
-                        </View>
+                        </ScrollView>
                       </View>
                       <View style={styles.svgContainer}>
                         {(() => {
