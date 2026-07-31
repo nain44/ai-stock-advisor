@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppNativeAd } from './AdManager';
-import Svg, { Path, Defs, LinearGradient, Stop, Rect, Line } from 'react-native-svg';
+import Svg, { Path, Defs, LinearGradient, Stop, Rect, Line, Text as SvgText } from 'react-native-svg';
 import { TrendingUp, TrendingDown, ShieldAlert, Award, Compass, RefreshCw, BarChart2, Trash2, Plus, Search } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
@@ -355,6 +355,17 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
         wickX: x + candleW / 2
       };
     });
+  };
+
+  // Format Date label for X-axis (e.g. "2026-07-28" to "07/28")
+  const formatDateLabel = (dateStr) => {
+    if (!dateStr) return '';
+    const cleanDate = dateStr.split('T')[0];
+    const parts = cleanDate.split('-');
+    if (parts.length === 3) {
+      return `${parts[1]}/${parts[2]}`;
+    }
+    return dateStr;
   };
 
   const handleAddWatchlist = (ticker) => {
@@ -965,51 +976,99 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                           const chartW = width - 48; // Padding offset
                           const chartH = 100;
 
-                          if (chartType === 'candle') {
-                            const candles = generateCandles(historical, chartW, chartH);
-                            return (
+                          // Find global min and max for Y-axis scaling
+                          const highs = historical.map(d => d.High || d.high || d.Close || d.close || 0);
+                          const lows = historical.map(d => d.Low || d.low || d.Close || d.close || 0);
+                          const minPrice = Math.min(...lows);
+                          const maxPrice = Math.max(...highs);
+                          const midPrice = (maxPrice + minPrice) / 2;
+
+                          const strokeColor = (analysis.profile?.change_percent ?? 0) >= 0 ? '#00D2FF' : '#F87171';
+                          const axisTextColor = isDarkMode ? '#64748B' : '#94A3B8';
+
+                          return (
+                            <View>
                               <Svg width={chartW} height={chartH}>
-                                {candles.map((c, idx) => (
-                                  <React.Fragment key={idx}>
-                                    <Line 
-                                      x1={c.wickX} 
-                                      y1={c.yHigh} 
-                                      x2={c.wickX} 
-                                      y2={c.yLow} 
-                                      stroke={c.color} 
-                                      strokeWidth="1.2" 
-                                    />
-                                    <Rect 
-                                      x={c.bodyX} 
-                                      y={c.bodyY} 
-                                      width={c.bodyW} 
-                                      height={c.bodyH} 
-                                      fill={c.color} 
-                                      stroke={c.color}
-                                      strokeWidth="0.5"
-                                      rx="0.5"
-                                    />
-                                  </React.Fragment>
-                                ))}
+                                {/* Grid Lines (dashed horizontal guides) */}
+                                <Line x1="0" y1="5" x2={chartW} y2="5" stroke={isDarkMode ? '#1E293B' : '#E2E8F0'} strokeWidth="1" strokeDasharray="3,3" />
+                                <Line x1="0" y1={chartH / 2} x2={chartW} y2={chartH / 2} stroke={isDarkMode ? '#1E293B' : '#E2E8F0'} strokeWidth="1" strokeDasharray="3,3" />
+                                <Line x1="0" y1={chartH - 5} x2={chartW} y2={chartH - 5} stroke={isDarkMode ? '#1E293B' : '#E2E8F0'} strokeWidth="1" strokeDasharray="3,3" />
+
+                                {chartType === 'candle' ? (
+                                  (() => {
+                                    const candles = generateCandles(historical, chartW, chartH);
+                                    return (
+                                      <>
+                                        {candles.map((c, idx) => (
+                                          <React.Fragment key={idx}>
+                                            <Line 
+                                              x1={c.wickX} 
+                                              y1={c.yHigh} 
+                                              x2={c.wickX} 
+                                              y2={c.yLow} 
+                                              stroke={c.color} 
+                                              strokeWidth="1.2" 
+                                            />
+                                            <Rect 
+                                              x={c.bodyX} 
+                                              y={c.bodyY} 
+                                              width={c.bodyW} 
+                                              height={c.bodyH} 
+                                              fill={c.color} 
+                                              stroke={c.color}
+                                              strokeWidth="0.5"
+                                              rx="0.5"
+                                            />
+                                          </React.Fragment>
+                                        ))}
+                                      </>
+                                    );
+                                  })()
+                                ) : (
+                                  (() => {
+                                    const { linePath, areaPath } = generateSparklinePaths(historical, chartW, chartH);
+                                    const gradientStopColor = (analysis.profile?.change_percent ?? 0) >= 0 ? '#00D2FF' : '#F87171';
+                                    return (
+                                      <>
+                                        <Defs>
+                                          <LinearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                                            <Stop offset="0%" stopColor={gradientStopColor} stopOpacity="0.2" />
+                                            <Stop offset="100%" stopColor={gradientStopColor} stopOpacity="0.0" />
+                                          </LinearGradient>
+                                        </Defs>
+                                        <Path d={areaPath} fill="url(#chartGrad)" />
+                                        <Path d={linePath} fill="none" stroke={strokeColor} strokeWidth="2.5" />
+                                      </>
+                                    );
+                                  })()
+                                )}
+
+                                {/* Y-Axis Price Labels overlaid on the right edge */}
+                                <SvgText x={chartW - 2} y={14} fill={axisTextColor} fontSize="8" fontWeight="bold" textAnchor="end">
+                                  {getCurrencySymbol(market)}{maxPrice.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                                </SvgText>
+                                <SvgText x={chartW - 2} y={chartH / 2 + 3} fill={axisTextColor} fontSize="8" fontWeight="bold" textAnchor="end">
+                                  {getCurrencySymbol(market)}{midPrice.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                                </SvgText>
+                                <SvgText x={chartW - 2} y={chartH - 4} fill={axisTextColor} fontSize="8" fontWeight="bold" textAnchor="end">
+                                  {getCurrencySymbol(market)}{minPrice.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                                </SvgText>
                               </Svg>
-                            );
-                          } else {
-                            const { linePath, areaPath } = generateSparklinePaths(historical, chartW, chartH);
-                            const strokeColor = (analysis.profile?.change_percent ?? 0) >= 0 ? '#00D2FF' : '#F87171';
-                            const gradientStopColor = (analysis.profile?.change_percent ?? 0) >= 0 ? '#00D2FF' : '#F87171';
-                            return (
-                              <Svg width={chartW} height={chartH}>
-                                <Defs>
-                                  <LinearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                                    <Stop offset="0%" stopColor={gradientStopColor} stopOpacity="0.2" />
-                                    <Stop offset="100%" stopColor={gradientStopColor} stopOpacity="0.0" />
-                                  </LinearGradient>
-                                </Defs>
-                                <Path d={areaPath} fill="url(#chartGrad)" />
-                                <Path d={linePath} fill="none" stroke={strokeColor} strokeWidth="2.5" />
-                              </Svg>
-                            );
-                          }
+
+                              {/* X-Axis Date Labels Row */}
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 4 }}>
+                                <Text style={[styles.axisText, !isDarkMode && { color: '#64748B' }]}>
+                                  {formatDateLabel(historical[0]?.Date || historical[0]?.date)}
+                                </Text>
+                                <Text style={[styles.axisText, !isDarkMode && { color: '#64748B' }]}>
+                                  {formatDateLabel(historical[Math.floor(historical.length / 2)]?.Date || historical[Math.floor(historical.length / 2)]?.date)}
+                                </Text>
+                                <Text style={[styles.axisText, !isDarkMode && { color: '#64748B' }]}>
+                                  {formatDateLabel(historical[historical.length - 1]?.Date || historical[historical.length - 1]?.date)}
+                                </Text>
+                              </View>
+                            </View>
+                          );
                         })()}
                       </View>
                     </View>
@@ -2085,6 +2144,11 @@ const styles = StyleSheet.create({
   negativeText: {
     color: '#EF4444',
     fontWeight: 'bold',
+  },
+  axisText: {
+    fontSize: 9.5,
+    color: '#64748B',
+    fontWeight: '600',
   },
   switcherAndRefreshRow: {
     flexDirection: 'row',
