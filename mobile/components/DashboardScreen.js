@@ -933,16 +933,6 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
 
                         <View style={[styles.timeframeRow, { flex: 1, flexDirection: 'row', justifyContent: 'space-around' }, !isDarkMode && { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}>
                           {['1D', '3D', '1W', '1M', '3M', '6M', '1Y', '3Y'].map((tf) => {
-                            const labelMap = {
-                              '1D': 'Today',
-                              '3D': '3D',
-                              '1W': '1W',
-                              '1M': '1M',
-                              '3M': '3M',
-                              '6M': '6M',
-                              '1Y': '1Y',
-                              '3Y': '3Y'
-                            };
                             const isActive = timeframe === tf;
                             return (
                               <TouchableOpacity
@@ -960,7 +950,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                                   isActive && styles.activeTimeframeBtnText,
                                   isActive && !isDarkMode && { color: '#0284C7' }
                                 ]}>
-                                  {labelMap[tf]}
+                                  {tf}
                                 </Text>
                               </TouchableOpacity>
                             );
