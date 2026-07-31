@@ -1458,7 +1458,6 @@ const styles = StyleSheet.create({
   },
   stocksScroll: {
     flex: 1,
-    backgroundColor: '#0B0F19',
   },
   stocksListContent: {
     paddingHorizontal: 12,
