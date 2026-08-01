@@ -2,16 +2,19 @@
   "expo": {
     "name": "MultiStocks AI",
     "slug": "multistocks-ai",
+    "owner": "nain44",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
       "bundleIdentifier": "com.zutech.multistocksai",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.zutech.multistocksai",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -21,6 +24,39 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "privacyPolicyUrl": "https://wallpapers.paynovatechnologies.com/multistocks-privacy-policy",
+      "eas": {
+        "projectId": "3a459e6b-be4f-478c-8116-7e3bed660219"
+      }
+    },
+    "plugins": [
+      "./plugins/withOptimizeR8",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-4935488254463353~4815564161",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "2.1.0",
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "-keep class com.swmansion.reanimated.** { *; }\n-keep class com.facebook.react.turbomodule.** { *; }\n-keep class com.google.android.gms.internal.consent_sdk.** { *; }"
+          }
+        }
+      ]
+    ],
+    "react-native-google-mobile-ads": {
+      "android_app_id": "ca-app-pub-4935488254463353~4815564161",
+      "ios_app_id": "ca-app-pub-3940256099942544~1458002511",
+      "androidAppId": "ca-app-pub-4935488254463353~4815564161",
+      "iosAppId": "ca-app-pub-3940256099942544~1458002511"
     }
   }
 }

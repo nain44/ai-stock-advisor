@@ -6,6 +6,14 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List
 from concurrent.futures import ThreadPoolExecutor
+import datetime
+import json
+
+SYSTEM_EVENTS = [
+    {"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": "MultiStocks AI API Backend initialized."},
+    {"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": "Loaded market watchlists and global index feeds."}
+]
+
 
 # Import local modules
 import data_fetcher
@@ -37,6 +45,7 @@ class ChatRequest(BaseModel):
 class SettingsUpdate(BaseModel):
     gemini_key: Optional[str] = None
     openai_key: Optional[str] = None
+    use_test_ads: Optional[bool] = None
 
 class HoldingItem(BaseModel):
     ticker: str
@@ -191,263 +200,14 @@ TR_STOCK_INDEX = [
     {"ticker": "TUPRS.IS", "name": "Turkiye Petrol Rafinerileri A.S.", "sector": "Energy"}
 ]
 
-MARKETS_CONFIG = {
-    "PK": {
-        "name": "Pakistan",
-        "flag": "🇵🇰",
-        "title": "MultiStocks AI",
-        "subtitle": "Pakistan Stock Exchange (PSX)",
-        "currency": "Rs.",
-        "defaultTicker": "MARI",
-        "watchlist": ["MARI", "SYS", "MEBL", "HUBC", "OGDC", "UBL"],
-        "index_symbol": "^KSE",
-        "welcome": "As-salamu alaykum! I am your KSE AI Stock Advisor. Ask me about technical patterns, targets, or specific PSX stocks.",
-        "suggestions": [
-            {"label": "Analyze MARI", "query": "Can you do a full analysis of MARI and explain target levels?"},
-            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading PSX?"},
-            {"label": "Top Defensive Stocks", "query": "Which stocks in the PSX coverage are considered the best defensive/dividend stocks?"}
-        ]
-    },
-    "US": {
-        "name": "United States",
-        "flag": "🇺🇸",
-        "title": "MultiStocks AI",
-        "subtitle": "US Stock Markets (NYSE/NASDAQ)",
-        "currency": "$",
-        "defaultTicker": "AAPL",
-        "watchlist": ["AAPL", "MSFT", "TSLA", "NVDA", "AMZN"],
-        "index_symbol": "^GSPC",
-        "welcome": "Hello! I am your US Stocks AI Advisor. Ask me about technical patterns, targets, or specific NYSE/NASDAQ stocks.",
-        "suggestions": [
-            {"label": "Analyze AAPL", "query": "Can you do a full analysis of AAPL and explain target levels?"},
-            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading US markets?"},
-            {"label": "Top Defensive Stocks", "query": "Which stocks in the US markets coverage are considered the best defensive/dividend stocks?"}
-        ]
-    },
-    "IN": {
-        "name": "India",
-        "flag": "🇮🇳",
-        "title": "MultiStocks AI",
-        "subtitle": "National Stock Exchange of India (NSE)",
-        "currency": "₹",
-        "defaultTicker": "RELIANCE.NS",
-        "watchlist": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS"],
-        "index_symbol": "^NSEI",
-        "welcome": "Namaste! I am your NSE India AI Stock Advisor. Ask me about technical patterns, targets, or specific Indian stocks.",
-        "suggestions": [
-            {"label": "Analyze RELIANCE.NS", "query": "Can you do a full analysis of RELIANCE.NS and explain target levels?"},
-            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading NSE?"},
-            {"label": "Top Defensive Stocks", "query": "Which stocks in the NSE coverage are considered the best defensive/dividend stocks?"}
-        ]
-    },
-    "UK": {
-        "name": "United Kingdom",
-        "flag": "🇬🇧",
-        "title": "MultiStocks AI",
-        "subtitle": "London Stock Exchange (LSE)",
-        "currency": "£",
-        "defaultTicker": "BP.L",
-        "watchlist": ["BP.L", "HSBA.L", "GSK.L", "AZN.L", "VOD.L"],
-        "index_symbol": "^FTSE",
-        "welcome": "Hello! I am your UK Stocks AI Advisor. Ask me about technical patterns, targets, or specific London Stock Exchange (LSE) stocks.",
-        "suggestions": [
-            {"label": "Analyze BP.L", "query": "Can you do a full analysis of BP.L and explain target levels?"},
-            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading LSE?"},
-            {"label": "Top Defensive Stocks", "query": "Which stocks in the LSE coverage are considered the best defensive/dividend stocks?"}
-        ]
-    },
-    "CA": {
-        "name": "Canada",
-        "flag": "🇨🇦",
-        "title": "MultiStocks AI",
-        "subtitle": "Toronto Stock Exchange (TSX)",
-        "currency": "C$",
-        "defaultTicker": "RY.TO",
-        "watchlist": ["RY.TO", "TD.TO", "SHOP.TO", "ENB.TO"],
-        "index_symbol": "^GSPTSE",
-        "welcome": "Hello! I am your TSX Canada AI Stock Advisor. Ask me about technical patterns, targets, or specific Canadian stocks.",
-        "suggestions": [
-            {"label": "Analyze RY.TO", "query": "Can you do a full analysis of RY.TO and explain target levels?"},
-            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading TSX?"},
-            {"label": "Top Defensive Stocks", "query": "Which stocks in the TSX coverage are considered the best defensive/dividend stocks?"}
-        ]
-    },
-    "JP": {
-        "name": "Japan",
-        "flag": "🇯🇵",
-        "title": "MultiStocks AI",
-        "subtitle": "Tokyo Stock Exchange (TSE)",
-        "currency": "¥",
-        "defaultTicker": "7203.T",
-        "watchlist": ["7203.T", "6758.T", "9984.T"],
-        "index_symbol": "^N225",
-        "welcome": "Konnichiwa! I am your Tokyo Stock Exchange AI Advisor. Ask me about technical indicators, targets, or specific Japanese stocks.",
-        "suggestions": [
-            {"label": "Analyze Toyota", "query": "Can you do a full analysis of 7203.T (Toyota) and explain target levels?"},
-            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading JPY markets?"},
-            {"label": "Top Growth Stocks", "query": "Which stocks in the Tokyo stock list are considered the best tech/growth stocks?"}
-        ]
-    },
-    "DE": {
-        "name": "Germany",
-        "flag": "🇩🇪",
-        "title": "MultiStocks AI",
-        "subtitle": "Frankfurt Stock Exchange (DAX)",
-        "currency": "€",
-        "defaultTicker": "SAP.DE",
-        "watchlist": ["SAP.DE", "SIE.DE", "ALV.DE", "VOW3.DE"],
-        "index_symbol": "^GDAXI",
-        "welcome": "Guten Tag! I am your German Markets AI Advisor. Ask me about technical patterns, targets, or specific DAX equities.",
-        "suggestions": [
-            {"label": "Analyze SAP", "query": "Can you do a full analysis of SAP.DE and explain target levels?"},
-            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading German markets?"},
-            {"label": "Top Industrial Equities", "query": "Which stocks in the DAX coverage are considered the best industrial/manufacturing stocks?"}
-        ]
-    },
-    "AU": {
-        "name": "Australia",
-        "flag": "🇦🇺",
-        "title": "MultiStocks AI",
-        "subtitle": "Australian Securities Exchange (ASX)",
-        "currency": "A$",
-        "defaultTicker": "BHP.AX",
-        "watchlist": ["BHP.AX", "CBA.AX", "RIO.AX", "TLS.AX"],
-        "index_symbol": "^AXJO",
-        "welcome": "G'day! I am your ASX Australia AI Stock Advisor. Ask me about technical indicators, targets, or specific Australian stocks.",
-        "suggestions": [
-            {"label": "Analyze BHP", "query": "Can you do a full analysis of BHP.AX and explain target levels?"},
-            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading ASX?"},
-            {"label": "Top Resource Stocks", "query": "Which resource/mining stocks in the ASX coverage are recommended?"}
-        ]
-    },
-    "SA": {
-        "name": "Saudi Arabia",
-        "flag": "🇸🇦",
-        "title": "MultiStocks AI",
-        "subtitle": "Saudi Stock Exchange (TADAWUL)",
-        "currency": "SAR",
-        "defaultTicker": "2222.SR",
-        "watchlist": ["2222.SR", "1120.SR", "1150.SR"],
-        "index_symbol": "^TASI.SR",
-        "welcome": "Marhaban! I am your Saudi Tadawul AI Advisor. Ask me about technical analysis, targets, or specific Saudi stocks.",
-        "suggestions": [
-            {"label": "Analyze Aramco", "query": "Can you do a full analysis of 2222.SR (Saudi Aramco) and explain target levels?"},
-            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading Tadawul?"},
-            {"label": "Top Banking Equities", "query": "Which banking stocks in the Saudi market are considered the best?"}
-        ]
-    },
-    "AE": {
-        "name": "United Arab Emirates",
-        "flag": "🇦🇪",
-        "title": "MultiStocks AI",
-        "subtitle": "Dubai Financial Market (DFM)",
-        "currency": "AED",
-        "defaultTicker": "EMAAR.DU",
-        "watchlist": ["EMAAR.DU", "DEWA.DU", "DFM.DU"],
-        "index_symbol": "^DFMGI",
-        "welcome": "Marhaban! I am your UAE Stock Markets AI Advisor. Ask me about DFM/ADX technical analysis, targets, or specific UAE equities.",
-        "suggestions": [
-            {"label": "Analyze Emaar", "query": "Can you do a full analysis of EMAAR.DU and explain target levels?"},
-            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading DFM?"},
-            {"label": "Top Real Estate Stocks", "query": "Which developers/property stocks in UAE coverage are recommended?"}
-        ]
-    },
-    "CN": {
-        "name": "China",
-        "flag": "🇨🇳",
-        "title": "MultiStocks AI",
-        "subtitle": "Shanghai Stock Exchange (SSE)",
-        "currency": "¥",
-        "defaultTicker": "601398.SS",
-        "watchlist": ["601398.SS", "600519.SS", "601857.SS", "600028.SS"],
-        "index_symbol": "000001.SS",
-        "welcome": "Nǐ hǎo! I am your Shanghai Stock Exchange AI Advisor. Ask me about technical patterns, targets, or specific SSE stocks.",
-        "suggestions": [
-            {"label": "Analyze ICBC", "query": "Can you do a full analysis of 601398.SS and explain target levels?"},
-            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading SSE?"},
-            {"label": "Top SSE Equities", "query": "Which stocks in the SSE coverage are considered the best defensive/dividend stocks?"}
-        ]
-    },
-    "QA": {
-        "name": "Qatar",
-        "flag": "🇶🇦",
-        "title": "MultiStocks AI",
-        "subtitle": "Qatar Stock Exchange (QSE)",
-        "currency": "QR",
-        "defaultTicker": "QNBK.QA",
-        "watchlist": ["QNBK.QA", "QGTS.QA", "IQCD.QA", "QEWS.QA"],
-        "index_symbol": "^QSI",
-        "welcome": "Marhaban! I am your Qatar Stock Exchange AI Advisor. Ask me about technical indicators, targets, or specific Qatari stocks.",
-        "suggestions": [
-            {"label": "Analyze QNB", "query": "Can you do a full analysis of QNBK.QA and explain target levels?"},
-            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading QSE?"},
-            {"label": "Top QSE Equities", "query": "Which banking/financial stocks in the QSE coverage are recommended?"}
-        ]
-    },
-    "EG": {
-        "name": "Egypt",
-        "flag": "🇪🇬",
-        "title": "MultiStocks AI",
-        "subtitle": "Egyptian Exchange (EGX)",
-        "currency": "E£",
-        "defaultTicker": "COMI.CA",
-        "watchlist": ["COMI.CA", "EAST.CA", "SWDY.CA", "FWRY.CA"],
-        "index_symbol": "^EGX30",
-        "welcome": "Ahlan bik! I am your Egyptian Exchange AI Advisor. Ask me about technical analysis, targets, or specific EGX stocks.",
-        "suggestions": [
-            {"label": "Analyze CIB Egypt", "query": "Can you do a full analysis of COMI.CA and explain target levels?"},
-            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading EGX?"},
-            {"label": "Top EGX Equities", "query": "Which industrial and digital payment stocks in EGX coverage are recommended?"}
-        ]
-    },
-    "IR": {
-        "name": "Iran",
-        "flag": "🇮🇷",
-        "title": "MultiStocks AI",
-        "subtitle": "Iran Markets (IRR Proxy Feed)",
-        "currency": "IRR",
-        "defaultTicker": "IRR=X",
-        "watchlist": ["IRR=X", "GC=F", "SI=F"],
-        "index_symbol": "IRR=X",
-        "welcome": "Dorood! I am your Iranian Markets AI Advisor. Ask me about Rial exchange rates, bullion gold/silver targets, or custom tickers.",
-        "suggestions": [
-            {"label": "Analyze Gold Proxy", "query": "Can you do a full technical analysis of GC=F (Gold Spot) and explain targets?"},
-            {"label": "Check Rial Stance", "query": "What are the latest technical projections for IRR=X (USD/IRR exchange rate)?"},
-            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading forex and commodities?"},
-            {"label": "Top Hedging Options", "query": "Which precious metal commodities in my coverage are the best hedges against inflation?"}
-        ]
-    },
-    "TR": {
-        "name": "Turkey",
-        "flag": "🇹🇷",
-        "title": "MultiStocks AI",
-        "subtitle": "Borsa Istanbul (BIST)",
-        "currency": "₺",
-        "defaultTicker": "THYAO.IS",
-        "watchlist": ["THYAO.IS", "ASELS.IS", "AKBNK.IS", "EREGL.IS", "TUPRS.IS"],
-        "index_symbol": "XU100.IS",
-        "welcome": "Merhaba! I am your Borsa Istanbul AI Advisor. Ask me about technical indicators, targets, or specific Turkish stocks.",
-        "suggestions": [
-            {"label": "Analyze Turkish Airlines", "query": "Can you do a full analysis of THYAO.IS and explain target levels?"},
-            {"label": "Check Portfolio Stance", "query": "Based on my simulated portfolio holdings, what changes do you recommend?"},
-            {"label": "Explain RSI and MACD", "query": "What are RSI and MACD, and how should I use them for trading BIST?"},
-            {"label": "Top BIST Equities", "query": "Which industrial or banking stocks in BIST coverage are recommended?"}
-        ]
-    }
-}
+MARKETS_CONFIG = {}
+try:
+    markets_path = os.path.join(os.path.dirname(__file__), "markets.json")
+    if os.path.exists(markets_path):
+        with open(markets_path, "r", encoding="utf-8") as f:
+            MARKETS_CONFIG = json.load(f)
+except Exception as e:
+    print(f"Error loading markets.json on startup: {e}")
 
 @app.get("/api/stocks")
 def get_stocks(tickers: Optional[str] = None, market: Optional[str] = "PK"):
@@ -457,6 +217,7 @@ def get_stocks(tickers: Optional[str] = None, market: Optional[str] = "PK"):
     Otherwise, it returns the default watchlist.
     """
     market_str = (market or "PK").upper()
+    SYSTEM_EVENTS.append({"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": f"Quotes requested for market: {market_str} (tickers: {tickers or 'default'})"})
     if tickers:
         ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
     else:
@@ -569,13 +330,48 @@ def search_stocks(query: str, market: Optional[str] = "PK"):
         "TR": TR_STOCK_INDEX
     }
     
-    if market_str in suffixes:
+    is_global = market_str in suffixes or (market_str in MARKETS_CONFIG and market_str != "PK")
+    
+    if is_global:
         index_list = indices.get(market_str, [])
+        # If no hardcoded index exists, build one from the market's watchlist
+        if not index_list and market_str in MARKETS_CONFIG:
+            market_data = MARKETS_CONFIG[market_str]
+            watchlist = market_data.get("watchlist", [])
+            index_list = []
+            for ticker in watchlist:
+                index_list.append({
+                    "ticker": ticker,
+                    "name": f"{ticker} - Watchlist Stock",
+                    "sector": f"{market_data.get('name', market_str)} Equity"
+                })
+                
         matches = [s for s in index_list if query in s["ticker"] or query in s["name"].upper()]
         
-        suffix = suffixes[market_str]
+        # Determine suffix dynamically
+        suffix = ""
+        if market_str in suffixes:
+            suffix = suffixes[market_str]
+        elif market_str in MARKETS_CONFIG:
+            market_data = MARKETS_CONFIG[market_str]
+            default_ticker = market_data.get("defaultTicker", "")
+            if "." in default_ticker:
+                suffix = "." + default_ticker.split(".", 1)[1]
+            elif "=" in default_ticker:
+                suffix = "=" + default_ticker.split("=", 1)[1]
+            else:
+                for ticker in market_data.get("watchlist", []):
+                    if "." in ticker:
+                        suffix = "." + ticker.split(".", 1)[1]
+                        break
+                    elif "=" in ticker:
+                        suffix = "=" + ticker.split("=", 1)[1]
+                        break
+                        
         sector = f"{market_str} Equity"
-        
+        if market_str in MARKETS_CONFIG:
+            sector = f"{MARKETS_CONFIG[market_str].get('name', market_str)} Equity"
+            
         if len(query) >= 3 and len(query) <= 6 and not any(m["ticker"].split(".")[0] == query for m in matches):
             custom_ticker = f"{query}{suffix}" if not query.endswith(suffix) else query
             matches.insert(0, {"ticker": custom_ticker, "name": f"{query} - Custom {market_str} Ticker", "sector": sector})
@@ -624,6 +420,7 @@ def get_analysis(ticker: str, market: Optional[str] = "PK"):
     """
     market_str = market or "PK"
     market_upper = market_str.upper()
+    SYSTEM_EVENTS.append({"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": f"Full analysis executed for ticker: {ticker.upper()} ({market_upper})"})
     
     # Fetch live quote (which has accurate price, change, sector, etc.)
     quote = data_fetcher.get_latest_quote(ticker, market=market_str)
@@ -798,6 +595,7 @@ def chat_advisor(req: ChatRequest):
     """
     if not req.query:
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
+    SYSTEM_EVENTS.append({"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": f"AI chat advisor queried. Stock context: {req.ticker or 'None'}"})
     response_text = ai_advisor.query_chat_advisor(
         query=req.query,
         ticker_context=req.ticker,
@@ -847,12 +645,13 @@ def get_macro(market: Optional[str] = "PK"):
 
 @app.get("/api/settings")
 def get_settings():
-    """Returns status of API keys configuration without leaking secret contents."""
+    """Returns status of API keys configuration and mobile ad settings."""
     return {
         "has_gemini": ai_advisor.has_gemini,
         "has_openai": ai_advisor.has_openai,
         "gemini_key_mask": "********" if ai_advisor.has_gemini else "",
         "openai_key_mask": "********" if ai_advisor.has_openai else "",
+        "use_test_ads": os.getenv("USE_TEST_ADS", "true").lower() == "true",
     }
 
 @app.post("/api/settings")
@@ -902,12 +701,104 @@ def update_settings(settings: SettingsUpdate):
             ai_advisor.has_openai = False
             ai_advisor.OPENAI_API_KEY = ""
             
+    if settings.use_test_ads is not None:
+        env_dict["USE_TEST_ADS"] = "true" if settings.use_test_ads else "false"
+        os.environ["USE_TEST_ADS"] = "true" if settings.use_test_ads else "false"
+            
     # Save back to .env
     with open(".env", "w") as f:
         for k, v in env_dict.items():
             f.write(f"{k}={v}\n")
             
     return {"status": "success", "message": "Settings updated successfully"}
+
+class PromptUpdate(BaseModel):
+    portfolio_prompt: Optional[str] = None
+    chat_prompt: Optional[str] = None
+
+@app.get("/api/admin/prompt")
+def get_admin_prompt():
+    import json
+    path = os.path.join(os.path.dirname(__file__), "prompts.json")
+    default_portfolio = "You are a premier quantitative financial analyst and portfolio manager advising a retail investor on their {exchange_name} portfolio.\nAnalyze the following portfolio summary details and return a structured JSON response evaluating its risk, performance, diversification, and actionable rebalancing."
+    default_chat = "You are a professional financial advisor for {market_name}.\n{context}\nUser asks: '{query}'\n\nProvide a clear, detailed, professional answer in markdown. Mention tickers, numbers, and structural arguments (inflation, interest rates, earnings) where relevant."
+    
+    portfolio_prompt = default_portfolio
+    chat_prompt = default_chat
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                portfolio_prompt = data.get("portfolio_prompt", default_portfolio)
+                chat_prompt = data.get("chat_prompt", default_chat)
+        except Exception:
+            pass
+            
+    return {
+        "portfolio_prompt": portfolio_prompt,
+        "chat_prompt": chat_prompt
+    }
+
+@app.post("/api/admin/prompt")
+def update_admin_prompt(req: PromptUpdate):
+    import json
+    path = os.path.join(os.path.dirname(__file__), "prompts.json")
+    data = {}
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            pass
+            
+    if req.portfolio_prompt is not None:
+        data["portfolio_prompt"] = req.portfolio_prompt
+    if req.chat_prompt is not None:
+        data["chat_prompt"] = req.chat_prompt
+        
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        SYSTEM_EVENTS.append({"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": "System prompt templates updated by admin."})
+        return {"status": "success", "message": "Prompts updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/admin/fetcher/trigger")
+def trigger_fetcher(market: Optional[str] = "PK"):
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    SYSTEM_EVENTS.append({"timestamp": now_str, "message": f"Manual fetcher triggered for market: {market}"})
+    try:
+        market_str = (market or "PK").upper()
+        watchlist = MARKETS_CONFIG.get(market_str, MARKETS_CONFIG["PK"])["watchlist"]
+        for ticker in watchlist:
+            data_fetcher.get_latest_quote(ticker, market=market_str)
+        SYSTEM_EVENTS.append({"timestamp": now_str, "message": f"Fetcher completed: refreshed watchlist tickers for {market_str}"})
+        return {"status": "success", "message": f"Data refresh completed for market {market_str}"}
+    except Exception as e:
+        SYSTEM_EVENTS.append({"timestamp": now_str, "message": f"Fetcher failed: {str(e)}"})
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/admin/logs")
+def get_admin_logs():
+    return SYSTEM_EVENTS
+
+@app.get("/api/admin/markets")
+def get_admin_markets():
+    return MARKETS_CONFIG
+
+@app.post("/api/admin/markets")
+def update_admin_markets(new_config: dict):
+    global MARKETS_CONFIG
+    markets_path = os.path.join(os.path.dirname(__file__), "markets.json")
+    try:
+        with open(markets_path, "w", encoding="utf-8") as f:
+            json.dump(new_config, f, indent=2, ensure_ascii=False)
+        MARKETS_CONFIG = new_config
+        SYSTEM_EVENTS.append({"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": "Markets and watchlists configurations updated by admin."})
+        return {"status": "success", "message": "Markets configuration updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Serve static files for frontend dashboard
 try:

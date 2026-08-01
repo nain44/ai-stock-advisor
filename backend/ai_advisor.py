@@ -7,6 +7,17 @@ import data_fetcher
 # Load environment variables
 load_dotenv()
 
+def load_custom_prompt(key, default):
+    try:
+        path = os.path.join(os.path.dirname(__file__), "prompts.json")
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get(key, default)
+    except Exception as e:
+        print(f"Error loading custom prompt {key}: {e}")
+    return default
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
@@ -594,9 +605,12 @@ def get_portfolio_recommendation(portfolio_summary: dict, market: str = "PK") ->
             import google.generativeai as genai
             model = genai.GenerativeModel("gemini-1.5-flash")
             
+            default_prompt_template = "You are a premier quantitative financial analyst and portfolio manager advising a retail investor on their {exchange_name} portfolio.\nAnalyze the following portfolio summary details and return a structured JSON response evaluating its risk, performance, diversification, and actionable rebalancing."
+            custom_intro = load_custom_prompt("portfolio_prompt", default_prompt_template)
+            formatted_intro = custom_intro.replace("{exchange_name}", exchange_name)
+            
             prompt = f"""
-            You are a premier quantitative financial analyst and portfolio manager advising a retail investor on their {exchange_name} portfolio.
-            Analyze the following portfolio summary details and return a structured JSON response evaluating its risk, performance, diversification, and actionable rebalancing.
+            {formatted_intro}
             
             Portfolio Summary JSON:
             {json.dumps(portfolio_summary, indent=2)}
@@ -630,9 +644,12 @@ def get_portfolio_recommendation(portfolio_summary: dict, market: str = "PK") ->
     # Try OpenAI
     if has_openai:
         try:
+            default_prompt_template = "You are a premier quantitative financial analyst and portfolio manager advising a retail investor on their {exchange_name} portfolio.\nAnalyze the following portfolio summary details and return a structured JSON response evaluating its risk, performance, diversification, and actionable rebalancing."
+            custom_intro = load_custom_prompt("portfolio_prompt", default_prompt_template)
+            formatted_intro = custom_intro.replace("{exchange_name}", exchange_name)
+            
             prompt = f"""
-            You are a premier quantitative financial analyst and portfolio manager advising a retail investor on their {exchange_name} portfolio.
-            Analyze the following portfolio summary details and return a structured JSON response evaluating its risk, performance, diversification, and actionable rebalancing.
+            {formatted_intro}
             
             Portfolio Summary JSON:
             {json.dumps(portfolio_summary, indent=2)}
@@ -759,13 +776,10 @@ def query_chat_advisor(query: str, ticker_context: str = None, portfolio: list =
             if portfolio:
                 context += f"User's current simulated portfolio: {json.dumps(portfolio)}. "
                 
-            prompt = (
-                f"You are a professional financial advisor for {market_name}.\n"
-                f"{context}\n"
-                f"User asks: '{query}'\n\n"
-                f"Provide a clear, detailed, professional answer in markdown. Mention tickers, numbers, "
-                f"and structural arguments (inflation, interest rates, earnings) where relevant."
-            )
+            default_chat_template = "You are a professional financial advisor for {market_name}.\n{context}\nUser asks: '{query}'\n\nProvide a clear, detailed, professional answer in markdown. Mention tickers, numbers, and structural arguments (inflation, interest rates, earnings) where relevant."
+            custom_chat = load_custom_prompt("chat_prompt", default_chat_template)
+            prompt = custom_chat.replace("{market_name}", market_name).replace("{context}", context).replace("{query}", query)
+            
             response = model.generate_content(prompt)
             return response.text.strip()
         except Exception as e:
@@ -778,11 +792,15 @@ def query_chat_advisor(query: str, ticker_context: str = None, portfolio: list =
             if portfolio:
                 context += f"User's current simulated portfolio: {json.dumps(portfolio)}. "
                 
+            default_chat_template = "You are a professional financial advisor for {market_name}.\n{context}\nUser asks: '{query}'\n\nProvide a clear, detailed, professional answer in markdown. Mention tickers, numbers, and structural arguments (inflation, interest rates, earnings) where relevant."
+            custom_chat = load_custom_prompt("chat_prompt", default_chat_template)
+            prompt = custom_chat.replace("{market_name}", market_name).replace("{context}", context).replace("{query}", query)
+            
             response = openai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": f"You are a professional financial advisor for {market_name}. Provide detailed, structured, markdown responses."},
-                    {"role": "user", "content": f"{context}User asks: {query}"}
+                    {"role": "system", "content": f"You are a professional financial advisor for {market_name}."},
+                    {"role": "user", "content": prompt}
                 ]
             )
             return response.choices[0].message.content.strip()

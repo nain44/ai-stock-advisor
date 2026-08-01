@@ -544,7 +544,7 @@ export default function App() {
     fetchConfig(defaultUrl);
   }, []);
 
-  const testConnection = async (url) => {
+  const testConnection = async (url, retryCount = 0) => {
     try {
       setConnectionStatus('connecting');
       // Simple timeout fetch
@@ -559,12 +559,28 @@ export default function App() {
       
       if (res.ok) {
         setConnectionStatus('connected');
+        const data = await res.json();
+        if (data && typeof data.use_test_ads === 'boolean') {
+          setUseTestAds(data.use_test_ads);
+        }
+        // Sync configuration from server upon connection success
+        fetchConfig(url);
       } else {
-        setConnectionStatus('disconnected');
+        if (retryCount < 6) {
+          console.log(`[App] Connection returned non-ok, retrying in 5s... (attempt ${retryCount + 1}/6)`);
+          setTimeout(() => testConnection(url, retryCount + 1), 5000);
+        } else {
+          setConnectionStatus('disconnected');
+        }
       }
     } catch (e) {
       console.warn("Connection test failed", e);
-      setConnectionStatus('disconnected');
+      if (retryCount < 6) {
+        console.log(`[App] Connection failed, retrying in 5s... (attempt ${retryCount + 1}/6)`);
+        setTimeout(() => testConnection(url, retryCount + 1), 5000);
+      } else {
+        setConnectionStatus('disconnected');
+      }
     }
   };
 
@@ -574,28 +590,13 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         
-        // Merge server configuration with local DEFAULT_CONFIG to prevent losing new global markets
-        const mergedMarkets = {
-          ...DEFAULT_CONFIG.markets,
-          ...(data.markets || {})
-        };
-        const mergedWelcome = {
-          ...DEFAULT_CONFIG.chat.welcome_messages,
-          ...(data.chat?.welcome_messages || {})
-        };
-        const mergedSuggestions = {
-          ...DEFAULT_CONFIG.chat.suggestion_chips,
-          ...(data.chat?.suggestion_chips || {})
-        };
-        
-        setConfig({
-          markets: mergedMarkets,
-          chat: {
-            welcome_messages: mergedWelcome,
-            suggestion_chips: mergedSuggestions
-          }
-        });
-        console.log("[App] Configuration loaded and merged from server successfully.");
+        // If data is valid, use it as the source of truth to allow admin-driven additions/deletions.
+        if (data && data.markets && Object.keys(data.markets).length > 0) {
+          setConfig(data);
+          console.log("[App] Configuration loaded from server successfully as source of truth.");
+        } else {
+          console.warn("[App] Received empty markets config from server, keeping fallback/previous config.");
+        }
       }
     } catch (e) {
       console.warn("Failed to load server configuration, using local fallback cache.", e);
@@ -612,6 +613,7 @@ export default function App() {
 
   // Monetization Ad States and AI credits
   const [aiCredits, setAiCredits] = useState(3);
+  const [useTestAds, setUseTestAds] = useState(false);
   const [interstitialVisible, setInterstitialVisible] = useState(false);
   const [rewardedVisible, setRewardedVisible] = useState(false);
 
@@ -744,7 +746,7 @@ export default function App() {
         </View>
 
         {/* Sticky Bottom Ad Banner */}
-        <AppBannerAd isDarkMode={isDarkMode} />
+        <AppBannerAd isDarkMode={isDarkMode} useTestAds={useTestAds} />
 
         {/* Custom Bottom Tab Navigator */}
         <View style={[styles.tabBar, { backgroundColor: isDarkMode ? '#111827' : '#FFFFFF', borderTopColor: isDarkMode ? '#222A3C' : '#E2E8F0' }]}>

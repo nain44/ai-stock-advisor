@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, TouchableOpacity, Modal, ActivityIndicator, Pla
 import { X } from 'lucide-react-native';
 
 // Toggle to force test ad unit IDs during development/testing
-const USE_TEST_ADS = true; 
+const USE_TEST_ADS = false; 
 
 // Standard Google test IDs to fall back on when in development or testing
 const TEST_BANNER_ID = 'ca-app-pub-3940256099942544/6300978111';
@@ -35,13 +35,14 @@ try {
 const hasNativeAdMob = !!(gma && BannerAdComponent && Platform.OS !== 'web');
 
 // 1. Banner Ad Component
-export const AppBannerAd = ({ isDarkMode = true }) => {
+export const AppBannerAd = ({ isDarkMode = true, useTestAds = false }) => {
+  const bannerUnitId = useTestAds ? TEST_BANNER_ID : 'ca-app-pub-4935488254463353/4624173658';
   if (hasNativeAdMob) {
     try {
       return (
         <View style={styles.bannerContainer}>
           <BannerAdComponent
-            unitId={AD_UNITS.banner}
+            unitId={bannerUnitId}
             size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
             requestOptions={{
               requestNonPersonalizedAdsOnly: true,
