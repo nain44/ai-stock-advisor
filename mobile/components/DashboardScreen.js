@@ -48,7 +48,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   useEffect(() => {
     const loadWatchlists = async () => {
       try {
-        const stored = await AsyncStorage.getItem('@multistocks_watchlists_dict');
+        const stored = await AsyncStorage.getItem('@multistocks_watchlists_dict_v2');
         if (stored) {
           setWatchlists(JSON.parse(stored));
         } else {
@@ -63,29 +63,10 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
     loadWatchlists();
   }, []);
 
-  // 2. Sync default watchlists from backend config if empty
-  useEffect(() => {
-    if (!isWatchlistLoaded) return;
-
-    setWatchlists(prev => {
-      const updated = { ...prev };
-      let changed = false;
-      const markets = config?.markets || {};
-      
-      Object.keys(markets).forEach(m => {
-        if (!updated[m] || updated[m].length === 0) {
-          updated[m] = markets[m].watchlist || [];
-          changed = true;
-        }
-      });
-      return changed ? updated : prev;
-    });
-  }, [config, isWatchlistLoaded]);
-
   // 3. Save watchlists on updates
   useEffect(() => {
     if (!isWatchlistLoaded || Object.keys(watchlists).length === 0) return;
-    AsyncStorage.setItem('@multistocks_watchlists_dict', JSON.stringify(watchlists)).catch(e => console.error(e));
+    AsyncStorage.setItem('@multistocks_watchlists_dict_v2', JSON.stringify(watchlists)).catch(e => console.error(e));
   }, [watchlists, isWatchlistLoaded]);
 
   // Derive watchlist dynamically based on the active market to avoid race conditions
@@ -373,7 +354,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   const handleAddWatchlist = (ticker) => {
     const uppercaseTicker = ticker.trim().toUpperCase();
     setWatchlists(prev => {
-      const currentList = prev[market] || [];
+      const currentList = prev[market] || (config?.markets || {})[market]?.watchlist || [];
       if (currentList.includes(uppercaseTicker)) return prev;
       return {
         ...prev,
@@ -387,7 +368,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   const handleRemoveWatchlist = (ticker) => {
     const uppercaseTicker = ticker.trim().toUpperCase();
     setWatchlists(prev => {
-      const currentList = prev[market] || [];
+      const currentList = prev[market] || (config?.markets || {})[market]?.watchlist || [];
       return {
         ...prev,
         [market]: currentList.filter(t => t !== uppercaseTicker)
