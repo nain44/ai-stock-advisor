@@ -6,8 +6,9 @@ import yfinance as yf
 # Memory cache stores to protect against rate limits and keep response times fast
 FOREX_CACHE = {}      # 1 hour expiration
 COMMODITY_CACHE = {}  # 15 minutes expiration
+INDEX_CACHE = {}      # 5 minutes expiration
 
-def get_macro_indicators(market: str = "PK"):
+def get_macro_indicators(market: str = "PK", index_symbol: str = "^KSE", index_name: str = "KSE100"):
     """
     Fetches real-time commodity futures (Gold, Silver, WTI Crude Oil) and Forex currency pairs
     based on the selected tab market. Converts commodity gold rate into localized weight units (Tola/g).
@@ -497,8 +498,60 @@ def get_macro_indicators(market: str = "PK"):
                     "price": f"${price_usd:,.2f}"
                 }
 
+    # 4. Fetch live Index Quote (e.g. ^GSPC, ^KSE)
+    index_data = None
+    cache_key = f"{market}:{index_symbol}"
+    if cache_key in INDEX_CACHE and now - INDEX_CACHE[cache_key]["time"] < timedelta(minutes=5):
+        index_data = INDEX_CACHE[cache_key]["data"]
+    else:
+        try:
+            t = yf.Ticker(index_symbol)
+            hist = t.history(period="2d")
+            if not hist.empty:
+                current_price = float(hist["Close"].iloc[-1])
+                prev_close = float(hist["Close"].iloc[-2]) if len(hist) > 1 else current_price
+                change = float(current_price - prev_close)
+                pct_change = float((change / prev_close) * 100) if prev_close != 0 else 0.0
+                
+                sign = "+" if change >= 0 else ""
+                change_str = f"{sign}{change:,.2f} ({sign}{pct_change:.2f}%)"
+                
+                index_data = {
+                    "name": index_name,
+                    "symbol": index_symbol,
+                    "val": f"{current_price:,.2f}",
+                    "change": change_str,
+                    "positive": bool(change >= 0)
+                }
+                INDEX_CACHE[cache_key] = {
+                    "data": index_data,
+                    "time": now
+                }
+        except Exception as e:
+            print(f"[macro_fetcher] Error loading index {index_symbol}: {e}")
+            
+    if not index_data:
+        if cache_key in INDEX_CACHE:
+            index_data = INDEX_CACHE[cache_key]["data"]
+        else:
+            fallback_vals = {
+                "^GSPC": {"name": "S&P 500", "val": "5,459.10", "change": "+48.30 (+0.89%)", "positive": True},
+                "^NSEI": {"name": "NIFTY 50", "val": "24,315.90", "change": "+102.50 (+0.42%)", "positive": True},
+                "^FTSE": {"name": "FTSE 100", "val": "8,185.30", "change": "-24.10 (-0.29%)", "positive": False},
+                "^KSE": {"name": "KSE100", "val": "171,021.00", "change": "-718.00 (-0.42%)", "positive": False}
+            }
+            fb = fallback_vals.get(index_symbol, {"name": index_name, "val": "0.00", "change": "0.00 (0.00%)", "positive": True})
+            index_data = {
+                "name": fb["name"],
+                "symbol": index_symbol,
+                "val": fb["val"],
+                "change": fb["change"],
+                "positive": fb["positive"]
+            }
+
     return {
         "commodities": commodity_list,
         "forex": forex_list,
+        "index": index_data,
         "timestamp": now.strftime("%I:%M %p")
     }

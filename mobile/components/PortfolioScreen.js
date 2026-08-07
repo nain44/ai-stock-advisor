@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { Plus, Trash2, ShieldAlert, CheckCircle2, X, Search, Edit2 } from 'lucide-react-native';
+import { resolveWatchlist } from './watchlistSync';
 
 const getCurrencySymbol = (m) => {
   if (m === 'US') return '$';
@@ -27,7 +28,11 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
 
   const getSuggestions = () => {
     const marketConfig = (config && config.markets && config.markets[market]) || {};
-    const watchlist = marketConfig.watchlist || [];
+    const watchlist = resolveWatchlist({
+      watchlists: {},
+      market,
+      serverWatchlist: marketConfig.watchlist || []
+    });
     if (watchlist.length > 0) {
       return watchlist.slice(0, 2).join(', ');
     }

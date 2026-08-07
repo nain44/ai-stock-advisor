@@ -1,0 +1,48 @@
+Hostinger deployment notes for the admin web app
+================================================
+
+This project is a Next.js app. For Hostinger, the simplest deployment path is:
+1. Upload the admin folder contents to your Hostinger Node.js app root.
+2. Install dependencies with npm install.
+3. Build the app with npm run build.
+4. Start the app with npm run start or with the provided server.js entrypoint.
+
+Recommended files to upload
+---------------------------
+- app/
+- lib/
+- public/
+- package.json
+- package-lock.json
+- next.config.ts
+- next-env.d.ts
+- postcss.config.mjs
+- tsconfig.json
+- server.js
+- .env.local (if needed)
+
+Hostinger Node.js setup
+-----------------------
+- Node.js version: 18+ recommended
+- Start command: npm start
+
+If your Hostinger setup does not support npm start directly, use:
+- node server.js
+
+Environment variables
+---------------------
+Set these in your Hostinger app environment if required:
+- PORT=3000
+- NODE_ENV=production
+
+Build command
+-------------
+npm install
+npm run build
+
+Start command
+-------------
+npm start
+
+If the app fails to start, try:
+node server.js

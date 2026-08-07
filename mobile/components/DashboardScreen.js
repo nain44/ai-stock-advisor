@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppNativeAd } from './AdManager';
 import Svg, { Path, Defs, LinearGradient, Stop, Rect, Line, Text as SvgText } from 'react-native-svg';
 import { TrendingUp, TrendingDown, ShieldAlert, Award, Compass, RefreshCw, BarChart2, Trash2, Plus, Search, ArrowLeft } from 'lucide-react-native';
+import { resolveWatchlist } from './watchlistSync';
 
 const { width } = Dimensions.get('window');
 
@@ -71,7 +72,8 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
 
   // Derive watchlist dynamically based on the active market to avoid race conditions
   const watchlist = React.useMemo(() => {
-    return watchlists[market] || (config?.markets || {})[market]?.watchlist || [];
+    const serverWatchlist = (config?.markets || {})[market]?.watchlist || [];
+    return resolveWatchlist({ watchlists, market, serverWatchlist });
   }, [market, watchlists, config]);
 
   const [searchResults, setSearchResults] = useState([]);
@@ -79,6 +81,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
 
   const [macroData, setMacroData] = useState(null);
   const [loadingMacro, setLoadingMacro] = useState(false);
+
 
   // refreshTrigger is consumed dynamically as a prop from the global App header
 
@@ -455,6 +458,14 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
   });
 
   const getIndexValAndChange = () => {
+    if (macroData && macroData.index) {
+      return {
+        name: macroData.index.name,
+        val: macroData.index.val,
+        change: macroData.index.change,
+        positive: macroData.index.positive
+      };
+    }
     switch (market) {
       case 'US':
         return { name: 'S&P 500', val: '5,459.10', change: '+48.30 (+0.89%)', positive: true };
@@ -513,6 +524,8 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
     );
   };
 
+
+
   const idxInfo = getIndexValAndChange();
 
   return (
@@ -544,6 +557,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
 
       {/* Dynamic Commodities and Forex Rates Bar */}
       {renderMacroWidget()}
+
 
       {/* Search Bar */}
       <View style={styles.searchBarRow}>
@@ -878,18 +892,18 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
               {loadingAnalysis && !analysis ? (
                 <View style={styles.modalLoading}>
                   <ActivityIndicator size="large" color="#00D2FF" />
-                  <Text style={styles.modalLoadingText}>Calculating technical indicators...</Text>
+                  <Text style={[styles.modalLoadingText, !isDarkMode && { color: theme.subtext }]}>Calculating technical indicators...</Text>
                 </View>
               ) : analysis ? (
                 <View style={styles.modalInnerCard}>
                   {/* Header Info */}
                   <View style={styles.headerInfo}>
                     <View>
-                      <Text style={styles.companyName}>{analysis?.profile?.name || (activeModalStock || selectedStockObj).name}</Text>
-                      <Text style={styles.sectorText}>{analysis?.profile?.sector || (activeModalStock || selectedStockObj).sector}</Text>
+                      <Text style={[styles.companyName, !isDarkMode && { color: theme.text }]}>{analysis?.profile?.name || (activeModalStock || selectedStockObj).name}</Text>
+                      <Text style={[styles.sectorText, !isDarkMode && { color: theme.subtext }]}>{analysis?.profile?.sector || (activeModalStock || selectedStockObj).sector}</Text>
                     </View>
                     <View style={styles.priceContainer}>
-                      <Text style={styles.mainPrice}>
+                      <Text style={[styles.mainPrice, !isDarkMode && { color: theme.text }]}> 
                         {getCurrencySymbol(market)} {analysis.profile?.current_price?.toLocaleString() || '0.00'}
                       </Text>
                       <Text style={[styles.mainChange, { color: (analysis.profile?.change_percent ?? 0) >= 0 ? '#34D399' : '#F87171' }]}>
@@ -901,7 +915,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
 
                   {/* SVG Sparkline Chart */}
                   {historical.length > 0 && (
-                    <View style={styles.chartWrapper}>
+                    <View style={[styles.chartWrapper, !isDarkMode && { backgroundColor: theme.card, borderColor: theme.border }]}> 
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 8 }}>
                         <TouchableOpacity 
                           style={[styles.chartTypeToggleBtn, !isDarkMode && { backgroundColor: '#E2E8F0', borderColor: '#CBD5E1' }]} 
@@ -1029,17 +1043,17 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                   )}
 
                   {/* AI Advisory Summary */}
-                  <View style={styles.aiCard}>
+                  <View style={[styles.aiCard, !isDarkMode && { backgroundColor: theme.card, borderColor: theme.border }]}> 
                     <View style={styles.aiHeader}>
                       <Award size={18} color="#00D2FF" style={{ marginRight: 6 }} />
-                      <Text style={styles.aiTitle}>AI Advisory Recommendation</Text>
+                      <Text style={[styles.aiTitle, !isDarkMode && { color: theme.text }]}>AI Advisory Recommendation</Text>
                     </View>
                     <View style={styles.aiBody}>
                       <View style={styles.recommendationRow}>
-                        <Text style={styles.recommendationLabel}>Signal:</Text>
+                        <Text style={[styles.recommendationLabel, !isDarkMode && { color: theme.subtext }]}>Signal:</Text>
                         {renderRecommendationBadge(analysis.recommendation?.recommendation || 'HOLD')}
                       </View>
-                      <Text style={styles.aiSummaryText}>
+                      <Text style={[styles.aiSummaryText, !isDarkMode && { color: theme.text }]}> 
                         {analysis.recommendation?.summary}
                       </Text>
                     </View>
@@ -1056,11 +1070,11 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                     <Text style={styles.sectionTitle}>Technical Indicators</Text>
                   </View>
 
-                  <View style={styles.indicatorsCard}>
+                  <View style={[styles.indicatorsCard, !isDarkMode && { backgroundColor: theme.card, borderColor: theme.border }]}> 
                     {/* RSI */}
                     <View style={styles.indicatorRow}>
                       <View style={styles.indicatorMeta}>
-                        <Text style={styles.indicatorName}>RSI (14)</Text>
+                        <Text style={[styles.indicatorName, !isDarkMode && { color: theme.subtext }]}>RSI (14)</Text>
                         <Text style={[styles.indicatorVal, {
                           color: (analysis.technical_analysis?.rsi?.value ?? 50) > 70 ? '#F87171' :
                                  (analysis.technical_analysis?.rsi?.value ?? 50) < 30 ? '#34D399' : '#F3F4F6'
@@ -1081,12 +1095,12 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                     {/* MACD */}
                     <View style={styles.indicatorRow}>
                       <View style={styles.indicatorMeta}>
-                        <Text style={styles.indicatorName}>MACD</Text>
+                        <Text style={[styles.indicatorName, !isDarkMode && { color: theme.subtext }]}>MACD</Text>
                         <Text style={styles.indicatorVal}>
                           {(analysis.technical_analysis?.macd?.line ?? 0).toFixed(2)}
                         </Text>
                       </View>
-                      <Text style={styles.indicatorSignal}>
+                      <Text style={[styles.indicatorSignal, !isDarkMode && { backgroundColor: '#F1F5F9', color: theme.text }]}> 
                         Signal Line: {(analysis.technical_analysis?.macd?.signal ?? 0).toFixed(2)} ({analysis.technical_analysis?.macd?.crossover || 'Neutral'})
                       </Text>
                     </View>
@@ -1094,12 +1108,12 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                     {/* Bollinger Bands */}
                     <View style={styles.indicatorRow}>
                       <View style={styles.indicatorMeta}>
-                        <Text style={styles.indicatorName}>Bollinger Bands (20,2)</Text>
+                        <Text style={[styles.indicatorName, !isDarkMode && { color: theme.subtext }]}>Bollinger Bands (20,2)</Text>
                         <Text style={styles.indicatorVal}>
                           Basis: {(analysis.technical_analysis?.bollinger_bands?.middle ?? 0).toFixed(1)}
                         </Text>
                       </View>
-                      <View style={styles.bbDetails}>
+                      <View style={[styles.bbDetails, !isDarkMode && { backgroundColor: '#F1F5F9' }]}> 
                         <Text style={styles.bbDetailText}>Upper Band: <Text style={{ color: '#F87171' }}>{(analysis.technical_analysis?.bollinger_bands?.upper ?? 0).toFixed(1)}</Text></Text>
                         <Text style={styles.bbDetailText}>Lower Band: <Text style={{ color: '#34D399' }}>{(analysis.technical_analysis?.bollinger_bands?.lower ?? 0).toFixed(1)}</Text></Text>
                       </View>
@@ -1111,35 +1125,91 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                     <Compass size={18} color="#00D2FF" style={{ marginRight: 6 }} />
                     <Text style={styles.sectionTitle}>Fundamentals ({market === 'PK' ? 'KSE Metrics' : market + ' Metrics'})</Text>
                   </View>
-                  <View style={styles.fundamentalsCard}>
+                  <View style={[styles.fundamentalsCard, !isDarkMode && { backgroundColor: theme.card, borderColor: theme.border }]}> 
                     <View style={styles.fundRow}>
                       <View style={styles.fundCol}>
-                        <Text style={styles.fundLabel}>P/E Ratio</Text>
-                        <Text style={styles.fundVal}>{analysis.profile?.pe_ratio || 'N/A'}</Text>
+                        <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>P/E Ratio</Text>
+                        <Text style={[styles.fundVal, !isDarkMode && { color: theme.text }]}>{analysis.profile?.pe_ratio || 'N/A'}</Text>
                       </View>
                       <View style={styles.fundCol}>
-                        <Text style={styles.fundLabel}>P/B Ratio</Text>
-                        <Text style={styles.fundVal}>{analysis.profile?.pb_ratio || 'N/A'}</Text>
+                        <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>P/B Ratio</Text>
+                        <Text style={[styles.fundVal, !isDarkMode && { color: theme.text }]}>{analysis.profile?.pb_ratio || 'N/A'}</Text>
                       </View>
                       <View style={styles.fundCol}>
-                        <Text style={styles.fundLabel}>ROE</Text>
-                        <Text style={styles.fundVal}>{analysis.profile?.roe ? `${analysis.profile.roe}%` : 'N/A'}</Text>
+                        <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>ROE</Text>
+                        <Text style={[styles.fundVal, !isDarkMode && { color: theme.text }]}>{analysis.profile?.roe ? `${analysis.profile.roe}%` : 'N/A'}</Text>
                       </View>
                     </View>
                     <View style={styles.fundRow}>
                       <View style={styles.fundCol}>
-                        <Text style={styles.fundLabel}>Div. Yield</Text>
-                        <Text style={styles.fundVal}>{analysis.profile?.div_yield ? `${analysis.profile.div_yield}%` : 'N/A'}</Text>
+                        <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>Div. Yield</Text>
+                        <Text style={[styles.fundVal, !isDarkMode && { color: theme.text }]}>{analysis.profile?.div_yield ? `${analysis.profile.div_yield}%` : 'N/A'}</Text>
                       </View>
                       <View style={styles.fundCol}>
-                        <Text style={styles.fundLabel}>Debt/Equity</Text>
-                        <Text style={styles.fundVal}>{analysis.profile?.debt_equity ? `${analysis.profile.debt_equity}%` : 'N/A'}</Text>
+                        <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>Debt/Equity</Text>
+                        <Text style={[styles.fundVal, !isDarkMode && { color: theme.text }]}>{analysis.profile?.debt_equity ? `${analysis.profile.debt_equity}%` : 'N/A'}</Text>
                       </View>
                       <View style={styles.fundCol}>
-                        <Text style={styles.fundLabel}>Avg. Volume</Text>
-                        <Text style={styles.fundVal}>{analysis.profile?.volume_avg ? analysis.profile.volume_avg.toLocaleString() : 'N/A'}</Text>
+                        <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>Avg. Volume</Text>
+                        <Text style={[styles.fundVal, !isDarkMode && { color: theme.text }]}>{analysis.profile?.volume_avg ? analysis.profile.volume_avg.toLocaleString() : 'N/A'}</Text>
                       </View>
                     </View>
+                  </View>
+
+                  {/* Stock Specific Recent News */}
+                  <View style={styles.sectionHeader}>
+                    <Compass size={18} color="#00D2FF" style={{ marginRight: 6 }} />
+                    <Text style={styles.sectionTitle}>Recent News</Text>
+                  </View>
+                  <View style={{ gap: 10, marginTop: 4, marginBottom: 16 }}>
+                    {analysis.profile?.recent_news && analysis.profile.recent_news.length > 0 ? (
+                      analysis.profile.recent_news.map((item, idx) => {
+                        const isBullish = item.sentiment === 'bullish';
+                        const isBearish = item.sentiment === 'bearish';
+                        const sentimentColor = isBullish ? '#10B981' : (isBearish ? '#EF4444' : '#64748B');
+                        const sentimentBg = isBullish ? 'rgba(16, 185, 129, 0.1)' : (isBearish ? 'rgba(239, 68, 68, 0.1)' : 'rgba(100, 116, 139, 0.1)');
+                        
+                        return (
+                          <TouchableOpacity
+                            key={`stock-news-${idx}`}
+                            style={[
+                              styles.detailNewsCard,
+                              !isDarkMode && { backgroundColor: theme.card, borderColor: theme.border }
+                            ]}
+                            onPress={() => {
+                              if (item.link && item.link !== '#') {
+                                import('react-native').then(({ Linking }) => {
+                                  Linking.openURL(item.link).catch(err => console.error("Couldn't open link", err));
+                                });
+                              }
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                              <View style={[styles.newsSourceBadge, !isDarkMode && { backgroundColor: '#F1F5F9' }, { maxWidth: 150 }]}>
+                                <Text style={[styles.newsSourceText, !isDarkMode && { color: '#475569' }]} numberOfLines={1}>
+                                  {item.source}
+                                </Text>
+                              </View>
+                              <View style={[styles.newsSentimentBadge, { backgroundColor: sentimentBg, borderColor: sentimentColor }]}>
+                                <View style={[styles.newsSentimentDot, { backgroundColor: sentimentColor }]} />
+                                <Text style={[styles.newsSentimentText, { color: sentimentColor }]}>
+                                  {item.sentiment.toUpperCase()}
+                                </Text>
+                              </View>
+                            </View>
+                            <Text style={[styles.detailNewsTitle, !isDarkMode && { color: '#0F172A' }]}>
+                              {item.title}
+                            </Text>
+                            <Text style={styles.newsPubDate}>
+                              {item.pub_date ? item.pub_date.split(' ').slice(0, 4).join(' ') : ''}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })
+                    ) : (
+                      <Text style={{ color: '#64748B', fontSize: 12, paddingHorizontal: 4 }}>No recent news articles found.</Text>
+                    )}
                   </View>
                 </View>
               ) : null}
@@ -2024,6 +2094,104 @@ const styles = StyleSheet.create({
   macroContainer: {
     marginVertical: 12,
     width: '100%',
+  },
+  newsContainer: {
+    marginVertical: 10,
+    width: '100%',
+  },
+  newsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    gap: 6,
+  },
+  newsHeaderTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  newsHeaderSubtitle: {
+    color: '#00D2FF',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+  newsScrollContent: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  newsCard: {
+    backgroundColor: '#131A2A',
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    borderRadius: 12,
+    padding: 12,
+    width: 250,
+    height: 125,
+    justifyContent: 'space-between',
+  },
+  newsCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  newsSourceBadge: {
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    maxWidth: 110,
+  },
+  newsSourceText: {
+    color: '#94A3B8',
+    fontSize: 9,
+    fontWeight: '600',
+  },
+  newsSentimentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 0.5,
+  },
+  newsSentimentDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginRight: 4,
+  },
+  newsSentimentText: {
+    fontSize: 8,
+    fontWeight: 'bold',
+  },
+  newsTitle: {
+    color: '#F8FAFC',
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
+    flex: 1,
+    marginVertical: 6,
+  },
+  newsPubDate: {
+    color: '#64748B',
+    fontSize: 9,
+    fontWeight: '500',
+  },
+  detailNewsCard: {
+    backgroundColor: '#161B26',
+    borderWidth: 1,
+    borderColor: '#222A3C',
+    borderRadius: 10,
+    padding: 12,
+  },
+  detailNewsTitle: {
+    color: '#F8FAFC',
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
+    marginVertical: 4,
   },
   macroScrollContent: {
     paddingHorizontal: 16,

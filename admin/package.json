@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "rm -rf .next && next build",
-    "start": "next start",
+    "build": "next build",
+    "start": "node server.js",
+    "start:next": "next start",
     "lint": "eslint"
   },
   "dependencies": {

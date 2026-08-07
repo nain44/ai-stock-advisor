@@ -3,12 +3,13 @@ import { StyleSheet, View, Text, TouchableOpacity, StatusBar, Modal, TextInput, 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppBannerAd, MockInterstitialModal, MockRewardedModal } from './components/AdManager';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Home, MessageSquare, Briefcase, Wifi, WifiOff, Settings, AlertCircle, RefreshCw, Menu, X, Sun, Moon, DollarSign } from 'lucide-react-native';
+import { Home, MessageSquare, Briefcase, Newspaper, Wifi, WifiOff, Settings, AlertCircle, RefreshCw, Menu, X, Sun, Moon, DollarSign } from 'lucide-react-native';
 
 // Screen Components
 import DashboardScreen from './components/DashboardScreen';
 import AIChatScreen from './components/AIChatScreen';
 import PortfolioScreen from './components/PortfolioScreen';
+import NewsScreen from './components/NewsScreen';
 
 // Default Local Configuration Cache / Fallback
 const DEFAULT_CONFIG = {
@@ -261,6 +262,12 @@ const DEFAULT_CONFIG = {
     }
   }
 };
+
+// Production bootstrap endpoint. The server can supply a replacement endpoint
+// through /api/settings, which is managed in the admin dashboard.
+// Use the working local backend for Expo development so news and config requests hit the
+// local FastAPI server by default. The live URL can still be set manually in the UI.
+const DEFAULT_API_URL = 'http://127.0.0.1:8001';
 
 const CurrencyConverterWidget = ({ isDarkMode }) => {
   const [amount, setAmount] = useState('100');
@@ -529,15 +536,15 @@ export default function App() {
   }, [market, config]);
 
   // API Connection config & state
-  const [apiUrl, setApiUrl] = useState('https://ai-stock-advisor-sp9b.onrender.com');
+  const [apiUrl, setApiUrl] = useState(DEFAULT_API_URL);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [connectionMessage, setConnectionMessage] = useState('Checking connection...');
   const [configModalVisible, setConfigModalVisible] = useState(false);
   const [inputUrl, setInputUrl] = useState('');
 
   // Detect network environment
   useEffect(() => {
-    // Point to live Render API deployment
-    let defaultUrl = 'https://ai-stock-advisor-sp9b.onrender.com';
+    const defaultUrl = DEFAULT_API_URL;
     setApiUrl(defaultUrl);
     setInputUrl(defaultUrl);
     testConnection(defaultUrl);
@@ -547,6 +554,7 @@ export default function App() {
   const testConnection = async (url, retryCount = 0) => {
     try {
       setConnectionStatus('connecting');
+      setConnectionMessage('Checking connection...');
       // Simple timeout fetch
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -559,7 +567,18 @@ export default function App() {
       
       if (res.ok) {
         setConnectionStatus('connected');
+        setConnectionMessage('Connection successful');
         const data = await res.json();
+        const configuredApiUrl = typeof data?.mobile_api_url === 'string'
+          ? data.mobile_api_url.trim().replace(/\/$/, '')
+          : '';
+        if (configuredApiUrl && configuredApiUrl !== url) {
+          setApiUrl(configuredApiUrl);
+          setInputUrl(configuredApiUrl);
+          testConnection(configuredApiUrl);
+          fetchConfig(configuredApiUrl);
+          return;
+        }
         if (data && typeof data.use_test_ads === 'boolean') {
           setUseTestAds(data.use_test_ads);
         }
@@ -571,6 +590,7 @@ export default function App() {
           setTimeout(() => testConnection(url, retryCount + 1), 5000);
         } else {
           setConnectionStatus('disconnected');
+          setConnectionMessage('Connection failed');
         }
       }
     } catch (e) {
@@ -663,6 +683,15 @@ export default function App() {
             triggerInterstitial={triggerInterstitial}
             config={config}
             market={market}
+            isDarkMode={isDarkMode}
+          />
+        );
+      case 'news':
+        return (
+          <NewsScreen
+            apiUrl={apiUrl}
+            market={market}
+            refreshTrigger={refreshTrigger}
             isDarkMode={isDarkMode}
           />
         );
@@ -771,6 +800,16 @@ export default function App() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={[styles.tabItem, currentTab === 'news' && styles.activeTabItem]}
+            onPress={() => setCurrentTab('news')}
+          >
+            <Newspaper size={20} color={currentTab === 'news' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
+            <Text style={[styles.tabLabel, currentTab === 'news' && styles.activeTabLabel, { color: currentTab === 'news' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8') }]}>
+              News
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.tabItem, currentTab === 'portfolio' && styles.activeTabItem]}
             onPress={() => setCurrentTab('portfolio')}
           >
@@ -812,12 +851,11 @@ export default function App() {
                 />
               </View>
 
-              {connectionStatus === 'disconnected' && (
-                <View style={styles.alertBox}>
-                  <AlertCircle size={16} color="#F87171" style={{ marginRight: 6 }} />
-                  <Text style={styles.alertText}>Currently unable to reach backend service.</Text>
-                </View>
-              )}
+              <View style={[styles.statusBox, connectionStatus === 'connected' ? styles.statusSuccess : connectionStatus === 'connecting' ? styles.statusPending : styles.statusError]}>
+                <Text style={[styles.statusText, connectionStatus === 'connected' ? styles.statusTextSuccess : connectionStatus === 'connecting' ? styles.statusTextPending : styles.statusTextError]}>
+                  {connectionMessage}
+                </Text>
+              </View>
 
               <View style={styles.actionButtons}>
                 <TouchableOpacity 
@@ -1049,19 +1087,36 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 13,
   },
-  alertBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#7F1D1D20',
-    borderColor: '#7F1D1D50',
+  statusBox: {
     borderWidth: 1,
-    padding: 10,
     borderRadius: 8,
+    padding: 10,
     marginBottom: 16,
   },
-  alertText: {
-    color: '#F87171',
+  statusSuccess: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderColor: '#10B981',
+  },
+  statusPending: {
+    backgroundColor: 'rgba(251, 191, 36, 0.12)',
+    borderColor: '#FBBF24',
+  },
+  statusError: {
+    backgroundColor: 'rgba(248, 113, 113, 0.12)',
+    borderColor: '#F87171',
+  },
+  statusText: {
     fontSize: 11.5,
+    fontWeight: '600',
+  },
+  statusTextSuccess: {
+    color: '#10B981',
+  },
+  statusTextPending: {
+    color: '#FBBF24',
+  },
+  statusTextError: {
+    color: '#F87171',
   },
   actionButtons: {
     flexDirection: 'row',

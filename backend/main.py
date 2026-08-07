@@ -8,6 +8,9 @@ from typing import Optional, List
 from concurrent.futures import ThreadPoolExecutor
 import datetime
 import json
+from urllib.parse import urlparse
+
+DEFAULT_MOBILE_API_URL = "https://ai-stock-advisor-sp9b.onrender.com"
 
 SYSTEM_EVENTS = [
     {"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": "MultiStocks AI API Backend initialized."},
@@ -26,6 +29,10 @@ app = FastAPI(
     description="Backend API for real-time and historical technical stock analysis and LLM advisory for global stock markets.",
     version="1.0.0"
 )
+
+@app.get("/health")
+def healthcheck():
+    return {"status": "ok", "service": "backend"}
 
 # Enable CORS for frontend flexibility
 app.add_middleware(
@@ -46,6 +53,7 @@ class SettingsUpdate(BaseModel):
     gemini_key: Optional[str] = None
     openai_key: Optional[str] = None
     use_test_ads: Optional[bool] = None
+    mobile_api_url: Optional[str] = None
 
 class HoldingItem(BaseModel):
     ticker: str
@@ -489,6 +497,9 @@ def get_analysis(ticker: str, market: Optional[str] = "PK"):
                 "recent_news": quote["news"]
             }
             
+    # Fetch live ticker news dynamically
+    live_profile["recent_news"] = data_fetcher.fetch_ticker_news(ticker, market=market_str)
+            
     # Generate historical candles
     df = data_fetcher.generate_historical_data(ticker, 120, market=market_str)
     
@@ -635,23 +646,60 @@ def get_config():
         }
     }
 
+@app.get("/api/news")
+def get_news(market: Optional[str] = "PK"):
+    """
+    Returns dynamic market-wide recent financial news from Google News RSS feed.
+    """
+    market_str = (market or "PK").upper()
+    return data_fetcher.fetch_market_news(market_str)
+
 @app.get("/api/macro")
 def get_macro(market: Optional[str] = "PK"):
     """
     Returns dynamic commodity rates (Gold, Silver, Oil) and exchange rates (Forex)
     localized to the requested market.
     """
-    return macro_fetcher.get_macro_indicators(market)
+    market_str = (market or "PK").upper()
+    market_data = MARKETS_CONFIG.get(market_str, MARKETS_CONFIG.get("PK", {}))
+    index_symbol = market_data.get("index_symbol", "^KSE")
+    
+    # Resolve clean index name
+    subtitle = market_data.get("subtitle", "Stock Index")
+    index_name = subtitle.split(" (")[0] if " (" in subtitle else subtitle
+    
+    # Custom index names map for standard markets
+    index_names_map = {
+        "^KSE": "KSE100",
+        "^GSPC": "S&P 500",
+        "^NSEI": "NIFTY 50",
+        "^FTSE": "FTSE 100",
+        "^GSPTSE": "S&P/TSX",
+        "^N225": "Nikkei 225",
+        "^GDAXI": "DAX",
+        "^AXJO": "S&P/ASX 200",
+        "^TASI.SR": "Tadawul",
+        "^DFMGI": "DFMGI",
+        "000001.SS": "SSE Composite",
+        "^QE": "QE General",
+        "^EGX30": "EGX 30",
+        "IRR=X": "USD/IRR",
+        "XU100.IS": "BIST 100"
+    }
+    index_name = index_names_map.get(index_symbol, index_name)
+    
+    return macro_fetcher.get_macro_indicators(market_str, index_symbol, index_name)
 
 @app.get("/api/settings")
 def get_settings():
-    """Returns status of API keys configuration and mobile ad settings."""
+    """Returns status of API keys plus mobile application settings."""
     return {
         "has_gemini": ai_advisor.has_gemini,
         "has_openai": ai_advisor.has_openai,
         "gemini_key_mask": "********" if ai_advisor.has_gemini else "",
         "openai_key_mask": "********" if ai_advisor.has_openai else "",
         "use_test_ads": os.getenv("USE_TEST_ADS", "true").lower() == "true",
+        "mobile_api_url": os.getenv("MOBILE_API_URL", DEFAULT_MOBILE_API_URL),
     }
 
 @app.post("/api/settings")
@@ -704,6 +752,14 @@ def update_settings(settings: SettingsUpdate):
     if settings.use_test_ads is not None:
         env_dict["USE_TEST_ADS"] = "true" if settings.use_test_ads else "false"
         os.environ["USE_TEST_ADS"] = "true" if settings.use_test_ads else "false"
+
+    if settings.mobile_api_url is not None:
+        mobile_api_url = settings.mobile_api_url.strip().rstrip("/")
+        parsed_url = urlparse(mobile_api_url)
+        if parsed_url.scheme != "https" or not parsed_url.netloc:
+            raise HTTPException(status_code=400, detail="Mobile API URL must be a valid HTTPS URL.")
+        env_dict["MOBILE_API_URL"] = mobile_api_url
+        os.environ["MOBILE_API_URL"] = mobile_api_url
             
     # Save back to .env
     with open(".env", "w") as f:
@@ -808,4 +864,6 @@ except Exception as e:
     print(f"Static directory mounting failed: {e}")
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", "8000"))
+    reload = os.getenv("RELOAD", "false").lower() == "true"
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=reload)

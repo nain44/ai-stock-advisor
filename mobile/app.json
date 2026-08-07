@@ -3,18 +3,18 @@
     "name": "MultiStocks AI",
     "slug": "multistocks-ai",
     "owner": "nain44",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
       "bundleIdentifier": "com.zutech.multistocksai",
       "supportsTablet": true,
-      "buildNumber": "1"
+      "buildNumber": "3"
     },
     "android": {
       "package": "com.zutech.multistocksai",
-      "versionCode": 1,
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

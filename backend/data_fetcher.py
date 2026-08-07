@@ -708,3 +708,228 @@ def get_latest_quote(ticker: str, market: str = "PK"):
     except Exception as e:
         print(f"Error fetching latest quote for {ticker} from psxdata: {e}. Falling back to simulation.")
         return _generate_simulated_quote(ticker)
+
+
+MARKET_NEWS_CACHE = {}
+TICKER_NEWS_CACHE = {}
+
+def fetch_market_news(market: str = "PK") -> list:
+    """
+    Fetches market-wide recent financial news from Google News RSS feed.
+    """
+    import httpx
+    import xml.etree.ElementTree as ET
+    from datetime import datetime, timedelta
+
+    market_upper = (market or "PK").upper()
+    now = datetime.now()
+
+    fallback_news = [
+        {
+            "title": f"{market_upper} markets are moving on earnings, policy, and macroeconomic developments.",
+            "link": "#",
+            "pub_date": now.strftime("%a, %d %b %Y %H:%M:%S GMT"),
+            "source": "Market Pulse",
+            "sentiment": "neutral"
+        },
+        {
+            "title": f"Traders are watching {market_upper} sentiment closely as new data and headlines shape the session.",
+            "link": "#",
+            "pub_date": now.strftime("%a, %d %b %Y %H:%M:%S GMT"),
+            "source": "Market Pulse",
+            "sentiment": "bullish"
+        }
+    ]
+    
+    # Check cache (15 minutes expiration)
+    if market_upper in MARKET_NEWS_CACHE:
+        cache_time, cached_data = MARKET_NEWS_CACHE[market_upper]
+        if now - cache_time < timedelta(minutes=15):
+            return cached_data
+
+    # Map market to search queries
+    query_map = {
+        "US": "US stock market OR Dow Jones OR S&P 500",
+        "PK": "Pakistan Stock Exchange OR PSX OR Pakistan economy",
+        "IN": "Indian stock market OR Nifty 50 OR NSE India",
+        "UK": "UK stock market OR London Stock Exchange OR FTSE",
+        "CA": "Canadian stock market OR TSX",
+        "JP": "Japan stock market OR Tokyo Stock Exchange OR Nikkei",
+        "DE": "German stock market OR DAX",
+        "AU": "Australian stock market OR ASX",
+        "SA": "Saudi stock market OR Tadawul",
+        "AE": "Dubai stock market OR DFM OR UAE economy",
+        "CN": "Chinese stock market OR SSE Composite",
+        "QA": "Qatar stock market OR QSE",
+        "EG": "Egyptian stock market OR EGX",
+        "TR": "Turkish stock market OR Borsa Istanbul OR BIST"
+    }
+    
+    query = query_map.get(market_upper, f"{market_upper} stock market")
+    url = f"https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+    
+    news_list = []
+    try:
+        response = httpx.get(url, headers=headers, timeout=3.0)
+        if response.status_code == 200:
+            root = ET.fromstring(response.content)
+            items = root.findall(".//item")
+            for item in items[:8]:
+                title = item.find("title").text if item.find("title") is not None else ""
+                link = item.find("link").text if item.find("link") is not None else ""
+                pub_date = item.find("pubDate").text if item.find("pubDate") is not None else ""
+                source = item.find("source").text if item.find("source") is not None else "Google News"
+                
+                # Simple sentiment categorization based on words in title
+                sentiment = "neutral"
+                lower_title = title.lower()
+                if any(w in lower_title for w in ["gain", "bull", "surge", "up", "rise", "grow", "jump", "record high", "recovery", "profit"]):
+                    sentiment = "bullish"
+                elif any(w in lower_title for w in ["fall", "slip", "bear", "down", "drop", "plunge", "decline", "slump", "loss", "crash"]):
+                    sentiment = "bearish"
+                
+                news_list.append({
+                    "title": title,
+                    "link": link,
+                    "pub_date": pub_date,
+                    "source": source,
+                    "sentiment": sentiment
+                })
+            
+            if news_list:
+                MARKET_NEWS_CACHE[market_upper] = (now, news_list)
+                return news_list
+    except Exception as e:
+        print(f"[fetch_market_news] Error: {e}")
+
+    MARKET_NEWS_CACHE[market_upper] = (now, fallback_news)
+    return fallback_news
+
+def fetch_ticker_news(ticker: str, market: str = "PK") -> list:
+    """
+    Fetches stock-specific news from Yahoo Finance RSS (global markets)
+    or Google News search (Pakistan/others).
+    """
+    import httpx
+    import xml.etree.ElementTree as ET
+    from datetime import datetime, timedelta
+
+    ticker_upper = (ticker or "").upper()
+    market_upper = (market or "PK").upper()
+    now = datetime.now()
+    
+    cache_key = f"{market_upper}:{ticker_upper}"
+    
+    # Check cache (30 minutes expiration)
+    if cache_key in TICKER_NEWS_CACHE:
+        cache_time, cached_data = TICKER_NEWS_CACHE[cache_key]
+        if now - cache_time < timedelta(minutes=30):
+            return cached_data
+            
+    news_list = []
+    
+    # Non-PK markets can utilize Yahoo Finance RSS
+    if market_upper in ["US", "IN", "UK", "CA", "JP", "DE", "AU", "SA", "AE", "CN", "QA", "EG", "TR"]:
+        url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker_upper}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        try:
+            response = httpx.get(url, headers=headers, timeout=10.0)
+            if response.status_code == 200:
+                root = ET.fromstring(response.content)
+                items = root.findall(".//item")
+                for item in items[:8]:
+                    title = item.find("title").text if item.find("title") is not None else ""
+                    link = item.find("link").text if item.find("link") is not None else ""
+                    pub_date = item.find("pubDate").text if item.find("pubDate") is not None else ""
+                    
+                    sentiment = "neutral"
+                    lower_title = title.lower()
+                    if any(w in lower_title for w in ["buy", "gain", "bull", "surge", "up", "rise", "grow", "outperform"]):
+                        sentiment = "bullish"
+                    elif any(w in lower_title for w in ["sell", "fall", "slip", "bear", "down", "drop", "plunge", "decline", "underperform"]):
+                        sentiment = "bearish"
+                        
+                    news_list.append({
+                        "title": title,
+                        "link": link,
+                        "pub_date": pub_date,
+                        "source": "Yahoo Finance",
+                        "sentiment": sentiment
+                    })
+                if news_list:
+                    TICKER_NEWS_CACHE[cache_key] = (now, news_list)
+                    return news_list
+        except Exception as e:
+            print(f"[fetch_ticker_news Yahoo] Error for {ticker_upper}: {e}")
+
+    # Fallback/PK markets: query Google News
+    profile = get_stock_profile(ticker_upper)
+    company_name = profile.get("name", ticker_upper) if profile else ticker_upper
+    
+    # Clean up company suffix for better search results
+    clean_name = company_name
+    for suffix in ["Limited", "Ltd", "Company", "Corp", "Corporation", "Bank"]:
+        if clean_name.endswith(suffix):
+            clean_name = clean_name.rsplit(suffix, 1)[0].strip()
+            
+    query = f'"{clean_name}" stock OR "{ticker_upper}" PSX'
+    if market_upper != "PK":
+        query = f'"{clean_name}" stock OR "{ticker_upper}"'
+        
+    url = f"https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+    
+    try:
+        response = httpx.get(url, headers=headers, timeout=10.0)
+        if response.status_code == 200:
+            root = ET.fromstring(response.content)
+            items = root.findall(".//item")
+            for item in items[:8]:
+                title = item.find("title").text if item.find("title") is not None else ""
+                link = item.find("link").text if item.find("link") is not None else ""
+                pub_date = item.find("pubDate").text if item.find("pubDate") is not None else ""
+                source = item.find("source").text if item.find("source") is not None else "Google News"
+                
+                sentiment = "neutral"
+                lower_title = title.lower()
+                if any(w in lower_title for w in ["gain", "bull", "surge", "up", "rise", "grow", "profit", "discovery"]):
+                    sentiment = "bullish"
+                elif any(w in lower_title for w in ["fall", "slip", "bear", "down", "drop", "plunge", "decline", "loss"]):
+                    sentiment = "bearish"
+                    
+                news_list.append({
+                    "title": title,
+                    "link": link,
+                    "pub_date": pub_date,
+                    "source": source,
+                    "sentiment": sentiment
+                })
+            
+            TICKER_NEWS_CACHE[cache_key] = (now, news_list)
+    except Exception as e:
+        print(f"[fetch_ticker_news Google] Error for {ticker_upper}: {e}")
+        
+    # If both RSS attempts fail, return profile hardcoded news or a placeholder
+    if not news_list:
+        if profile and profile.get("recent_news"):
+            return profile["recent_news"]
+        else:
+            return [
+                {
+                    "title": f"No recent news articles found for {ticker_upper}.",
+                    "link": "#",
+                    "pub_date": now.strftime("%a, %d %b %Y %H:%M:%S GMT"),
+                    "source": "System",
+                    "sentiment": "neutral"
+                }
+            ]
+            
+    return news_list
+

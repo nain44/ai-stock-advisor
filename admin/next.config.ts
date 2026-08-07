@@ -3,8 +3,9 @@ import type { NextConfig } from "next";
 const isProd = process.env.NODE_ENV === "production";
 
 const nextConfig: NextConfig = {
-  // Only export statically in production
-  // ...(isProd ? { output: "export" } : {}),
+  // The FastAPI backend serves the admin dashboard from backend/static.
+  // Production builds must therefore emit a static `out` directory.
+  ...(isProd ? { output: "export" } : {}),
   turbopack: {
     root: process.cwd(),
   },

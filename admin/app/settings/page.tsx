@@ -9,6 +9,7 @@ interface SettingsData {
   gemini_key_mask: string;
   openai_key_mask: string;
   use_test_ads: boolean;
+  mobile_api_url: string;
 }
 
 interface LogEvent {
@@ -18,7 +19,10 @@ interface LogEvent {
 
 export default function SystemSettings() {
   const [useTestAds, setUseTestAdsState] = useState(true);
+  const [mobileApiUrl, setMobileApiUrl] = useState(STOCK_API_BASE);
   const [savingMobile, setSavingMobile] = useState(false);
+  const [savingEndpoint, setSavingEndpoint] = useState(false);
+  const [testingEndpoint, setTestingEndpoint] = useState(false);
   const [logs, setLogs] = useState<LogEvent[]>([]);
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,6 +46,7 @@ export default function SystemSettings() {
           setSettings(settingsData);
           setLogs(logsData);
           setUseTestAdsState(settingsData.use_test_ads);
+          setMobileApiUrl(settingsData.mobile_api_url || STOCK_API_BASE);
         }
       } catch (err) {
         console.error("Error loading settings/logs:", err);
@@ -129,6 +134,7 @@ export default function SystemSettings() {
           const settingsData = await settingsRes.json();
           setSettings(settingsData);
           setUseTestAdsState(settingsData.use_test_ads);
+          setMobileApiUrl(settingsData.mobile_api_url || STOCK_API_BASE);
         }
       } else {
         const errData = await res.json();
@@ -138,6 +144,58 @@ export default function SystemSettings() {
       setToast({ type: "error", message: "Failed to connect to the backend server." });
     } finally {
       setSavingMobile(false);
+    }
+  };
+
+  const handleSaveMobileEndpoint = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingEndpoint(true);
+    setToast(null);
+
+    try {
+      const res = await fetch(`${STOCK_API_BASE}/api/settings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobile_api_url: mobileApiUrl })
+      });
+      if (res.ok) {
+        setToast({ type: "success", message: "Mobile API endpoint updated successfully." });
+        const settingsRes = await fetch(`${STOCK_API_BASE}/api/settings`);
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          setSettings(settingsData);
+          setMobileApiUrl(settingsData.mobile_api_url || STOCK_API_BASE);
+        }
+      } else {
+        const errData = await res.json();
+        setToast({ type: "error", message: errData.detail || "Failed to update the mobile API endpoint." });
+      }
+    } catch (err) {
+      setToast({ type: "error", message: "Failed to connect to the backend server." });
+    } finally {
+      setSavingEndpoint(false);
+    }
+  };
+
+  const handleTestMobileEndpoint = async () => {
+    const endpoint = mobileApiUrl.trim().replace(/\/$/, "");
+    if (!endpoint) {
+      setToast({ type: "error", message: "Enter an API endpoint before testing it." });
+      return;
+    }
+
+    setTestingEndpoint(true);
+    setToast(null);
+    try {
+      const response = await fetch(`${endpoint}/api/settings`);
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
+      }
+      setToast({ type: "success", message: "API connection successful." });
+    } catch (error) {
+      setToast({ type: "error", message: "Could not connect to this API endpoint. Confirm the HTTPS URL and that /api/settings is reachable." });
+    } finally {
+      setTestingEndpoint(false);
     }
   };
 
@@ -223,6 +281,47 @@ export default function SystemSettings() {
         <div className="panel-header">
           <h3 className="panel-title">Mobile Application Settings</h3>
         </div>
+
+        <form onSubmit={handleSaveMobileEndpoint}>
+          <div className="form-group">
+            <label className="form-label">Production Mobile API Endpoint</label>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <input
+                type="url"
+                className="form-input"
+                value={mobileApiUrl}
+                onChange={(e) => setMobileApiUrl(e.target.value)}
+                placeholder="https://your-api.example.com"
+                required
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleTestMobileEndpoint}
+                disabled={testingEndpoint}
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                {testingEndpoint ? "Testing..." : "Test connection"}
+              </button>
+            </div>
+            <p style={{ margin: '8px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+              HTTPS endpoint used by installed mobile apps. Changes take effect when the app next connects.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={savingEndpoint}
+            >
+              {savingEndpoint ? "Saving Endpoint..." : "Save API Endpoint"}
+            </button>
+          </div>
+        </form>
+
+        <div style={{ borderTop: '1px solid var(--border-color)', margin: '28px 0' }} />
 
         <form onSubmit={handleSaveMobileSettings}>
           <div className="form-group">
