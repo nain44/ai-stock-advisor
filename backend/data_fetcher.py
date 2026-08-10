@@ -548,6 +548,15 @@ def generate_historical_data(ticker: str, days: int = 120, market: str = "PK") -
 
 QUOTE_CACHE = {}
 CACHE_DURATION = timedelta(minutes=2)
+MAX_QUOTE_CACHE_SIZE = 300
+MAX_MARKET_NEWS_CACHE_SIZE = 50
+MAX_TICKER_NEWS_CACHE_SIZE = 200
+
+
+def prune_cache(cache, limit):
+    if len(cache) > limit:
+        while len(cache) > limit:
+            cache.pop(next(iter(cache)))
 
 
 def _generate_simulated_quote(ticker: str):
@@ -606,52 +615,22 @@ def get_latest_quote(ticker: str, market: str = "PK"):
         cache_time, cached_data = QUOTE_CACHE[cache_key]
         if now - cache_time < CACHE_DURATION:
             return cached_data
+    else:
+        prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
             
     if market_upper in ["US", "IN", "UK"]:
         quote = get_yahoo_quote(ticker)
         if quote:
             QUOTE_CACHE[cache_key] = (now, quote)
+            prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
             return quote
-        # If Yahoo quote lookup fails entirely, fall back to mock US quote
-        # We can construct a mock US profile dynamically if not found
-        mock_profile = {
-            "name": f"{ticker} Inc.",
-            "sector": "US Equity",
-            "current_price": 150.0,
-            "pe_ratio": 25.0,
-            "roe": 15.0,
-            "div_yield": 1.2,
-            "debt_equity": 30.0,
-            "pb_ratio": 3.0,
-            "eps": 6.0,
-            "volume_avg": 1000000,
-            "description": f"Standard US public equity: {ticker}",
-            "recent_news": []
-        }
-        mock_quote = {
-            "ticker": ticker,
-            "name": mock_profile["name"],
-            "price": 150.0,
-            "change": 0.0,
-            "pct_change": "0.0%",
-            "is_up": True,
-            "volume": 1000000,
-            "high": 152.0,
-            "low": 148.0,
-            "ldcp": 150.0,
-            "pe": 25.0,
-            "roe": 15.0,
-            "div_yield": 1.2,
-            "news": [],
-            "timestamp": now.strftime("%I:%M:%S %p")
-        }
-        return mock_quote
+        return None
             
     try:
         df = psxdata.quote(ticker)
         if df.empty:
-            print(f"psxdata returned empty quote for {ticker}. Falling back to simulation.")
-            return _generate_simulated_quote(ticker)
+            print(f"psxdata returned empty quote for {ticker}. Falling back to unavailable state.")
+            return None
             
         row = df.iloc[0]
         
@@ -703,11 +682,12 @@ def get_latest_quote(ticker: str, market: str = "PK"):
             "timestamp": datetime.now().strftime("%I:%M:%S %p")
         }
         
-        QUOTE_CACHE[ticker] = (now, result)
+        QUOTE_CACHE[cache_key] = (now, result)
+        prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
         return result
     except Exception as e:
-        print(f"Error fetching latest quote for {ticker} from psxdata: {e}. Falling back to simulation.")
-        return _generate_simulated_quote(ticker)
+        print(f"Error fetching latest quote for {ticker} from psxdata: {e}. Returning unavailable state.")
+        return None
 
 
 MARKET_NEWS_CACHE = {}
@@ -715,7 +695,7 @@ TICKER_NEWS_CACHE = {}
 
 def fetch_market_news(market: str = "PK") -> list:
     """
-    Fetches market-wide recent financial news from Google News RSS feed.
+    Fetches market-wide recent financial news from a live RSS feed.
     """
     import httpx
     import xml.etree.ElementTree as ET
@@ -740,40 +720,41 @@ def fetch_market_news(market: str = "PK") -> list:
             "sentiment": "bullish"
         }
     ]
-    
-    # Check cache (15 minutes expiration)
+
+    # Check cache (2 minutes expiration)
     if market_upper in MARKET_NEWS_CACHE:
         cache_time, cached_data = MARKET_NEWS_CACHE[market_upper]
-        if now - cache_time < timedelta(minutes=15):
+        if now - cache_time < timedelta(minutes=2):
             return cached_data
+    else:
+        prune_cache(MARKET_NEWS_CACHE, MAX_MARKET_NEWS_CACHE_SIZE)
 
-    # Map market to search queries
-    query_map = {
-        "US": "US stock market OR Dow Jones OR S&P 500",
-        "PK": "Pakistan Stock Exchange OR PSX OR Pakistan economy",
-        "IN": "Indian stock market OR Nifty 50 OR NSE India",
-        "UK": "UK stock market OR London Stock Exchange OR FTSE",
-        "CA": "Canadian stock market OR TSX",
-        "JP": "Japan stock market OR Tokyo Stock Exchange OR Nikkei",
-        "DE": "German stock market OR DAX",
-        "AU": "Australian stock market OR ASX",
-        "SA": "Saudi stock market OR Tadawul",
-        "AE": "Dubai stock market OR DFM OR UAE economy",
-        "CN": "Chinese stock market OR SSE Composite",
-        "QA": "Qatar stock market OR QSE",
-        "EG": "Egyptian stock market OR EGX",
-        "TR": "Turkish stock market OR Borsa Istanbul OR BIST"
+    # Use a broader, more current finance RSS source that returns recent headlines.
+    market_feed_map = {
+        "US": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC",
+        "PK": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC",
+        "IN": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5ENSEI",
+        "UK": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EFTSE",
+        "CA": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPTSE",
+        "JP": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EN225",
+        "DE": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGDAXI",
+        "AU": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EAXJO",
+        "SA": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5ETadawul",
+        "AE": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EADX",
+        "CN": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EHSI",
+        "QA": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EQLSI",
+        "EG": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EEGX30",
+        "TR": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EBIST100"
     }
-    
-    query = query_map.get(market_upper, f"{market_upper} stock market")
-    url = f"https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
+
+    url = market_feed_map.get(market_upper, "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC")
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
-    
+
     news_list = []
     try:
-        response = httpx.get(url, headers=headers, timeout=3.0)
+        response = httpx.get(url, headers=headers, timeout=10.0)
         if response.status_code == 200:
             root = ET.fromstring(response.content)
             items = root.findall(".//item")
@@ -781,16 +762,23 @@ def fetch_market_news(market: str = "PK") -> list:
                 title = item.find("title").text if item.find("title") is not None else ""
                 link = item.find("link").text if item.find("link") is not None else ""
                 pub_date = item.find("pubDate").text if item.find("pubDate") is not None else ""
-                source = item.find("source").text if item.find("source") is not None else "Google News"
-                
-                # Simple sentiment categorization based on words in title
+                source = "Yahoo Finance"
+
+                try:
+                    parsed_pub_date = datetime.strptime(pub_date, "%a, %d %b %Y %H:%M:%S GMT")
+                except Exception:
+                    parsed_pub_date = None
+
+                if parsed_pub_date and now - parsed_pub_date > timedelta(days=3):
+                    continue
+
                 sentiment = "neutral"
                 lower_title = title.lower()
                 if any(w in lower_title for w in ["gain", "bull", "surge", "up", "rise", "grow", "jump", "record high", "recovery", "profit"]):
                     sentiment = "bullish"
                 elif any(w in lower_title for w in ["fall", "slip", "bear", "down", "drop", "plunge", "decline", "slump", "loss", "crash"]):
                     sentiment = "bearish"
-                
+
                 news_list.append({
                     "title": title,
                     "link": link,
@@ -798,14 +786,16 @@ def fetch_market_news(market: str = "PK") -> list:
                     "source": source,
                     "sentiment": sentiment
                 })
-            
+
             if news_list:
                 MARKET_NEWS_CACHE[market_upper] = (now, news_list)
+                prune_cache(MARKET_NEWS_CACHE, MAX_MARKET_NEWS_CACHE_SIZE)
                 return news_list
     except Exception as e:
         print(f"[fetch_market_news] Error: {e}")
 
     MARKET_NEWS_CACHE[market_upper] = (now, fallback_news)
+    prune_cache(MARKET_NEWS_CACHE, MAX_MARKET_NEWS_CACHE_SIZE)
     return fallback_news
 
 def fetch_ticker_news(ticker: str, market: str = "PK") -> list:
@@ -823,11 +813,13 @@ def fetch_ticker_news(ticker: str, market: str = "PK") -> list:
     
     cache_key = f"{market_upper}:{ticker_upper}"
     
-    # Check cache (30 minutes expiration)
+    # Check cache (5 minutes expiration)
     if cache_key in TICKER_NEWS_CACHE:
         cache_time, cached_data = TICKER_NEWS_CACHE[cache_key]
-        if now - cache_time < timedelta(minutes=30):
+        if now - cache_time < timedelta(minutes=5):
             return cached_data
+    else:
+        prune_cache(TICKER_NEWS_CACHE, MAX_TICKER_NEWS_CACHE_SIZE)
             
     news_list = []
     
@@ -863,6 +855,7 @@ def fetch_ticker_news(ticker: str, market: str = "PK") -> list:
                     })
                 if news_list:
                     TICKER_NEWS_CACHE[cache_key] = (now, news_list)
+                    prune_cache(TICKER_NEWS_CACHE, MAX_TICKER_NEWS_CACHE_SIZE)
                     return news_list
         except Exception as e:
             print(f"[fetch_ticker_news Yahoo] Error for {ticker_upper}: {e}")
@@ -896,6 +889,14 @@ def fetch_ticker_news(ticker: str, market: str = "PK") -> list:
                 link = item.find("link").text if item.find("link") is not None else ""
                 pub_date = item.find("pubDate").text if item.find("pubDate") is not None else ""
                 source = item.find("source").text if item.find("source") is not None else "Google News"
+
+                try:
+                    parsed_pub_date = datetime.strptime(pub_date, "%a, %d %b %Y %H:%M:%S GMT")
+                except Exception:
+                    parsed_pub_date = None
+
+                if parsed_pub_date and now - parsed_pub_date > timedelta(days=3):
+                    continue
                 
                 sentiment = "neutral"
                 lower_title = title.lower()

@@ -644,6 +644,10 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
             const isUp = stock.change >= 0;
             const isSelected = stock.ticker === selectedTicker;
             const initials = stock.ticker.substring(0, 2);
+            const hasLivePrice = typeof stock.current_price === 'number' && stock.current_price > 0;
+            const hasLiveChange = typeof stock.change_percent === 'number' && Number.isFinite(stock.change_percent);
+            const displayPrice = hasLivePrice ? stock.current_price.toFixed(2) : '—';
+            const displayChange = hasLiveChange ? `${isUp ? '+' : ''}${stock.change_percent.toFixed(2)}%` : '—';
             
             // Assign custom emblem colors by sector
             const emblemColors = {
@@ -714,7 +718,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                   {/* Right Price & Change */}
                   <View style={styles.stockRight}>
                     <Text style={[styles.stockPriceText, !isDarkMode && { color: '#0F172A' }]}>
-                      {stock.current_price?.toFixed(2) || '0.00'}
+                      {displayPrice}
                     </Text>
                     <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-end', marginTop: 4 }}>
                       <View style={{ alignItems: 'center', marginRight: 6 }}>
@@ -724,8 +728,8 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                           </View>
                         )}
                         <View style={[styles.changeBadge, { backgroundColor: isUp ? '#064E3B' : '#7F1D1D', minWidth: 55, maxWidth: 65 }]}>
-                          <Text style={[styles.changeText, { color: isUp ? '#34D399' : '#F87171', fontSize: 9, textAlign: 'center' }]} numberOfLines={1}>
-                            {isUp ? '+' : ''}{stock.change_percent?.toFixed(2)}%
+                          <Text style={[styles.changeText, { color: hasLiveChange ? (isUp ? '#34D399' : '#F87171') : '#64748B', fontSize: 9, textAlign: 'center' }]} numberOfLines={1}>
+                            {displayChange}
                           </Text>
                         </View>
                       </View>

@@ -12,10 +12,20 @@ from urllib.parse import urlparse
 
 DEFAULT_MOBILE_API_URL = "https://ai-stock-advisor-sp9b.onrender.com"
 
+MAX_SYSTEM_EVENTS = 200
 SYSTEM_EVENTS = [
     {"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": "MultiStocks AI API Backend initialized."},
     {"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": "Loaded market watchlists and global index feeds."}
 ]
+
+
+def add_system_event(message: str):
+    SYSTEM_EVENTS.append({
+        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "message": message,
+    })
+    if len(SYSTEM_EVENTS) > MAX_SYSTEM_EVENTS:
+        del SYSTEM_EVENTS[: len(SYSTEM_EVENTS) - MAX_SYSTEM_EVENTS]
 
 
 # Import local modules
@@ -65,6 +75,14 @@ class PortfolioAnalysisRequest(BaseModel):
     market: Optional[str] = "PK"
 
 ANALYSIS_CACHE = {}
+MAX_ANALYSIS_CACHE_SIZE = 200
+
+
+def cache_analysis_result(cache_key: str, result: dict):
+    ANALYSIS_CACHE[cache_key] = result
+    if len(ANALYSIS_CACHE) > MAX_ANALYSIS_CACHE_SIZE:
+        oldest_key = next(iter(ANALYSIS_CACHE))
+        del ANALYSIS_CACHE[oldest_key]
 
 US_STOCK_INDEX = [
     {"ticker": "AAPL", "name": "Apple Inc.", "sector": "Technology"},
@@ -225,7 +243,7 @@ def get_stocks(tickers: Optional[str] = None, market: Optional[str] = "PK"):
     Otherwise, it returns the default watchlist.
     """
     market_str = (market or "PK").upper()
-    SYSTEM_EVENTS.append({"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": f"Quotes requested for market: {market_str} (tickers: {tickers or 'default'})"})
+    add_system_event(f"Quotes requested for market: {market_str} (tickers: {tickers or 'default'})")
     if tickers:
         ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
     else:
@@ -428,7 +446,7 @@ def get_analysis(ticker: str, market: Optional[str] = "PK"):
     """
     market_str = market or "PK"
     market_upper = market_str.upper()
-    SYSTEM_EVENTS.append({"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": f"Full analysis executed for ticker: {ticker.upper()} ({market_upper})"})
+    add_system_event(f"Full analysis executed for ticker: {ticker.upper()} ({market_upper})")
     
     # Fetch live quote (which has accurate price, change, sector, etc.)
     quote = data_fetcher.get_latest_quote(ticker, market=market_str)
@@ -523,7 +541,7 @@ def get_analysis(ticker: str, market: Optional[str] = "PK"):
         "technical_analysis": tech_analysis,
         "recommendation": recommendation
     }
-    ANALYSIS_CACHE[cache_key] = result
+    cache_analysis_result(cache_key, result)
     return result
 
 @app.post("/api/portfolio/analysis")
@@ -606,7 +624,7 @@ def chat_advisor(req: ChatRequest):
     """
     if not req.query:
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
-    SYSTEM_EVENTS.append({"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": f"AI chat advisor queried. Stock context: {req.ticker or 'None'}"})
+    add_system_event(f"AI chat advisor queried. Stock context: {req.ticker or 'None'}")
     response_text = ai_advisor.query_chat_advisor(
         query=req.query,
         ticker_context=req.ticker,
@@ -815,7 +833,7 @@ def update_admin_prompt(req: PromptUpdate):
     try:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
-        SYSTEM_EVENTS.append({"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": "System prompt templates updated by admin."})
+        add_system_event("System prompt templates updated by admin.")
         return {"status": "success", "message": "Prompts updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -823,16 +841,16 @@ def update_admin_prompt(req: PromptUpdate):
 @app.post("/api/admin/fetcher/trigger")
 def trigger_fetcher(market: Optional[str] = "PK"):
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    SYSTEM_EVENTS.append({"timestamp": now_str, "message": f"Manual fetcher triggered for market: {market}"})
+    add_system_event(f"Manual fetcher triggered for market: {market}")
     try:
         market_str = (market or "PK").upper()
         watchlist = MARKETS_CONFIG.get(market_str, MARKETS_CONFIG["PK"])["watchlist"]
         for ticker in watchlist:
             data_fetcher.get_latest_quote(ticker, market=market_str)
-        SYSTEM_EVENTS.append({"timestamp": now_str, "message": f"Fetcher completed: refreshed watchlist tickers for {market_str}"})
+        add_system_event(f"Fetcher completed: refreshed watchlist tickers for {market_str}")
         return {"status": "success", "message": f"Data refresh completed for market {market_str}"}
     except Exception as e:
-        SYSTEM_EVENTS.append({"timestamp": now_str, "message": f"Fetcher failed: {str(e)}"})
+        add_system_event(f"Fetcher failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/logs")
@@ -851,7 +869,7 @@ def update_admin_markets(new_config: dict):
         with open(markets_path, "w", encoding="utf-8") as f:
             json.dump(new_config, f, indent=2, ensure_ascii=False)
         MARKETS_CONFIG = new_config
-        SYSTEM_EVENTS.append({"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": "Markets and watchlists configurations updated by admin."})
+        add_system_event("Markets and watchlists configurations updated by admin.")
         return {"status": "success", "message": "Markets configuration updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
