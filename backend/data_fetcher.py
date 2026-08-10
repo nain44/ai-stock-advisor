@@ -699,6 +699,7 @@ def fetch_market_news(market: str = "PK") -> list:
     """
     import httpx
     import xml.etree.ElementTree as ET
+    from urllib.parse import quote
     from datetime import datetime, timedelta
 
     market_upper = (market or "PK").upper()
@@ -729,7 +730,7 @@ def fetch_market_news(market: str = "PK") -> list:
     else:
         prune_cache(MARKET_NEWS_CACHE, MAX_MARKET_NEWS_CACHE_SIZE)
 
-    # Use a broader, more current finance RSS source that returns recent headlines.
+    # Use a broader finance RSS source and add a local market-news RSS query so the app can surface region-specific headlines too.
     market_feed_map = {
         "US": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC",
         "PK": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC",
@@ -747,50 +748,88 @@ def fetch_market_news(market: str = "PK") -> list:
         "TR": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EBIST100"
     }
 
-    url = market_feed_map.get(market_upper, "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC")
+    local_query_map = {
+        "PK": "PSX OR Pakistan Stock Exchange",
+        "US": "S&P 500 OR Nasdaq OR US stocks",
+        "IN": "NSE India OR Nifty OR Indian stocks",
+        "UK": "FTSE OR London markets",
+        "CA": "TSX OR Canadian stocks",
+        "JP": "Nikkei OR Japanese stocks",
+        "DE": "DAX OR German stocks",
+        "AU": "ASX OR Australian stocks",
+        "SA": "Tadawul OR Saudi stocks",
+        "AE": "ADX OR UAE stocks",
+        "CN": "Hang Seng OR Chinese markets",
+        "QA": "Qatar stocks",
+        "EG": "EGX OR Egyptian stocks",
+        "TR": "Borsa Istanbul OR Turkish stocks"
+    }
+
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
 
-    news_list = []
-    try:
-        response = httpx.get(url, headers=headers, timeout=10.0)
-        if response.status_code == 200:
-            root = ET.fromstring(response.content)
-            items = root.findall(".//item")
-            for item in items[:8]:
-                title = item.find("title").text if item.find("title") is not None else ""
-                link = item.find("link").text if item.find("link") is not None else ""
-                pub_date = item.find("pubDate").text if item.find("pubDate") is not None else ""
-                source = "Yahoo Finance"
+    def parse_rss_items(response_content, source_name):
+        root = ET.fromstring(response_content)
+        items = root.findall(".//item")
+        parsed_items = []
+        for item in items[:8]:
+            title = item.find("title").text if item.find("title") is not None else ""
+            link = item.find("link").text if item.find("link") is not None else ""
+            pub_date = item.find("pubDate").text if item.find("pubDate") is not None else ""
 
+            parsed_pub_date = None
+            for fmt in ["%a, %d %b %Y %H:%M:%S GMT", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S"]:
                 try:
-                    parsed_pub_date = datetime.strptime(pub_date, "%a, %d %b %Y %H:%M:%S GMT")
+                    parsed_pub_date = datetime.strptime(pub_date, fmt)
+                    break
                 except Exception:
-                    parsed_pub_date = None
-
-                if parsed_pub_date and now - parsed_pub_date > timedelta(days=3):
                     continue
 
-                sentiment = "neutral"
-                lower_title = title.lower()
-                if any(w in lower_title for w in ["gain", "bull", "surge", "up", "rise", "grow", "jump", "record high", "recovery", "profit"]):
-                    sentiment = "bullish"
-                elif any(w in lower_title for w in ["fall", "slip", "bear", "down", "drop", "plunge", "decline", "slump", "loss", "crash"]):
-                    sentiment = "bearish"
+            if parsed_pub_date and now - parsed_pub_date > timedelta(days=3):
+                continue
 
-                news_list.append({
-                    "title": title,
-                    "link": link,
-                    "pub_date": pub_date,
-                    "source": source,
-                    "sentiment": sentiment
-                })
+            sentiment = "neutral"
+            lower_title = title.lower()
+            if any(w in lower_title for w in ["gain", "bull", "surge", "up", "rise", "grow", "jump", "record high", "recovery", "profit"]):
+                sentiment = "bullish"
+            elif any(w in lower_title for w in ["fall", "slip", "bear", "down", "drop", "plunge", "decline", "slump", "loss", "crash"]):
+                sentiment = "bearish"
 
-            if news_list:
-                MARKET_NEWS_CACHE[market_upper] = (now, news_list)
-                prune_cache(MARKET_NEWS_CACHE, MAX_MARKET_NEWS_CACHE_SIZE)
-                return news_list
+            parsed_items.append({
+                "title": title,
+                "link": link,
+                "pub_date": pub_date,
+                "source": source_name,
+                "sentiment": sentiment
+            })
+        return parsed_items
+
+    news_list = []
+    seen_links = set()
+    try:
+        yahoo_url = market_feed_map.get(market_upper, "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC")
+        local_query = local_query_map.get(market_upper, "stock market")
+        google_url = f"https://news.google.com/rss/search?q={quote(local_query)}&hl=en-US&gl=US&ceid=US:en"
+
+        for source_name, url in [("Google News", google_url), ("Yahoo Finance", yahoo_url)]:
+            try:
+                response = httpx.get(url, headers=headers, timeout=10.0)
+                if response.status_code == 200:
+                    for item in parse_rss_items(response.content, source_name):
+                        key = item.get("link") or item.get("title")
+                        if key and key not in seen_links:
+                            seen_links.add(key)
+                            news_list.append(item)
+                        if len(news_list) >= 8:
+                            break
+            except Exception as e:
+                print(f"[fetch_market_news] Error for {source_name}: {e}")
+
+        if news_list:
+            MARKET_NEWS_CACHE[market_upper] = (now, news_list)
+            prune_cache(MARKET_NEWS_CACHE, MAX_MARKET_NEWS_CACHE_SIZE)
+            return news_list
     except Exception as e:
         print(f"[fetch_market_news] Error: {e}")
 
