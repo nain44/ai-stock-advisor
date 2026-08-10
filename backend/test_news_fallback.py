@@ -1,12 +1,15 @@
 import unittest
 from unittest.mock import patch
 
-from data_fetcher import fetch_market_news, get_latest_quote, MARKET_NEWS_CACHE
+import pandas as pd
+
+from data_fetcher import fetch_market_news, get_latest_quote, MARKET_NEWS_CACHE, QUOTE_CACHE
 
 
 class NewsFallbackTests(unittest.TestCase):
     def setUp(self):
         MARKET_NEWS_CACHE.clear()
+        QUOTE_CACHE.clear()
 
     def test_returns_fallback_news_when_live_feed_is_empty(self):
         class EmptyResponse:
@@ -46,6 +49,33 @@ class NewsFallbackTests(unittest.TestCase):
         self.assertTrue(news)
         self.assertTrue(all("old headline" not in item.get("title", "").lower() for item in news))
         self.assertTrue(any("recent headline" in item.get("title", "").lower() for item in news))
+
+    def test_prefers_live_psx_quote_over_profile_fallback(self):
+        with patch("data_fetcher.psxdata.quote", return_value=pd.DataFrame([{
+            "price": 725.0,
+            "change_pct": 1.25,
+            "volume_avg_30d": 300000,
+            "pe_ratio": 8.2,
+            "dividend_yield": 6.4,
+            "sector": "Oil & Gas Exploration",
+        }])):
+            with patch("data_fetcher.get_stock_profile", return_value={
+                "name": "Mari Petroleum Company Limited",
+                "sector": "Oil & Gas Exploration",
+                "current_price": 710.0,
+                "pe_ratio": 7.8,
+                "roe": 44.5,
+                "div_yield": 6.8,
+                "recent_news": [{"title": "Mari announces updated guidance", "source": "Profile"}],
+                "volume_avg": 250000,
+            }):
+                quote = get_latest_quote("MARI", market="PK")
+
+        self.assertIsNotNone(quote)
+        self.assertEqual(quote["ticker"], "MARI")
+        self.assertEqual(quote["price"], 725.0)
+        self.assertTrue(quote.get("is_live", False))
+        self.assertEqual(quote["source"], "live")
 
     def test_returns_profile_based_quote_when_live_quote_data_fails(self):
         with patch("data_fetcher.psxdata.quote", side_effect=Exception("quote unavailable")):

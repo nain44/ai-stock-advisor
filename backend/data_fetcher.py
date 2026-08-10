@@ -625,6 +625,63 @@ def get_latest_quote(ticker: str, market: str = "PK"):
             prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
             return quote
 
+    if market_upper == "PK":
+        try:
+            df = psxdata.quote(ticker)
+            if df.empty:
+                raise Exception("psxdata returned empty quote")
+
+            row = df.iloc[0]
+            current_price = float(row.get("price", 0.0))
+            pct_change = float(row.get("change_pct", 0.0))
+            prev_close = current_price / (1 + (pct_change / 100.0)) if pct_change != -100 else current_price
+            change = round(current_price - prev_close, 2)
+            pct_change_str = f"{round(pct_change, 2)}%"
+
+            profile = get_stock_profile(ticker) or {
+                "name": ticker,
+                "sector": str(row.get("sector", "Unknown")),
+                "pe_ratio": float(row.get("pe_ratio", 0.0)) if pd.notna(row.get("pe_ratio")) else 0.0,
+                "roe": 0.0,
+                "div_yield": float(row.get("dividend_yield", 0.0)) if pd.notna(row.get("dividend_yield")) else 0.0,
+                "recent_news": []
+            }
+
+            volume = float(row.get("volume_avg_30d", 0)) if pd.notna(row.get("volume_avg_30d")) else float(profile.get("volume_avg", 0))
+            pe = float(row.get("pe_ratio", 0.0)) if pd.notna(row.get("pe_ratio")) else float(profile.get("pe_ratio", 0.0))
+            div_yield = float(row.get("dividend_yield", 0.0)) if pd.notna(row.get("dividend_yield")) else float(profile.get("div_yield", 0.0))
+            roe = float(profile.get("roe", 0.0))
+
+            high = round(current_price * 1.01, 2)
+            low = round(current_price * 0.99, 2)
+            ldcp = round(prev_close, 2)
+
+            result = {
+                "ticker": ticker,
+                "name": profile.get("name", ticker),
+                "sector": profile.get("sector", "Unknown"),
+                "price": round(current_price, 2),
+                "change": change,
+                "pct_change": pct_change_str,
+                "is_up": change >= 0,
+                "volume": int(volume),
+                "high": round(high, 2),
+                "low": round(low, 2),
+                "ldcp": round(ldcp, 2),
+                "pe": round(pe, 2) if pe else 0.0,
+                "roe": round(roe, 2) if roe else 0.0,
+                "div_yield": round(div_yield, 2) if div_yield else 0.0,
+                "news": profile.get("recent_news", []),
+                "timestamp": datetime.now().strftime("%I:%M:%S %p"),
+                "source": "live",
+                "is_live": True,
+            }
+            QUOTE_CACHE[cache_key] = (now, result)
+            prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
+            return result
+        except Exception as e:
+            print(f"Error fetching latest quote for {ticker} from psxdata: {e}. Returning profile fallback state.")
+
     profile = get_stock_profile(ticker)
     if profile:
         fallback_quote = {
@@ -650,96 +707,7 @@ def get_latest_quote(ticker: str, market: str = "PK"):
         QUOTE_CACHE[cache_key] = (now, fallback_quote)
         prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
         return fallback_quote
-            
-    try:
-        df = psxdata.quote(ticker)
-        if df.empty:
-            print(f"psxdata returned empty quote for {ticker}. Falling back to profile payload.")
-            return None
-            
-        row = df.iloc[0]
-        
-        # Retrieve stats
-        current_price = float(row.get("price", 0.0))
-        pct_change = float(row.get("change_pct", 0.0))
-        
-        # Calculate change amount and previous close
-        prev_close = current_price / (1 + (pct_change / 100.0)) if pct_change != -100 else current_price
-        change = round(current_price - prev_close, 2)
-        pct_change_str = f"{round(pct_change, 2)}%"
-        
-        # Fetch sector name and info from static profiles
-        profile = get_stock_profile(ticker) or {
-            "name": ticker,
-            "sector": str(row.get("sector", "Unknown")),
-            "pe_ratio": float(row.get("pe_ratio", 0.0)) if pd.notna(row.get("pe_ratio")) else 0.0,
-            "roe": 0.0,
-            "div_yield": float(row.get("dividend_yield", 0.0)) if pd.notna(row.get("dividend_yield")) else 0.0,
-            "recent_news": []
-        }
-        
-        volume = float(row.get("volume_avg_30d", 0)) if pd.notna(row.get("volume_avg_30d")) else float(profile.get("volume_avg", 0))
-        pe = float(row.get("pe_ratio", 0.0)) if pd.notna(row.get("pe_ratio")) else float(profile.get("pe_ratio", 0.0))
-        div_yield = float(row.get("dividend_yield", 0.0)) if pd.notna(row.get("dividend_yield")) else float(profile.get("div_yield", 0.0))
-        roe = float(profile.get("roe", 0.0))
-        
-        # Extrapolate High and Low from simulated current price bounds
-        high = round(current_price * 1.01, 2)
-        low = round(current_price * 0.99, 2)
-        ldcp = round(prev_close, 2)
-        
-        result = {
-            "ticker": ticker,
-            "name": profile.get("name", ticker),
-            "sector": profile.get("sector", "Unknown"),
-            "price": round(current_price, 2),
-            "change": change,
-            "pct_change": pct_change_str,
-            "is_up": change >= 0,
-            "volume": int(volume),
-            "high": round(high, 2),
-            "low": round(low, 2),
-            "ldcp": round(ldcp, 2),
-            "pe": round(pe, 2) if pe else 0.0,
-            "roe": round(roe, 2) if roe else 0.0,
-            "div_yield": round(div_yield, 2) if div_yield else 0.0,
-            "news": profile.get("recent_news", []),
-            "timestamp": datetime.now().strftime("%I:%M:%S %p"),
-            "source": "live",
-            "is_live": True,
-        }
-        
-        QUOTE_CACHE[cache_key] = (now, result)
-        prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
-        return result
-    except Exception as e:
-        print(f"Error fetching latest quote for {ticker} from psxdata: {e}. Returning profile fallback state.")
-        profile = get_stock_profile(ticker)
-        if profile:
-            fallback_quote = {
-                "ticker": ticker,
-                "name": profile.get("name", ticker),
-                "sector": profile.get("sector", "Unknown"),
-                "price": float(profile.get("current_price", 0.0)),
-                "change": 0.0,
-                "pct_change": "0.0%",
-                "is_up": True,
-                "volume": int(profile.get("volume_avg", 0)),
-                "high": float(profile.get("current_price", 0.0)),
-                "low": float(profile.get("current_price", 0.0)),
-                "ldcp": float(profile.get("current_price", 0.0)),
-                "pe": float(profile.get("pe_ratio", 0.0)),
-                "roe": float(profile.get("roe", 0.0)),
-                "div_yield": float(profile.get("div_yield", 0.0)),
-                "news": profile.get("recent_news", []),
-                "timestamp": datetime.now().strftime("%I:%M:%S %p"),
-                "source": "profile",
-                "is_live": False,
-            }
-            QUOTE_CACHE[cache_key] = (now, fallback_quote)
-            prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
-            return fallback_quote
-        return None
+    return None
 
 
 MARKET_NEWS_CACHE = {}
