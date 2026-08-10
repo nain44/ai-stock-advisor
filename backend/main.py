@@ -424,9 +424,10 @@ def search_stocks(query: str, market: Optional[str] = "PK"):
         return []
 
 @app.get("/api/quote/{ticker}")
-def get_quote(ticker: str):
-    """Returns real-time simulated quote and news for specified stock."""
-    quote = data_fetcher.get_latest_quote(ticker)
+def get_quote(ticker: str, market: Optional[str] = "PK"):
+    """Returns real-time simulated quote and news for the specified stock."""
+    market_str = market or "PK"
+    quote = data_fetcher.get_latest_quote(ticker, market=market_str)
     if not quote:
         raise HTTPException(status_code=404, detail="Stock ticker not found.")
     return quote

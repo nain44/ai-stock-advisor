@@ -7,6 +7,13 @@ import yfinance as yf
 FOREX_CACHE = {}      # 1 hour expiration
 COMMODITY_CACHE = {}  # 15 minutes expiration
 INDEX_CACHE = {}      # 5 minutes expiration
+MAX_INDEX_CACHE_SIZE = 100
+
+
+def prune_index_cache(cache, limit):
+    if len(cache) > limit:
+        while len(cache) > limit:
+            cache.pop(next(iter(cache)))
 
 def get_macro_indicators(market: str = "PK", index_symbol: str = "^KSE", index_name: str = "KSE100"):
     """
@@ -527,6 +534,7 @@ def get_macro_indicators(market: str = "PK", index_symbol: str = "^KSE", index_n
                     "data": index_data,
                     "time": now
                 }
+                prune_index_cache(INDEX_CACHE, MAX_INDEX_CACHE_SIZE)
         except Exception as e:
             print(f"[macro_fetcher] Error loading index {index_symbol}: {e}")
             

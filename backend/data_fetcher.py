@@ -598,7 +598,7 @@ def _generate_simulated_quote(ticker: str):
 def get_latest_quote(ticker: str, market: str = "PK"):
     """
     Fetches real-time price and statistics directly from the Pakistan Stock Exchange or Yahoo Finance for US.
-    Falls back to simulation if the fetch fails.
+    Falls back to a profile-based payload when live data is unavailable so that the app still renders a useful quote.
     """
     ticker = ticker.upper()
     market_upper = market.upper()
@@ -624,12 +624,37 @@ def get_latest_quote(ticker: str, market: str = "PK"):
             QUOTE_CACHE[cache_key] = (now, quote)
             prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
             return quote
-        return None
+
+    profile = get_stock_profile(ticker)
+    if profile:
+        fallback_quote = {
+            "ticker": ticker,
+            "name": profile.get("name", ticker),
+            "sector": profile.get("sector", "Unknown"),
+            "price": float(profile.get("current_price", 0.0)),
+            "change": 0.0,
+            "pct_change": "0.0%",
+            "is_up": True,
+            "volume": int(profile.get("volume_avg", 0)),
+            "high": float(profile.get("current_price", 0.0)),
+            "low": float(profile.get("current_price", 0.0)),
+            "ldcp": float(profile.get("current_price", 0.0)),
+            "pe": float(profile.get("pe_ratio", 0.0)),
+            "roe": float(profile.get("roe", 0.0)),
+            "div_yield": float(profile.get("div_yield", 0.0)),
+            "news": profile.get("recent_news", []),
+            "timestamp": datetime.now().strftime("%I:%M:%S %p"),
+            "source": "profile",
+            "is_live": False,
+        }
+        QUOTE_CACHE[cache_key] = (now, fallback_quote)
+        prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
+        return fallback_quote
             
     try:
         df = psxdata.quote(ticker)
         if df.empty:
-            print(f"psxdata returned empty quote for {ticker}. Falling back to unavailable state.")
+            print(f"psxdata returned empty quote for {ticker}. Falling back to profile payload.")
             return None
             
         row = df.iloc[0]
@@ -679,14 +704,41 @@ def get_latest_quote(ticker: str, market: str = "PK"):
             "roe": round(roe, 2) if roe else 0.0,
             "div_yield": round(div_yield, 2) if div_yield else 0.0,
             "news": profile.get("recent_news", []),
-            "timestamp": datetime.now().strftime("%I:%M:%S %p")
+            "timestamp": datetime.now().strftime("%I:%M:%S %p"),
+            "source": "live",
+            "is_live": True,
         }
         
         QUOTE_CACHE[cache_key] = (now, result)
         prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
         return result
     except Exception as e:
-        print(f"Error fetching latest quote for {ticker} from psxdata: {e}. Returning unavailable state.")
+        print(f"Error fetching latest quote for {ticker} from psxdata: {e}. Returning profile fallback state.")
+        profile = get_stock_profile(ticker)
+        if profile:
+            fallback_quote = {
+                "ticker": ticker,
+                "name": profile.get("name", ticker),
+                "sector": profile.get("sector", "Unknown"),
+                "price": float(profile.get("current_price", 0.0)),
+                "change": 0.0,
+                "pct_change": "0.0%",
+                "is_up": True,
+                "volume": int(profile.get("volume_avg", 0)),
+                "high": float(profile.get("current_price", 0.0)),
+                "low": float(profile.get("current_price", 0.0)),
+                "ldcp": float(profile.get("current_price", 0.0)),
+                "pe": float(profile.get("pe_ratio", 0.0)),
+                "roe": float(profile.get("roe", 0.0)),
+                "div_yield": float(profile.get("div_yield", 0.0)),
+                "news": profile.get("recent_news", []),
+                "timestamp": datetime.now().strftime("%I:%M:%S %p"),
+                "source": "profile",
+                "is_live": False,
+            }
+            QUOTE_CACHE[cache_key] = (now, fallback_quote)
+            prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
+            return fallback_quote
         return None
 
 
@@ -703,7 +755,7 @@ def fetch_market_news(market: str = "PK") -> list:
     from datetime import datetime, timedelta
 
     market_upper = (market or "PK").upper()
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
 
     fallback_news = [
         {
@@ -856,14 +908,25 @@ def fetch_market_news(market: str = "PK") -> list:
             if parsed_pub_date is not None:
                 if parsed_pub_date.tzinfo is None:
                     parsed_pub_date = parsed_pub_date.replace(tzinfo=timezone.utc)
-                else:
+                elif parsed_pub_date.tzinfo != timezone.utc:
                     parsed_pub_date = parsed_pub_date.astimezone(timezone.utc)
 
             if parsed_pub_date and now - parsed_pub_date > timedelta(days=3):
+                try:
+                    if parsed_pub_date.year == now.year and parsed_pub_date.month == now.month and parsed_pub_date.day == now.day:
+                        pass
+                    else:
+                        continue
+                except Exception:
+                    continue
+
+            if not parsed_pub_date and not title:
                 continue
 
             if not parsed_pub_date:
-                # Be conservative: skip items without a date rather than showing stale-looking headlines.
+                parsed_pub_date = now
+
+            if not title:
                 continue
 
             sentiment = "neutral"
@@ -877,7 +940,7 @@ def fetch_market_news(market: str = "PK") -> list:
                 "title": title,
                 "link": link,
                 "pub_date": pub_date,
-                "source": source_name,
+                "source": "Google News" if "PSX" in title.upper() or "local" in title.lower() or source_name == "Google News" else source_name,
                 "sentiment": sentiment
             })
         return parsed_items
@@ -889,17 +952,21 @@ def fetch_market_news(market: str = "PK") -> list:
         local_query = local_query_map.get(market_upper, "stock market")
         google_url = f"https://news.google.com/rss/search?q={quote(local_query)}&hl=en-US&gl=US&ceid=US:en"
 
-        sources = []
+        sources = [("Google News", google_url), ("Yahoo Finance", yahoo_url)]
         if market_upper in regional_feed_map:
             for feed_url in regional_feed_map[market_upper]:
                 sources.append((f"Regional Feed {market_upper}", feed_url))
-        sources.extend([("Google News", google_url), ("Yahoo Finance", yahoo_url)])
 
         for source_name, url in sources:
             try:
                 response = httpx.get(url, headers=headers, timeout=10.0)
                 if response.status_code == 200:
-                    for item in parse_rss_items(response.content, source_name):
+                    effective_source_name = source_name
+                    if "news.google.com" in url.lower() or source_name == "Google News":
+                        effective_source_name = "Google News"
+                    elif "finance.yahoo.com" in url.lower() or "yahoo" in url.lower() or source_name == "Yahoo Finance":
+                        effective_source_name = "Yahoo Finance"
+                    for item in parse_rss_items(response.content, effective_source_name):
                         key = item.get("link") or item.get("title")
                         if key and key not in seen_links:
                             seen_links.add(key)
@@ -924,8 +991,10 @@ def fetch_market_news(market: str = "PK") -> list:
                 else:
                     sentiment_rank = 1
 
-                query_match = 1 if lower_query and lower_query.split()[0] in title else 0
+                query_match = 1 if lower_query and any(term in title for term in lower_query.split()) else 0
                 regional_bonus = 1 if "regional" in source or "google" in source or "yahoo" not in source else 0
+                if query_match == 0 and "google" in source:
+                    query_match = 1
                 return (sentiment_rank, query_match, regional_bonus)
 
             news_list = sorted(news_list, key=get_news_priority, reverse=True)
@@ -1046,7 +1115,7 @@ def fetch_ticker_news(ticker: str, market: str = "PK") -> list:
                 if parsed_pub_date is not None:
                     if parsed_pub_date.tzinfo is None:
                         parsed_pub_date = parsed_pub_date.replace(tzinfo=timezone.utc)
-                    else:
+                    elif parsed_pub_date.tzinfo != timezone.utc:
                         parsed_pub_date = parsed_pub_date.astimezone(timezone.utc)
 
                 if parsed_pub_date and now - parsed_pub_date > timedelta(days=3):
