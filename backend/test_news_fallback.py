@@ -32,6 +32,18 @@ class NewsFallbackTests(unittest.TestCase):
         self.assertTrue(any(item.get("source") == "Google News" for item in news))
         self.assertTrue(any("PSX" in item.get("title", "") for item in news))
 
+    def test_filters_out_news_older_than_three_days_even_with_iso_dates(self):
+        class FeedResponse:
+            status_code = 200
+            content = b"""<rss><channel><item><title>Old headline</title><link>https://example.com/old</link><pubDate>2026-08-01T10:00:00Z</pubDate></item><item><title>Recent headline</title><link>https://example.com/new</link><pubDate>2026-08-10T10:00:00Z</pubDate></item></channel></rss>"""
+
+        with patch("httpx.get", return_value=FeedResponse()):
+            news = fetch_market_news("PK")
+
+        self.assertTrue(news)
+        self.assertTrue(all("old headline" not in item.get("title", "").lower() for item in news))
+        self.assertTrue(any("recent headline" in item.get("title", "").lower() for item in news))
+
 
 if __name__ == "__main__":
     unittest.main()

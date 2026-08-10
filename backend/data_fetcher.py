@@ -1,6 +1,6 @@
 import math
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pandas as pd
 import numpy as np
 import psxdata
@@ -840,14 +840,30 @@ def fetch_market_news(market: str = "PK") -> list:
             pub_date = item.find("pubDate").text if item.find("pubDate") is not None else ""
 
             parsed_pub_date = None
-            for fmt in ["%a, %d %b %Y %H:%M:%S GMT", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S"]:
+            for fmt in ["%a, %d %b %Y %H:%M:%S GMT", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"]:
                 try:
                     parsed_pub_date = datetime.strptime(pub_date, fmt)
                     break
                 except Exception:
                     continue
 
+            if not parsed_pub_date:
+                try:
+                    parsed_pub_date = datetime.fromisoformat(pub_date.replace("Z", "+00:00"))
+                except Exception:
+                    parsed_pub_date = None
+
+            if parsed_pub_date is not None:
+                if parsed_pub_date.tzinfo is None:
+                    parsed_pub_date = parsed_pub_date.replace(tzinfo=timezone.utc)
+                else:
+                    parsed_pub_date = parsed_pub_date.astimezone(timezone.utc)
+
             if parsed_pub_date and now - parsed_pub_date > timedelta(days=3):
+                continue
+
+            if not parsed_pub_date:
+                # Be conservative: skip items without a date rather than showing stale-looking headlines.
                 continue
 
             sentiment = "neutral"
@@ -895,21 +911,24 @@ def fetch_market_news(market: str = "PK") -> list:
 
         if news_list:
             lower_query = local_query.lower()
-            def news_score(item):
-                score = 0
+
+            def get_news_priority(item):
                 title = (item.get("title") or "").lower()
                 source = (item.get("source") or "").lower()
-                if item.get("sentiment") == "bullish":
-                    score += 3
-                if item.get("sentiment") == "bearish":
-                    score -= 1
-                if lower_query and lower_query.split()[0] in title:
-                    score += 2
-                if "regional" in source or "google" in source or "yahoo" not in source:
-                    score += 1
-                return score
+                sentiment = item.get("sentiment")
 
-            news_list = sorted(news_list, key=lambda item: (news_score(item), item.get("pub_date") or ""), reverse=True)
+                if sentiment == "bullish":
+                    sentiment_rank = 3
+                elif sentiment == "bearish":
+                    sentiment_rank = 2
+                else:
+                    sentiment_rank = 1
+
+                query_match = 1 if lower_query and lower_query.split()[0] in title else 0
+                regional_bonus = 1 if "regional" in source or "google" in source or "yahoo" not in source else 0
+                return (sentiment_rank, query_match, regional_bonus)
+
+            news_list = sorted(news_list, key=get_news_priority, reverse=True)
             news_list = news_list[:10]
             MARKET_NEWS_CACHE[market_upper] = (now, news_list)
             prune_cache(MARKET_NEWS_CACHE, MAX_MARKET_NEWS_CACHE_SIZE)
@@ -1018,7 +1037,22 @@ def fetch_ticker_news(ticker: str, market: str = "PK") -> list:
                 except Exception:
                     parsed_pub_date = None
 
+                if not parsed_pub_date:
+                    try:
+                        parsed_pub_date = datetime.fromisoformat(pub_date.replace("Z", "+00:00"))
+                    except Exception:
+                        parsed_pub_date = None
+
+                if parsed_pub_date is not None:
+                    if parsed_pub_date.tzinfo is None:
+                        parsed_pub_date = parsed_pub_date.replace(tzinfo=timezone.utc)
+                    else:
+                        parsed_pub_date = parsed_pub_date.astimezone(timezone.utc)
+
                 if parsed_pub_date and now - parsed_pub_date > timedelta(days=3):
+                    continue
+
+                if not parsed_pub_date:
                     continue
                 
                 sentiment = "neutral"
