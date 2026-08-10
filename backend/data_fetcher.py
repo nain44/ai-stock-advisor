@@ -894,6 +894,23 @@ def fetch_market_news(market: str = "PK") -> list:
                 print(f"[fetch_market_news] Error for {source_name}: {e}")
 
         if news_list:
+            lower_query = local_query.lower()
+            def news_score(item):
+                score = 0
+                title = (item.get("title") or "").lower()
+                source = (item.get("source") or "").lower()
+                if item.get("sentiment") == "bullish":
+                    score += 3
+                if item.get("sentiment") == "bearish":
+                    score -= 1
+                if lower_query and lower_query.split()[0] in title:
+                    score += 2
+                if "regional" in source or "google" in source or "yahoo" not in source:
+                    score += 1
+                return score
+
+            news_list = sorted(news_list, key=lambda item: (news_score(item), item.get("pub_date") or ""), reverse=True)
+            news_list = news_list[:10]
             MARKET_NEWS_CACHE[market_upper] = (now, news_list)
             prune_cache(MARKET_NEWS_CACHE, MAX_MARKET_NEWS_CACHE_SIZE)
             return news_list
