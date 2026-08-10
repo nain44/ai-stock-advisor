@@ -266,22 +266,100 @@ const DEFAULT_CONFIG = {
 // Production bootstrap endpoint. The server can supply a replacement endpoint
 // through /api/settings, which is managed in the admin dashboard.
 // Default to the live backend so the Expo app connects without needing the local server.
-const DEFAULT_API_URL = 'https://ai-stock-advisor-sp9b.onrender.com';
+const DEFAULT_API_URL = 'http://127.0.0.1:8000';
 
-const CurrencyConverterWidget = ({ isDarkMode }) => {
-  const [amount, setAmount] = useState('100');
+const CurrencyConverterWidget = ({ isDarkMode, apiUrl }) => {
+  const [amount, setAmount] = useState('1');
   const [fromCur, setFromCur] = useState('USD');
   const [toCur, setToCur] = useState('PKR');
   const [converted, setConverted] = useState(null);
+  const [rates, setRates] = useState({ USD: 1.0 });
+  const [loadingRates, setLoadingRates] = useState(false);
+  const [pickerType, setPickerType] = useState(null);
 
-  const rates = {
-    USD: 1.0,
-    PKR: 278.5,
-    INR: 83.5,
-    GBP: 0.78,
-    EUR: 0.92,
-    TRY: 33.1
-  };
+  const currencyOptions = [
+    { code: 'USD', label: 'USD • United States' },
+    { code: 'PKR', label: 'PKR • Pakistan' },
+    { code: 'INR', label: 'INR • India' },
+    { code: 'GBP', label: 'GBP • United Kingdom' },
+    { code: 'EUR', label: 'EUR • Eurozone' },
+    { code: 'TRY', label: 'TRY • Turkey' },
+    { code: 'CAD', label: 'CAD • Canada' },
+    { code: 'JPY', label: 'JPY • Japan' },
+    { code: 'AUD', label: 'AUD • Australia' },
+    { code: 'SAR', label: 'SAR • Saudi Arabia' },
+    { code: 'AED', label: 'AED • UAE' },
+    { code: 'CNY', label: 'CNY • China' },
+    { code: 'QAR', label: 'QAR • Qatar' },
+    { code: 'EGP', label: 'EGP • Egypt' },
+    { code: 'CHF', label: 'CHF • Switzerland' },
+    { code: 'HKD', label: 'HKD • Hong Kong' }
+  ];
+  const allCurrencies = currencyOptions.map(item => item.code);
+
+  useEffect(() => {
+    const loadRates = async () => {
+      try {
+        setLoadingRates(true);
+        const res = await fetch(`${apiUrl}/api/macro?market=US`);
+        if (!res.ok) throw new Error('Failed to load FX rates');
+        const data = await res.json();
+        const forex = (data?.forex || []).reduce((acc, item) => {
+          const [base, quote] = item.pair.split('/');
+          const rate = Number(item.rate);
+          if (!Number.isFinite(rate)) return acc;
+          if (base === 'USD') acc[quote] = 1 / rate;
+          if (quote === 'USD') acc[base] = rate;
+          return acc;
+        }, { USD: 1.0 });
+
+        const fallbackRates = {
+          USD: 1.0,
+          PKR: 1 / 278.5,
+          INR: 1 / 83.5,
+          GBP: 1 / 0.78,
+          EUR: 1 / 0.92,
+          TRY: 1 / 33.1,
+          CAD: 1 / 1.37,
+          JPY: 1 / 154.0,
+          AUD: 1 / 1.50,
+          SAR: 1 / 3.75,
+          AED: 1 / 3.67,
+          CNY: 1 / 7.25,
+          QAR: 1 / 3.64,
+          EGP: 1 / 48.5,
+          CHF: 1 / 0.90,
+          HKD: 1 / 7.80
+        };
+
+        setRates({ ...fallbackRates, ...forex });
+      } catch (e) {
+        console.warn('Currency converter using fallback rates', e);
+        setRates({
+          USD: 1.0,
+          PKR: 1 / 278.5,
+          INR: 1 / 83.5,
+          GBP: 1 / 0.78,
+          EUR: 1 / 0.92,
+          TRY: 1 / 33.1,
+          CAD: 1 / 1.37,
+          JPY: 1 / 154.0,
+          AUD: 1 / 1.50,
+          SAR: 1 / 3.75,
+          AED: 1 / 3.67,
+          CNY: 1 / 7.25,
+          QAR: 1 / 3.64,
+          EGP: 1 / 48.5,
+          CHF: 1 / 0.90,
+          HKD: 1 / 7.80
+        });
+      } finally {
+        setLoadingRates(false);
+      }
+    };
+
+    if (apiUrl) loadRates();
+  }, [apiUrl]);
 
   const handleConvert = () => {
     const amt = parseFloat(amount);
@@ -289,14 +367,16 @@ const CurrencyConverterWidget = ({ isDarkMode }) => {
       setConverted(0);
       return;
     }
-    const valInUSD = amt / rates[fromCur];
-    const valInTarget = valInUSD * rates[toCur];
+    const fromRate = rates[fromCur] || 1;
+    const toRate = rates[toCur] || 1;
+    const valInUSD = amt * fromRate;
+    const valInTarget = valInUSD / toRate;
     setConverted(valInTarget);
   };
 
   useEffect(() => {
     handleConvert();
-  }, [amount, fromCur, toCur]);
+  }, [amount, fromCur, toCur, rates]);
 
   return (
     <View style={[styles.sidebarCard, { backgroundColor: isDarkMode ? '#1F2937' : '#FFF' }]}>
@@ -317,45 +397,81 @@ const CurrencyConverterWidget = ({ isDarkMode }) => {
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
         <View style={{ width: '45%' }}>
           <Text style={[styles.sidebarInputLabel, { color: isDarkMode ? '#94A3B8' : '#64748B', marginBottom: 4 }]}>From</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
-            {['USD', 'PKR', 'INR', 'TRY'].map(cur => (
-              <TouchableOpacity 
-                key={cur}
-                onPress={() => setFromCur(cur)}
-                style={[
-                  styles.curSelectBtn, 
-                  fromCur === cur && { backgroundColor: '#00D2FF' },
-                  fromCur !== cur && { backgroundColor: isDarkMode ? '#374151' : '#E2E8F0' }
-                ]}
-              >
-                <Text style={{ fontSize: 10, color: fromCur === cur ? '#0B0F19' : (isDarkMode ? '#FFF' : '#0F172A'), fontWeight: 'bold' }}>{cur}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <TouchableOpacity
+            onPress={() => setPickerType('from')}
+            style={[styles.sidebarInput, {
+              backgroundColor: isDarkMode ? '#374151' : '#F1F5F9',
+              borderColor: isDarkMode ? '#4B5563' : '#CBD5E1',
+              paddingVertical: 10,
+              justifyContent: 'center'
+            }]}
+          >
+            <Text style={{ color: isDarkMode ? '#FFF' : '#0F172A', fontWeight: 'bold' }}>
+              {currencyOptions.find(item => item.code === fromCur)?.label || fromCur}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={{ width: '45%' }}>
           <Text style={[styles.sidebarInputLabel, { color: isDarkMode ? '#94A3B8' : '#64748B', marginBottom: 4 }]}>To</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
-            {['USD', 'PKR', 'INR', 'TRY'].map(cur => (
-              <TouchableOpacity 
-                key={cur}
-                onPress={() => setToCur(cur)}
-                style={[
-                  styles.curSelectBtn, 
-                  toCur === cur && { backgroundColor: '#00D2FF' },
-                  toCur !== cur && { backgroundColor: isDarkMode ? '#374151' : '#E2E8F0' }
-                ]}
-              >
-                <Text style={{ fontSize: 10, color: toCur === cur ? '#0B0F19' : (isDarkMode ? '#FFF' : '#0F172A'), fontWeight: 'bold' }}>{cur}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <TouchableOpacity
+            onPress={() => setPickerType('to')}
+            style={[styles.sidebarInput, {
+              backgroundColor: isDarkMode ? '#374151' : '#F1F5F9',
+              borderColor: isDarkMode ? '#4B5563' : '#CBD5E1',
+              paddingVertical: 10,
+              justifyContent: 'center'
+            }]}
+          >
+            <Text style={{ color: isDarkMode ? '#FFF' : '#0F172A', fontWeight: 'bold' }}>
+              {currencyOptions.find(item => item.code === toCur)?.label || toCur}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
+      <Modal
+        transparent
+        visible={pickerType !== null}
+        animationType="fade"
+        onRequestClose={() => setPickerType(null)}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)' }}>
+          <View style={{ width: '86%', maxHeight: '70%', backgroundColor: isDarkMode ? '#111827' : '#FFF', borderRadius: 14, padding: 16 }}>
+            <Text style={{ color: isDarkMode ? '#00D2FF' : '#0284C7', fontSize: 16, fontWeight: 'bold', marginBottom: 10 }}>
+              Select currency
+            </Text>
+            <ScrollView style={{ maxHeight: 280 }}>
+              {currencyOptions.map(option => (
+                <TouchableOpacity
+                  key={option.code}
+                  onPress={() => {
+                    if (pickerType === 'from') setFromCur(option.code);
+                    if (pickerType === 'to') setToCur(option.code);
+                    setPickerType(null);
+                  }}
+                  style={{
+                    paddingVertical: 10,
+                    borderBottomWidth: 1,
+                    borderBottomColor: isDarkMode ? '#374151' : '#E2E8F0'
+                  }}
+                >
+                  <Text style={{ color: isDarkMode ? '#FFF' : '#0F172A', fontWeight: 'bold' }}>{option.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              onPress={() => setPickerType(null)}
+              style={{ marginTop: 10, alignSelf: 'flex-end' }}
+            >
+              <Text style={{ color: '#00D2FF', fontWeight: 'bold' }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <View style={[styles.resultBox, { backgroundColor: isDarkMode ? '#111827' : '#F8FAFC', borderColor: isDarkMode ? '#374151' : '#E2E8F0' }]}>
-        <Text style={{ color: isDarkMode ? '#94A3B8' : '#64748B', fontSize: 11 }}>Result</Text>
+        <Text style={{ color: isDarkMode ? '#94A3B8' : '#64748B', fontSize: 11 }}>{loadingRates ? 'Refreshing rates…' : 'Result'}</Text>
         <Text style={{ color: isDarkMode ? '#10B981' : '#059669', fontSize: 14, fontWeight: 'bold', marginTop: 2 }}>
           {parseFloat(amount || 0).toLocaleString()} {fromCur} = 
         </Text>
@@ -937,7 +1053,7 @@ export default function App() {
               </View>
 
               {/* Currency Converter Widget */}
-              <CurrencyConverterWidget isDarkMode={isDarkMode} />
+              <CurrencyConverterWidget isDarkMode={isDarkMode} apiUrl={apiUrl} />
             </ScrollView>
           </SafeAreaView>
         </Animated.View>
