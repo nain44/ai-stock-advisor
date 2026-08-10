@@ -765,6 +765,67 @@ def fetch_market_news(market: str = "PK") -> list:
         "TR": "Borsa Istanbul OR Turkish stocks"
     }
 
+    regional_feed_map = {
+        "PK": [
+            "https://www.dawn.com/news/feed",
+            "https://www.brecorder.com/feed",
+            "https://www.thenews.com.pk/rss/1/1"
+        ],
+        "IN": [
+            "https://timesofindia.indiatimes.com/rssfeedstopstories.cms",
+            "https://www.thehindu.com/feeder/default.rss",
+            "https://www.financialexpress.com/feed/"
+        ],
+        "US": [
+            "https://feeds.feedburner.com/Reuters/BusinessNews",
+            "https://www.wsj.com/xml/rss/3_7014.xml"
+        ],
+        "UK": [
+            "https://feeds.feedburner.com/ft/topstories",
+            "https://www.reutersagency.com/feed/?best-sectors=markets"
+        ],
+        "CA": [
+            "https://www.reuters.com/world/americas/canada/rss",
+            "https://financialpost.com/feed"
+        ],
+        "JP": [
+            "https://www.reuters.com/world/asia/japan/rss",
+            "https://www.nikkei.com/rss/"
+        ],
+        "DE": [
+            "https://www.reuters.com/world/europe/germany/rss",
+            "https://www.handelsblatt.com/rss"
+        ],
+        "AU": [
+            "https://www.reuters.com/world/asia-pacific/australia/rss",
+            "https://www.afr.com/rss"
+        ],
+        "SA": [
+            "https://www.reuters.com/world/middle-east/saudi-arabia/rss",
+            "https://www.arabnews.com/rss"
+        ],
+        "AE": [
+            "https://www.reuters.com/world/middle-east/uae/rss",
+            "https://www.thenationalnews.com/feeds/"
+        ],
+        "CN": [
+            "https://www.reuters.com/world/china/rss",
+            "https://www.scmp.com/rss"
+        ],
+        "QA": [
+            "https://www.reuters.com/world/middle-east/qatar/rss",
+            "https://www.gulf-times.com/rss"
+        ],
+        "EG": [
+            "https://www.reuters.com/world/middle-east/egypt/rss",
+            "https://english.ahram.org.eg/NewsRss.aspx"
+        ],
+        "TR": [
+            "https://www.reuters.com/world/middle-east/turkey/rss",
+            "https://www.dailysabah.com/rss"
+        ]
+    }
+
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
@@ -812,7 +873,13 @@ def fetch_market_news(market: str = "PK") -> list:
         local_query = local_query_map.get(market_upper, "stock market")
         google_url = f"https://news.google.com/rss/search?q={quote(local_query)}&hl=en-US&gl=US&ceid=US:en"
 
-        for source_name, url in [("Google News", google_url), ("Yahoo Finance", yahoo_url)]:
+        sources = []
+        if market_upper in regional_feed_map:
+            for feed_url in regional_feed_map[market_upper]:
+                sources.append((f"Regional Feed {market_upper}", feed_url))
+        sources.extend([("Google News", google_url), ("Yahoo Finance", yahoo_url)])
+
+        for source_name, url in sources:
             try:
                 response = httpx.get(url, headers=headers, timeout=10.0)
                 if response.status_code == 200:
@@ -821,7 +888,7 @@ def fetch_market_news(market: str = "PK") -> list:
                         if key and key not in seen_links:
                             seen_links.add(key)
                             news_list.append(item)
-                        if len(news_list) >= 8:
+                        if len(news_list) >= 10:
                             break
             except Exception as e:
                 print(f"[fetch_market_news] Error for {source_name}: {e}")
