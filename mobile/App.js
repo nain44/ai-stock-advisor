@@ -266,7 +266,7 @@ const DEFAULT_CONFIG = {
 // Production bootstrap endpoint. The server can supply a replacement endpoint
 // through /api/settings, which is managed in the admin dashboard.
 // Default to the live backend so the Expo app connects without needing the local server.
-const DEFAULT_API_URL = 'http://127.0.0.1:8000';
+const DEFAULT_API_URL = 'https://ai-stock-advisor-sp9b.onrender.com';
 
 const CurrencyConverterWidget = ({ isDarkMode, apiUrl }) => {
   const [amount, setAmount] = useState('1');
