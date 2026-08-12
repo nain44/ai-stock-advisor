@@ -195,12 +195,23 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
     const fetchAnalysis = async (ticker) => {
       try {
         setLoadingAnalysis(true);
-        const analysisRes = await fetch(`${apiUrl}/api/analysis/${ticker}?market=${market}`);
+        const quoteUrl = `${apiUrl}/api/quote/${encodeURIComponent(ticker)}?market=${encodeURIComponent(market)}`;
+        const analysisRes = await fetch(`${apiUrl}/api/analysis/${encodeURIComponent(ticker)}?market=${encodeURIComponent(market)}`);
         if (!analysisRes.ok) throw new Error("Failed to load analysis");
         const analysisData = await analysisRes.json();
         
         if (!ignore) {
-          setAnalysis(analysisData);
+          if (analysisData.quote) {
+            setAnalysis(analysisData);
+          } else {
+            const quoteRes = await fetch(quoteUrl);
+            if (quoteRes.ok) {
+              const quoteData = await quoteRes.json();
+              setAnalysis({ ...analysisData, quote: quoteData });
+            } else {
+              setAnalysis(analysisData);
+            }
+          }
           
           // Update signal in stocks list state to keep it synchronized!
           if (analysisData.recommendation?.recommendation) {
