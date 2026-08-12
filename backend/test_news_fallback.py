@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import patch
+from datetime import datetime
 
 import pandas as pd
 
@@ -160,6 +161,35 @@ class NewsFallbackTests(unittest.TestCase):
         self.assertEqual(quote["ldcp"], 583.1)
         self.assertEqual(quote["source"], "psx_history_fallback")
         self.assertTrue(quote.get("is_live", False))
+
+    def test_pk_cached_fallback_is_refreshed_when_psx_quote_recovers(self):
+        QUOTE_CACHE["PK:MEBL"] = (
+            datetime.now(),
+            {
+                "ticker": "MEBL",
+                "price": 599.61,
+                "source": "yahoo_pk_fallback",
+                "is_live": True,
+            },
+        )
+
+        live_df = pd.DataFrame([
+            {
+                "price": 591.13,
+                "change_pct": -1.41,
+                "volume_avg_30d": 1500000,
+                "pe_ratio": 6.2,
+                "dividend_yield": 7.4,
+                "sector": "Commercial Banks",
+            }
+        ])
+
+        with patch("data_fetcher.psxdata.quote", return_value=live_df):
+            quote = get_latest_quote("MEBL", market="PK")
+
+        self.assertIsNotNone(quote)
+        self.assertEqual(quote["price"], 591.13)
+        self.assertEqual(quote["source"], "live")
 
     def test_non_pk_quote_uses_yahoo_pipeline(self):
         yahoo_quote = {

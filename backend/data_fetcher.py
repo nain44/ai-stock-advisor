@@ -712,7 +712,9 @@ def get_latest_quote(ticker: str, market: str = "PK"):
     if cache_key in QUOTE_CACHE:
         cache_time, cached_data = QUOTE_CACHE[cache_key]
         if now - cache_time < CACHE_DURATION:
-            return cached_data
+            # For PK, do not keep serving cached fallback quotes once provider health recovers.
+            if market_upper != "PK" or cached_data.get("source") == "live":
+                return cached_data
     else:
         prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
             
