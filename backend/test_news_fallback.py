@@ -6,9 +6,11 @@ import pandas as pd
 from data_fetcher import (
     fetch_market_news,
     generate_historical_data,
+    get_yahoo_quote,
     get_latest_quote,
     MARKET_NEWS_CACHE,
     QUOTE_CACHE,
+    STATIC_PROFILE_CACHE,
 )
 
 
@@ -16,6 +18,7 @@ class NewsFallbackTests(unittest.TestCase):
     def setUp(self):
         MARKET_NEWS_CACHE.clear()
         QUOTE_CACHE.clear()
+        STATIC_PROFILE_CACHE.clear()
 
     def test_returns_fallback_news_when_live_feed_is_empty(self):
         class EmptyResponse:
@@ -150,6 +153,37 @@ class NewsFallbackTests(unittest.TestCase):
         self.assertEqual(float(df.iloc[-1]["Close"]), 140.25)
         yahoo_hist_mock.assert_called_once_with("RY.TO", 30)
         psx_stocks_mock.assert_not_called()
+
+    def test_yahoo_dividend_yield_not_overscaled_when_already_percent(self):
+        fake_history = pd.DataFrame([
+            {"Close": 293.12, "High": 294.0, "Low": 292.1, "Volume": 500000},
+            {"Close": 296.61, "High": 296.7, "Low": 292.51, "Volume": 517912},
+        ])
+
+        class FakeTicker:
+            def __init__(self):
+                self.info = {
+                    "symbol": "RY.TO",
+                    "longName": "Royal Bank of Canada",
+                    "sector": "Financial Services",
+                    "trailingPE": 19.27,
+                    "priceToBook": 3.18,
+                    "debtToEquity": 0.0,
+                    "returnOnEquity": 0.162,
+                    "dividendYield": 2.39,
+                    "trailingEps": 15.39,
+                }
+                self.news = []
+
+            def history(self, period="5d"):
+                return fake_history
+
+        with patch("data_fetcher.yf.Ticker", return_value=FakeTicker()):
+            quote = get_yahoo_quote("RY.TO")
+
+        self.assertIsNotNone(quote)
+        self.assertEqual(quote["ticker"], "RY.TO")
+        self.assertEqual(quote["div_yield"], 2.39)
 
 
 if __name__ == "__main__":

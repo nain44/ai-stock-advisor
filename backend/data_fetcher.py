@@ -404,6 +404,18 @@ def _normalize_global_ticker(ticker: str, market_upper: str) -> str:
         normalized = f"{normalized}{suffix}"
     return normalized
 
+
+def _normalize_percent_value(raw_value) -> float:
+    """Normalize values that may be either decimal fractions (0.023) or percentages (2.3)."""
+    try:
+        value = float(raw_value or 0.0)
+    except Exception:
+        return 0.0
+
+    if abs(value) <= 1.0:
+        return round(value * 100, 2)
+    return round(value, 2)
+
 def get_yahoo_quote(ticker: str) -> dict:
     """
     Queries Yahoo Finance and maps key metrics to our standardized quote dictionary.
@@ -435,7 +447,7 @@ def get_yahoo_quote(ticker: str) -> dict:
                     "pb_ratio": round(info.get("priceToBook"), 2) if info.get("priceToBook") else 1.0,
                     "debt_equity": round(info.get("debtToEquity"), 2) if info.get("debtToEquity") else 0.0,
                     "roe": round((info.get("returnOnEquity") or 0.0) * 100, 2),
-                    "div_yield": round((info.get("dividendYield") or 0.0) * 100, 2),
+                    "div_yield": _normalize_percent_value(info.get("dividendYield")),
                     "description": info.get("longBusinessSummary", "A listed stock on the US exchange."),
                     "eps": round(info.get("trailingEps") or 0.0, 2)
                 }
