@@ -794,6 +794,60 @@ def get_latest_quote(ticker: str, market: str = "PK"):
             except Exception as yahoo_err:
                 print(f"Yahoo PK fallback failed for {ticker}: {yahoo_err}")
 
+            # If direct quote and Yahoo both fail, try recent PSX close from history.
+            try:
+                hist_start = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
+                hist_df = psxdata.stocks(ticker, start=hist_start)
+                if not hist_df.empty and "close" in hist_df.columns:
+                    # Ensure we use the most recent row by trading date.
+                    if "date" in hist_df.columns:
+                        hist_df = hist_df.sort_values(by="date").reset_index(drop=True)
+                    last_row = hist_df.iloc[-1]
+                    current_price = float(last_row.get("close", 0.0))
+                    if current_price > 0:
+                        prev_close = current_price
+                        if len(hist_df) > 1:
+                            prev_close = float(hist_df.iloc[-2].get("close", current_price))
+
+                        change = round(current_price - prev_close, 2)
+                        pct_change = (change / prev_close) * 100 if prev_close else 0.0
+
+                        profile = get_stock_profile(ticker) or {
+                            "name": ticker,
+                            "sector": "Unknown",
+                            "pe_ratio": 0.0,
+                            "roe": 0.0,
+                            "div_yield": 0.0,
+                            "recent_news": [],
+                            "volume_avg": 0,
+                        }
+
+                        hist_fallback = {
+                            "ticker": ticker,
+                            "name": profile.get("name", ticker),
+                            "sector": profile.get("sector", "Unknown"),
+                            "price": round(current_price, 2),
+                            "change": change,
+                            "pct_change": f"{round(pct_change, 2)}%",
+                            "is_up": change >= 0,
+                            "volume": int(profile.get("volume_avg", 0)),
+                            "high": round(current_price * 1.01, 2),
+                            "low": round(current_price * 0.99, 2),
+                            "ldcp": round(prev_close, 2),
+                            "pe": float(profile.get("pe_ratio", 0.0)),
+                            "roe": float(profile.get("roe", 0.0)),
+                            "div_yield": float(profile.get("div_yield", 0.0)),
+                            "news": profile.get("recent_news", []),
+                            "timestamp": datetime.now().strftime("%I:%M:%S %p"),
+                            "source": "psx_history_fallback",
+                            "is_live": True,
+                        }
+                        QUOTE_CACHE[cache_key] = (now, hist_fallback)
+                        prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
+                        return hist_fallback
+            except Exception as hist_err:
+                print(f"PSX history fallback failed for {ticker}: {hist_err}")
+
             print(f"Returning profile fallback state for {ticker}.")
 
     profile = get_stock_profile(ticker)

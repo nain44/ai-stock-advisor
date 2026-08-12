@@ -89,17 +89,18 @@ class NewsFallbackTests(unittest.TestCase):
     def test_returns_profile_based_quote_when_live_quote_data_fails(self):
         with patch("data_fetcher.psxdata.quote", side_effect=Exception("quote unavailable")):
             with patch("data_fetcher.get_yahoo_quote", return_value=None):
-                with patch("data_fetcher.get_stock_profile", return_value={
-                    "name": "Mari Petroleum Company Limited",
-                    "sector": "Oil & Gas Exploration",
-                    "current_price": 710.0,
-                    "pe_ratio": 7.8,
-                    "roe": 44.5,
-                    "div_yield": 6.8,
-                    "recent_news": [{"title": "Mari announces updated guidance", "source": "Profile"}],
-                    "volume_avg": 250000,
-                }):
-                    quote = get_latest_quote("MARI", market="PK")
+                with patch("data_fetcher.psxdata.stocks", return_value=pd.DataFrame()):
+                    with patch("data_fetcher.get_stock_profile", return_value={
+                        "name": "Mari Petroleum Company Limited",
+                        "sector": "Oil & Gas Exploration",
+                        "current_price": 710.0,
+                        "pe_ratio": 7.8,
+                        "roe": 44.5,
+                        "div_yield": 6.8,
+                        "recent_news": [{"title": "Mari announces updated guidance", "source": "Profile"}],
+                        "volume_avg": 250000,
+                    }):
+                        quote = get_latest_quote("MARI", market="PK")
 
         self.assertIsNotNone(quote, "quote should fall back to a profile-based payload when live data is unavailable")
         self.assertEqual(quote["ticker"], "MARI")
@@ -141,6 +142,24 @@ class NewsFallbackTests(unittest.TestCase):
         self.assertTrue(quote.get("is_live", False))
         self.assertEqual(quote.get("source"), "yahoo_pk_fallback")
         yahoo_mock.assert_called_once_with("MEBL.KA")
+
+    def test_pk_uses_psx_history_fallback_when_quote_and_yahoo_fail(self):
+        hist_df = pd.DataFrame([
+            {"date": "2026-08-11", "close": 583.1},
+            {"date": "2026-08-12", "close": 589.25},
+        ])
+
+        with patch("data_fetcher.psxdata.quote", side_effect=Exception("psx quote down")):
+            with patch("data_fetcher.get_yahoo_quote", return_value=None):
+                with patch("data_fetcher.psxdata.stocks", return_value=hist_df):
+                    quote = get_latest_quote("MEBL", market="PK")
+
+        self.assertIsNotNone(quote)
+        self.assertEqual(quote["ticker"], "MEBL")
+        self.assertEqual(quote["price"], 589.25)
+        self.assertEqual(quote["ldcp"], 583.1)
+        self.assertEqual(quote["source"], "psx_history_fallback")
+        self.assertTrue(quote.get("is_live", False))
 
     def test_non_pk_quote_uses_yahoo_pipeline(self):
         yahoo_quote = {
