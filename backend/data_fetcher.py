@@ -380,6 +380,30 @@ def get_yahoo_historical(ticker: str, days: int) -> pd.DataFrame:
 STATIC_PROFILE_CACHE = {}
 PROFILE_CACHE_DURATION = timedelta(hours=24)
 
+MARKET_SUFFIX_MAP = {
+    "IN": ".NS",
+    "UK": ".L",
+    "CA": ".TO",
+    "JP": ".T",
+    "DE": ".DE",
+    "AU": ".AX",
+    "SA": ".SR",
+    "AE": ".DU",
+    "CN": ".SS",
+    "QA": ".QA",
+    "EG": ".CA",
+    "TR": ".IS",
+}
+
+
+def _normalize_global_ticker(ticker: str, market_upper: str) -> str:
+    """Append a market suffix for global symbols when needed."""
+    normalized = ticker.upper()
+    suffix = MARKET_SUFFIX_MAP.get(market_upper)
+    if suffix and "." not in normalized and "=" not in normalized and not normalized.endswith(suffix):
+        normalized = f"{normalized}{suffix}"
+    return normalized
+
 def get_yahoo_quote(ticker: str) -> dict:
     """
     Queries Yahoo Finance and maps key metrics to our standardized quote dictionary.
@@ -504,12 +528,8 @@ def generate_historical_data(ticker: str, days: int = 120, market: str = "PK") -
     """
     ticker = ticker.upper()
     market_upper = market.upper()
-    if market_upper in ["US", "IN", "UK"]:
-        if market_upper == "IN" and not ticker.endswith(".NS"):
-            ticker = f"{ticker}.NS"
-        elif market_upper == "UK" and not ticker.endswith(".L"):
-            ticker = f"{ticker}.L"
-            
+    if market_upper != "PK":
+        ticker = _normalize_global_ticker(ticker, market_upper)
         df = get_yahoo_historical(ticker, days)
         if not df.empty:
             return df
@@ -602,10 +622,8 @@ def get_latest_quote(ticker: str, market: str = "PK"):
     """
     ticker = ticker.upper()
     market_upper = market.upper()
-    if market_upper == "IN" and not ticker.endswith(".NS"):
-        ticker = f"{ticker}.NS"
-    elif market_upper == "UK" and not ticker.endswith(".L"):
-        ticker = f"{ticker}.L"
+    if market_upper != "PK":
+        ticker = _normalize_global_ticker(ticker, market_upper)
         
     now = datetime.now()
     cache_key = f"{market_upper}:{ticker}"
@@ -618,7 +636,7 @@ def get_latest_quote(ticker: str, market: str = "PK"):
     else:
         prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
             
-    if market_upper in ["US", "IN", "UK"]:
+    if market_upper != "PK":
         quote = get_yahoo_quote(ticker)
         if quote:
             QUOTE_CACHE[cache_key] = (now, quote)

@@ -3,7 +3,13 @@ from unittest.mock import patch
 
 import pandas as pd
 
-from data_fetcher import fetch_market_news, get_latest_quote, MARKET_NEWS_CACHE, QUOTE_CACHE
+from data_fetcher import (
+    fetch_market_news,
+    generate_historical_data,
+    get_latest_quote,
+    MARKET_NEWS_CACHE,
+    QUOTE_CACHE,
+)
 
 
 class NewsFallbackTests(unittest.TestCase):
@@ -96,6 +102,54 @@ class NewsFallbackTests(unittest.TestCase):
         self.assertEqual(quote["price"], 710.0)
         self.assertFalse(quote.get("is_live", True))
         self.assertEqual(quote["source"], "profile")
+
+    def test_non_pk_quote_uses_yahoo_pipeline(self):
+        yahoo_quote = {
+            "ticker": "RY.TO",
+            "name": "Royal Bank of Canada",
+            "sector": "Financial Services",
+            "price": 140.25,
+            "change": 0.8,
+            "pct_change": "0.57%",
+            "is_up": True,
+            "volume": 1000000,
+            "high": 141.0,
+            "low": 139.7,
+            "ldcp": 139.45,
+            "pe": 12.3,
+            "pb_ratio": 1.7,
+            "debt_equity": 0.0,
+            "roe": 14.2,
+            "div_yield": 3.8,
+            "description": "A listed stock on the TSX.",
+            "eps": 11.4,
+            "news": [],
+            "timestamp": "10:00:00 AM",
+        }
+
+        with patch("data_fetcher.get_yahoo_quote", return_value=yahoo_quote) as yahoo_mock:
+            with patch("data_fetcher.psxdata.quote") as psx_mock:
+                quote = get_latest_quote("RY", market="CA")
+
+        self.assertIsNotNone(quote)
+        self.assertEqual(quote["ticker"], "RY.TO")
+        self.assertEqual(quote["price"], 140.25)
+        yahoo_mock.assert_called_once_with("RY.TO")
+        psx_mock.assert_not_called()
+
+    def test_non_pk_historical_uses_yahoo_pipeline(self):
+        hist = pd.DataFrame([
+            {"Date": "2026-08-10", "Open": 139.0, "High": 141.0, "Low": 138.5, "Close": 140.25, "Volume": 1200000}
+        ])
+
+        with patch("data_fetcher.get_yahoo_historical", return_value=hist) as yahoo_hist_mock:
+            with patch("data_fetcher.psxdata.stocks") as psx_stocks_mock:
+                df = generate_historical_data("RY", 30, market="CA")
+
+        self.assertFalse(df.empty)
+        self.assertEqual(float(df.iloc[-1]["Close"]), 140.25)
+        yahoo_hist_mock.assert_called_once_with("RY.TO", 30)
+        psx_stocks_mock.assert_not_called()
 
 
 if __name__ == "__main__":
