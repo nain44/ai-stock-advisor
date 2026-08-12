@@ -405,6 +405,14 @@ def _normalize_global_ticker(ticker: str, market_upper: str) -> str:
     return normalized
 
 
+def _normalize_pk_ticker_for_yahoo(ticker: str) -> str:
+    """Map PK tickers to Yahoo PSX suffix when possible (e.g., MEBL -> MEBL.KA)."""
+    normalized = ticker.upper()
+    if "." not in normalized and "=" not in normalized:
+        return f"{normalized}.KA"
+    return normalized
+
+
 def _normalize_percent_value(raw_value) -> float:
     """Normalize values that may be either decimal fractions (0.023) or percentages (2.3)."""
     try:
@@ -770,7 +778,23 @@ def get_latest_quote(ticker: str, market: str = "PK"):
             prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
             return result
         except Exception as e:
-            print(f"Error fetching latest quote for {ticker} from psxdata: {e}. Returning profile fallback state.")
+            print(f"Error fetching latest quote for {ticker} from psxdata: {e}. Trying Yahoo PK fallback.")
+
+            # Try Yahoo PK symbol before falling back to static profile values.
+            try:
+                yahoo_ticker = _normalize_pk_ticker_for_yahoo(ticker)
+                yahoo_quote = get_yahoo_quote(yahoo_ticker)
+                if yahoo_quote:
+                    yahoo_quote["ticker"] = ticker
+                    yahoo_quote["source"] = "yahoo_pk_fallback"
+                    yahoo_quote["is_live"] = True
+                    QUOTE_CACHE[cache_key] = (now, yahoo_quote)
+                    prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
+                    return yahoo_quote
+            except Exception as yahoo_err:
+                print(f"Yahoo PK fallback failed for {ticker}: {yahoo_err}")
+
+            print(f"Returning profile fallback state for {ticker}.")
 
     profile = get_stock_profile(ticker)
     if profile:

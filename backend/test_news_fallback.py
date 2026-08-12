@@ -88,23 +88,59 @@ class NewsFallbackTests(unittest.TestCase):
 
     def test_returns_profile_based_quote_when_live_quote_data_fails(self):
         with patch("data_fetcher.psxdata.quote", side_effect=Exception("quote unavailable")):
-            with patch("data_fetcher.get_stock_profile", return_value={
-                "name": "Mari Petroleum Company Limited",
-                "sector": "Oil & Gas Exploration",
-                "current_price": 710.0,
-                "pe_ratio": 7.8,
-                "roe": 44.5,
-                "div_yield": 6.8,
-                "recent_news": [{"title": "Mari announces updated guidance", "source": "Profile"}],
-                "volume_avg": 250000,
-            }):
-                quote = get_latest_quote("MARI", market="PK")
+            with patch("data_fetcher.get_yahoo_quote", return_value=None):
+                with patch("data_fetcher.get_stock_profile", return_value={
+                    "name": "Mari Petroleum Company Limited",
+                    "sector": "Oil & Gas Exploration",
+                    "current_price": 710.0,
+                    "pe_ratio": 7.8,
+                    "roe": 44.5,
+                    "div_yield": 6.8,
+                    "recent_news": [{"title": "Mari announces updated guidance", "source": "Profile"}],
+                    "volume_avg": 250000,
+                }):
+                    quote = get_latest_quote("MARI", market="PK")
 
         self.assertIsNotNone(quote, "quote should fall back to a profile-based payload when live data is unavailable")
         self.assertEqual(quote["ticker"], "MARI")
         self.assertEqual(quote["price"], 710.0)
         self.assertFalse(quote.get("is_live", True))
         self.assertEqual(quote["source"], "profile")
+
+    def test_pk_uses_yahoo_fallback_when_psx_quote_fails(self):
+        yahoo_quote = {
+            "ticker": "MEBL.KA",
+            "name": "Meezan Bank Limited",
+            "sector": "Financial Services",
+            "price": 589.25,
+            "change": 4.75,
+            "pct_change": "0.81%",
+            "is_up": True,
+            "volume": 600000,
+            "high": 592.0,
+            "low": 581.4,
+            "ldcp": 584.5,
+            "pe": 6.2,
+            "pb_ratio": 2.1,
+            "debt_equity": 0.0,
+            "roe": 48.2,
+            "div_yield": 7.4,
+            "description": "PK listed bank",
+            "eps": 35.5,
+            "news": [],
+            "timestamp": "10:00:00 AM",
+        }
+
+        with patch("data_fetcher.psxdata.quote", side_effect=Exception("psx down")):
+            with patch("data_fetcher.get_yahoo_quote", return_value=yahoo_quote) as yahoo_mock:
+                quote = get_latest_quote("MEBL", market="PK")
+
+        self.assertIsNotNone(quote)
+        self.assertEqual(quote["ticker"], "MEBL")
+        self.assertEqual(quote["price"], 589.25)
+        self.assertTrue(quote.get("is_live", False))
+        self.assertEqual(quote.get("source"), "yahoo_pk_fallback")
+        yahoo_mock.assert_called_once_with("MEBL.KA")
 
     def test_non_pk_quote_uses_yahoo_pipeline(self):
         yahoo_quote = {
