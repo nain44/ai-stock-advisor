@@ -1,4 +1,7 @@
-import json
-import data_fetcher
-q = data_fetcher.get_latest_quote('MARI', market='PK')
-print(json.dumps(q, indent=2)[:4000])
+import httpx
+try:
+    resp = httpx.get("https://psxterminal.com/api/market-data", timeout=10.0)
+    print("Status:", resp.status_code)
+    print("Content:", resp.text)
+except Exception as e:
+    print("Error:", e)

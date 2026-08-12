@@ -1,10 +1,49 @@
 import math
+import os
 import random
 from datetime import datetime, timedelta, timezone
 import pandas as pd
 import numpy as np
 import psxdata
 import yfinance as yf
+
+_psx_proxy_configured = False
+
+
+def _configure_psx_proxy():
+    """Route psxdata's PSX requests through a proxy if PSX_PROXY_URL is set.
+
+    PSX_PROXY_URL should be a standard proxy URL, e.g.
+    "http://user:pass@proxy-host:port". This lets a residential/rotating
+    proxy or scraping-API's proxy endpoint (ScraperAPI, Webshare,
+    ScrapingBee, etc.) bypass IP blocks on cloud hosts like Render, without
+    hardcoding any specific vendor. Only psxdata's own sessions are touched,
+    so Yahoo Finance calls are unaffected.
+    """
+    global _psx_proxy_configured
+    if _psx_proxy_configured:
+        return
+    _psx_proxy_configured = True
+
+    proxy_url = os.environ.get("PSX_PROXY_URL")
+    if not proxy_url:
+        return
+
+    proxies = {"http": proxy_url, "https": proxy_url}
+    try:
+        client = psxdata.client._client()
+        for attr in ("_historical", "_screener", "_symbols", "_indices", "_sectors",
+                     "_fundamentals", "_debt_market", "_eligible_scrips"):
+            scraper = getattr(client, attr, None)
+            session = getattr(scraper, "_session", None)
+            if session is not None:
+                session.proxies.update(proxies)
+        print("PSX proxy configured for psxdata requests.")
+    except Exception as e:
+        print(f"Could not configure PSX proxy: {e}")
+
+
+_configure_psx_proxy()
 
 # A dictionary of actual PSX companies with realistic profiles and current stats (approximate real-world figures)
 STOCK_PROFILES = {
