@@ -219,6 +219,36 @@ class NewsFallbackTests(unittest.TestCase):
 
         self.assertEqual(quote["div_yield"], 2.39)
 
+    def test_yahoo_sub_one_dividend_yield_percent_not_overscaled(self):
+        fake_history = pd.DataFrame([
+            {"Close": 300.0, "High": 303.0, "Low": 299.5, "Volume": 800000},
+            {"Close": 302.14, "High": 304.0, "Low": 301.2, "Volume": 850000},
+        ])
+
+        class FakeTicker:
+            def __init__(self):
+                self.info = {
+                    "symbol": "AAPL",
+                    "longName": "Apple Inc.",
+                    "sector": "Technology",
+                    "trailingPE": 28.0,
+                    "priceToBook": 40.0,
+                    "debtToEquity": 150.0,
+                    "returnOnEquity": 1.0,
+                    "dividendYield": 0.35,
+                    "dividendRate": 1.04,
+                    "trailingEps": 10.0,
+                }
+                self.news = []
+
+            def history(self, period="5d"):
+                return fake_history
+
+        with patch("data_fetcher.yf.Ticker", return_value=FakeTicker()):
+            quote = get_yahoo_quote("AAPL")
+
+        self.assertEqual(quote["div_yield"], 0.35)
+
 
 if __name__ == "__main__":
     unittest.main()

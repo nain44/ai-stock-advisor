@@ -417,16 +417,54 @@ def _normalize_percent_value(raw_value) -> float:
     return round(value, 2)
 
 
-def _sanitize_cached_dividend_yield(value: float) -> float:
-    """Correct stale cached values produced by legacy x100 normalization."""
+def _normalize_dividend_yield(raw_value, dividend_rate=None, price=None) -> float:
+    """
+    Normalize dividend yield from Yahoo, which may appear as fraction or percent.
+
+    Examples seen in the wild:
+    - 0.023 meaning 2.3%
+    - 2.39 meaning 2.39%
+    - stale cached values like 239.0 from legacy x100 logic
+    """
     try:
-        val = float(value or 0.0)
+        val = float(raw_value or 0.0)
     except Exception:
         return 0.0
 
-    # Dividend yield above 100% is almost certainly an over-scaled cached value.
+    # Legacy over-scale guard.
     if abs(val) > 100:
         return round(val / 100.0, 2)
+
+    # Additional guard for obviously over-scaled yields in equity contexts.
+    if abs(val) > 20:
+        return round(val / 100.0, 2)
+
+    # If we can estimate expected yield from dividend rate and price, prefer the closer representation.
+    try:
+        rate = float(dividend_rate) if dividend_rate is not None else None
+    except Exception:
+        rate = None
+
+    try:
+        px = float(price) if price is not None else None
+    except Exception:
+        px = None
+
+    if rate is not None and px and px > 0:
+        expected = (rate / px) * 100
+        if abs(val) <= 1.0:
+            as_fraction = val * 100.0
+            as_percent = val
+            chosen = as_fraction if abs(as_fraction - expected) <= abs(as_percent - expected) else as_percent
+            return round(chosen, 2)
+
+    # Fallback heuristic when no reliable cross-check is available.
+    if abs(val) <= 1.0:
+        # Values >= 0.2 are often already percentage points in Yahoo metadata.
+        if abs(val) >= 0.2:
+            return round(val, 2)
+        return round(val * 100.0, 2)
+
     return round(val, 2)
 
 def get_yahoo_quote(ticker: str) -> dict:
@@ -460,7 +498,9 @@ def get_yahoo_quote(ticker: str) -> dict:
                     "pb_ratio": round(info.get("priceToBook"), 2) if info.get("priceToBook") else 1.0,
                     "debt_equity": round(info.get("debtToEquity"), 2) if info.get("debtToEquity") else 0.0,
                     "roe": round((info.get("returnOnEquity") or 0.0) * 100, 2),
-                    "div_yield": _normalize_percent_value(info.get("dividendYield")),
+                    "raw_dividend_yield": info.get("dividendYield"),
+                    "dividend_rate": info.get("dividendRate"),
+                    "div_yield": _normalize_dividend_yield(info.get("dividendYield")),
                     "description": info.get("longBusinessSummary", "A listed stock on the US exchange."),
                     "eps": round(info.get("trailingEps") or 0.0, 2)
                 }
@@ -483,7 +523,7 @@ def get_yahoo_quote(ticker: str) -> dict:
         }
     else:
         # Backward compatibility for in-memory profiles cached before normalization fixes.
-        profile["div_yield"] = _sanitize_cached_dividend_yield(profile.get("div_yield", 0.0))
+        profile["div_yield"] = _normalize_dividend_yield(profile.get("div_yield", 0.0))
         
     # 4. Fetch live price, high, low, volume and yesterday's close using yfinance fast history API
     try:
@@ -538,7 +578,11 @@ def get_yahoo_quote(ticker: str) -> dict:
             "pb_ratio": profile["pb_ratio"],
             "debt_equity": profile["debt_equity"],
             "roe": profile["roe"],
-            "div_yield": profile["div_yield"],
+            "div_yield": _normalize_dividend_yield(
+                profile.get("raw_dividend_yield", profile.get("div_yield", 0.0)),
+                dividend_rate=profile.get("dividend_rate"),
+                price=price,
+            ),
             "description": profile["description"],
             "eps": profile["eps"],
             "news": news_items,
