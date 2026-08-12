@@ -782,21 +782,7 @@ def get_latest_quote(ticker: str, market: str = "PK"):
         except Exception as e:
             print(f"Error fetching latest quote for {ticker} from psxdata: {e}. Trying Yahoo PK fallback.")
 
-            # Try Yahoo PK symbol before falling back to static profile values.
-            try:
-                yahoo_ticker = _normalize_pk_ticker_for_yahoo(ticker)
-                yahoo_quote = get_yahoo_quote(yahoo_ticker)
-                if yahoo_quote:
-                    yahoo_quote["ticker"] = ticker
-                    yahoo_quote["source"] = "yahoo_pk_fallback"
-                    yahoo_quote["is_live"] = True
-                    QUOTE_CACHE[cache_key] = (now, yahoo_quote)
-                    prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
-                    return yahoo_quote
-            except Exception as yahoo_err:
-                print(f"Yahoo PK fallback failed for {ticker}: {yahoo_err}")
-
-            # If direct quote and Yahoo both fail, try recent PSX close from history.
+            # Prefer recent PSX close first so fallback stays aligned with PSX pricing.
             try:
                 hist_start = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
                 hist_df = psxdata.stocks(ticker, start=hist_start)
@@ -849,6 +835,20 @@ def get_latest_quote(ticker: str, market: str = "PK"):
                         return hist_fallback
             except Exception as hist_err:
                 print(f"PSX history fallback failed for {ticker}: {hist_err}")
+
+            # Try Yahoo PK symbol before falling back to static profile values.
+            try:
+                yahoo_ticker = _normalize_pk_ticker_for_yahoo(ticker)
+                yahoo_quote = get_yahoo_quote(yahoo_ticker)
+                if yahoo_quote:
+                    yahoo_quote["ticker"] = ticker
+                    yahoo_quote["source"] = "yahoo_pk_fallback"
+                    yahoo_quote["is_live"] = True
+                    QUOTE_CACHE[cache_key] = (now, yahoo_quote)
+                    prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
+                    return yahoo_quote
+            except Exception as yahoo_err:
+                print(f"Yahoo PK fallback failed for {ticker}: {yahoo_err}")
 
             print(f"Returning profile fallback state for {ticker}.")
 

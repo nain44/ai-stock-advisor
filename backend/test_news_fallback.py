@@ -135,7 +135,8 @@ class NewsFallbackTests(unittest.TestCase):
 
         with patch("data_fetcher.psxdata.quote", side_effect=Exception("psx down")):
             with patch("data_fetcher.get_yahoo_quote", return_value=yahoo_quote) as yahoo_mock:
-                quote = get_latest_quote("MEBL", market="PK")
+                with patch("data_fetcher.psxdata.stocks", return_value=pd.DataFrame()):
+                    quote = get_latest_quote("MEBL", market="PK")
 
         self.assertIsNotNone(quote)
         self.assertEqual(quote["ticker"], "MEBL")
@@ -143,6 +144,45 @@ class NewsFallbackTests(unittest.TestCase):
         self.assertTrue(quote.get("is_live", False))
         self.assertEqual(quote.get("source"), "yahoo_pk_fallback")
         yahoo_mock.assert_called_once_with("MEBL.KA")
+
+    def test_pk_prefers_psx_history_before_yahoo_fallback(self):
+        hist_df = pd.DataFrame([
+            {"date": "2026-08-11", "close": 583.1},
+            {"date": "2026-08-12", "close": 591.13},
+        ])
+
+        yahoo_quote = {
+            "ticker": "MEBL.KA",
+            "name": "Meezan Bank Limited",
+            "sector": "Financial Services",
+            "price": 599.61,
+            "change": 0.0,
+            "pct_change": "0.0%",
+            "is_up": True,
+            "volume": 600000,
+            "high": 602.0,
+            "low": 590.0,
+            "ldcp": 599.0,
+            "pe": 6.2,
+            "pb_ratio": 2.1,
+            "debt_equity": 0.0,
+            "roe": 48.2,
+            "div_yield": 7.4,
+            "description": "PK listed bank",
+            "eps": 35.5,
+            "news": [],
+            "timestamp": "10:00:00 AM",
+        }
+
+        with patch("data_fetcher.psxdata.quote", side_effect=Exception("psx down")):
+            with patch("data_fetcher.psxdata.stocks", return_value=hist_df):
+                with patch("data_fetcher.get_yahoo_quote", return_value=yahoo_quote) as yahoo_mock:
+                    quote = get_latest_quote("MEBL", market="PK")
+
+        self.assertIsNotNone(quote)
+        self.assertEqual(quote["price"], 591.13)
+        self.assertEqual(quote["source"], "psx_history_fallback")
+        yahoo_mock.assert_not_called()
 
     def test_pk_uses_psx_history_fallback_when_quote_and_yahoo_fail(self):
         hist_df = pd.DataFrame([
