@@ -185,6 +185,40 @@ class NewsFallbackTests(unittest.TestCase):
         self.assertEqual(quote["ticker"], "RY.TO")
         self.assertEqual(quote["div_yield"], 2.39)
 
+    def test_cached_legacy_overscaled_dividend_yield_is_sanitized(self):
+        fake_history = pd.DataFrame([
+            {"Close": 293.12, "High": 294.0, "Low": 292.1, "Volume": 500000},
+            {"Close": 296.61, "High": 296.7, "Low": 292.51, "Volume": 517912},
+        ])
+
+        STATIC_PROFILE_CACHE["RY.TO"] = (
+            pd.Timestamp.now(),
+            {
+                "name": "Royal Bank of Canada",
+                "sector": "Financial Services",
+                "pe": 19.27,
+                "pb_ratio": 3.18,
+                "debt_equity": 0.0,
+                "roe": 16.2,
+                "div_yield": 239.0,
+                "description": "Cached profile",
+                "eps": 15.39,
+            },
+        )
+
+        class FakeTicker:
+            def __init__(self):
+                self.info = {"symbol": "RY.TO"}
+                self.news = []
+
+            def history(self, period="5d"):
+                return fake_history
+
+        with patch("data_fetcher.yf.Ticker", return_value=FakeTicker()):
+            quote = get_yahoo_quote("RY.TO")
+
+        self.assertEqual(quote["div_yield"], 2.39)
+
 
 if __name__ == "__main__":
     unittest.main()

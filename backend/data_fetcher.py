@@ -416,6 +416,19 @@ def _normalize_percent_value(raw_value) -> float:
         return round(value * 100, 2)
     return round(value, 2)
 
+
+def _sanitize_cached_dividend_yield(value: float) -> float:
+    """Correct stale cached values produced by legacy x100 normalization."""
+    try:
+        val = float(value or 0.0)
+    except Exception:
+        return 0.0
+
+    # Dividend yield above 100% is almost certainly an over-scaled cached value.
+    if abs(val) > 100:
+        return round(val / 100.0, 2)
+    return round(val, 2)
+
 def get_yahoo_quote(ticker: str) -> dict:
     """
     Queries Yahoo Finance and maps key metrics to our standardized quote dictionary.
@@ -468,6 +481,9 @@ def get_yahoo_quote(ticker: str) -> dict:
             "description": "A listed stock on the US exchange.",
             "eps": 5.0
         }
+    else:
+        # Backward compatibility for in-memory profiles cached before normalization fixes.
+        profile["div_yield"] = _sanitize_cached_dividend_yield(profile.get("div_yield", 0.0))
         
     # 4. Fetch live price, high, low, volume and yesterday's close using yfinance fast history API
     try:
