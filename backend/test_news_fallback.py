@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 
@@ -146,9 +146,11 @@ class NewsFallbackTests(unittest.TestCase):
         yahoo_mock.assert_called_once_with("MEBL.KA")
 
     def test_pk_prefers_psx_history_before_yahoo_fallback(self):
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
         hist_df = pd.DataFrame([
-            {"date": "2026-08-11", "close": 583.1},
-            {"date": "2026-08-12", "close": 591.13},
+            {"date": yesterday_str, "close": 583.1},
+            {"date": today_str, "close": 591.13},
         ])
 
         yahoo_quote = {
@@ -185,9 +187,11 @@ class NewsFallbackTests(unittest.TestCase):
         yahoo_mock.assert_not_called()
 
     def test_pk_uses_psx_history_fallback_when_quote_and_yahoo_fail(self):
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
         hist_df = pd.DataFrame([
-            {"date": "2026-08-11", "close": 583.1},
-            {"date": "2026-08-12", "close": 589.25},
+            {"date": yesterday_str, "close": 583.1},
+            {"date": today_str, "close": 589.25},
         ])
 
         with patch("data_fetcher.psxdata.quote", side_effect=Exception("psx quote down")):
@@ -201,6 +205,29 @@ class NewsFallbackTests(unittest.TestCase):
         self.assertEqual(quote["ldcp"], 583.1)
         self.assertEqual(quote["source"], "psx_history_fallback")
         self.assertTrue(quote.get("is_live", False))
+
+    def test_pk_history_fallback_marked_delayed_when_not_from_today(self):
+        # Skip this check on weekends since Friday's close is still the
+        # correct "latest" price and should not be flagged as delayed.
+        if datetime.now().weekday() >= 5:
+            self.skipTest("Not applicable on weekends")
+
+        stale_date = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
+        hist_df = pd.DataFrame([
+            {"date": (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d"), "close": 583.1},
+            {"date": stale_date, "close": 589.25},
+        ])
+
+        with patch("data_fetcher.psxdata.quote", side_effect=Exception("psx quote down")):
+            with patch("data_fetcher.get_yahoo_quote", return_value=None):
+                with patch("data_fetcher.psxdata.stocks", return_value=hist_df):
+                    quote = get_latest_quote("MEBL", market="PK")
+
+        self.assertIsNotNone(quote)
+        self.assertEqual(quote["price"], 589.25)
+        self.assertEqual(quote["price_date"], stale_date)
+        self.assertEqual(quote["source"], "psx_history_fallback_delayed")
+        self.assertFalse(quote.get("is_live", True))
 
     def test_pk_cached_fallback_is_refreshed_when_psx_quote_recovers(self):
         QUOTE_CACHE["PK:MEBL"] = (

@@ -625,7 +625,14 @@ def get_yahoo_quote(ticker: str) -> dict:
         change = round(price - prev_close, 2)
         pct_change = (change / prev_close) * 100 if prev_close > 0 else 0.0
         pct_change_str = f"{round(pct_change, 2)}%"
-        
+
+        # Track the actual trading day this price came from, so callers can tell
+        # a same-day live price apart from a stale/delayed prior-session close.
+        try:
+            price_date = pd.Timestamp(hist.index[-1]).strftime("%Y-%m-%d")
+        except Exception:
+            price_date = None
+
         # Fast news lookup
         news_items = []
         try:
@@ -666,7 +673,8 @@ def get_yahoo_quote(ticker: str) -> dict:
             "description": profile["description"],
             "eps": profile["eps"],
             "news": news_items,
-            "timestamp": datetime.now().strftime("%I:%M:%S %p")
+            "timestamp": datetime.now().strftime("%I:%M:%S %p"),
+            "price_date": price_date
         }
     except Exception as e:
         print(f"Error fetching live fast quote for {ticker}: {e}. Falling back to simulation.")
@@ -872,6 +880,17 @@ def get_latest_quote(ticker: str, market: str = "PK"):
                         change = round(current_price - prev_close, 2)
                         pct_change = (change / prev_close) * 100 if prev_close else 0.0
 
+                        # Only treat this as a live-equivalent price if it's actually
+                        # today's close; otherwise it's a prior session's stale price.
+                        price_date = None
+                        if "date" in hist_df.columns:
+                            try:
+                                price_date = pd.Timestamp(last_row.get("date")).strftime("%Y-%m-%d")
+                            except Exception:
+                                price_date = None
+                        today_str = datetime.now().strftime("%Y-%m-%d")
+                        is_stale = bool(price_date) and price_date != today_str and datetime.now().weekday() < 5
+
                         profile = get_stock_profile(ticker) or {
                             "name": ticker,
                             "sector": "Unknown",
@@ -899,8 +918,9 @@ def get_latest_quote(ticker: str, market: str = "PK"):
                             "div_yield": float(profile.get("div_yield", 0.0)),
                             "news": profile.get("recent_news", []),
                             "timestamp": datetime.now().strftime("%I:%M:%S %p"),
-                            "source": "psx_history_fallback",
-                            "is_live": True,
+                            "price_date": price_date,
+                            "source": "psx_history_fallback_delayed" if is_stale else "psx_history_fallback",
+                            "is_live": not is_stale,
                         }
                         QUOTE_CACHE[cache_key] = (now, hist_fallback)
                         prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
@@ -914,8 +934,13 @@ def get_latest_quote(ticker: str, market: str = "PK"):
                 yahoo_quote = get_yahoo_quote(yahoo_ticker)
                 if yahoo_quote:
                     yahoo_quote["ticker"] = ticker
-                    yahoo_quote["source"] = "yahoo_pk_fallback"
-                    yahoo_quote["is_live"] = True
+                    # Yahoo's PSX mirror often lags a full trading day behind, so only
+                    # label this as fresh/live when the bar is actually from today.
+                    price_date = yahoo_quote.get("price_date")
+                    today_str = datetime.now().strftime("%Y-%m-%d")
+                    is_stale = bool(price_date) and price_date != today_str and datetime.now().weekday() < 5
+                    yahoo_quote["source"] = "yahoo_pk_fallback_delayed" if is_stale else "yahoo_pk_fallback"
+                    yahoo_quote["is_live"] = not is_stale
                     QUOTE_CACHE[cache_key] = (now, yahoo_quote)
                     prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
                     return yahoo_quote
