@@ -404,21 +404,14 @@ def search_stocks(query: str, market: Optional[str] = "PK"):
         return matches[:10]
         
     try:
-        # Fetch standard equities list
-        df = data_fetcher.psxdata.symbols()
-        equities = df[(df['is_debt'] == False) & (df['is_gem'] == False)]
-        
-        # Filter matching tickers or names
-        matches = equities[equities['symbol'].str.contains(query, na=False) | equities['name'].str.upper().str.contains(query, na=False)]
-        
-        results = []
-        for _, row in matches.head(10).iterrows():
-            results.append({
-                "ticker": row["symbol"],
-                "name": row["name"],
-                "sector": "PSX Equity"
-            })
-        return results
+        # Fetch standard equities list (cached, with static fallback if live fetch fails)
+        symbol_index = data_fetcher.get_pk_symbol_index()
+
+        matches = [
+            s for s in symbol_index
+            if query in s["ticker"].upper() or query in s["name"].upper()
+        ]
+        return matches[:10]
     except Exception as e:
         print(f"Error searching symbols: {e}")
         return []

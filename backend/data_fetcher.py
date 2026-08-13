@@ -287,6 +287,39 @@ def get_available_stocks():
     """Returns a list of all stocks available with their metadata."""
     return [{"ticker": symbol, "name": info["name"], "sector": info["sector"]} for symbol, info in STOCK_PROFILES.items()]
 
+
+PK_SYMBOLS_CACHE = {"time": None, "df": None}
+PK_SYMBOLS_CACHE_DURATION = timedelta(hours=6)
+
+
+def get_pk_symbol_index():
+    """
+    Returns a list of PK ticker/name/sector dicts for search/autocomplete.
+    Caches the live psxdata.symbols() listing and falls back to the static
+    STOCK_PROFILES list when the live fetch is unavailable (e.g. blocked or
+    rate-limited on the hosting provider).
+    """
+    now = datetime.now()
+    cached_time = PK_SYMBOLS_CACHE["time"]
+    if cached_time and now - cached_time < PK_SYMBOLS_CACHE_DURATION and PK_SYMBOLS_CACHE["df"] is not None:
+        return PK_SYMBOLS_CACHE["df"]
+
+    try:
+        df = psxdata.symbols()
+        equities = df[(df["is_debt"] == False) & (df["is_gem"] == False)]
+        results = [
+            {"ticker": row["symbol"], "name": row["name"], "sector": "PSX Equity"}
+            for _, row in equities.iterrows()
+        ]
+        if results:
+            PK_SYMBOLS_CACHE["time"] = now
+            PK_SYMBOLS_CACHE["df"] = results
+            return results
+    except Exception as e:
+        print(f"Error fetching live PSX symbol list: {e}. Falling back to static profile list.")
+
+    return get_available_stocks()
+
 def get_stock_profile(ticker: str):
     """Returns stock profile if exists, else None."""
     ticker = ticker.upper()
