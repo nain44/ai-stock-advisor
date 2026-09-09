@@ -4,48 +4,16 @@ import random
 from datetime import datetime, timedelta, timezone
 import pandas as pd
 import numpy as np
-import psxdata
-import yfinance as yf
 
-_psx_proxy_configured = False
+# NOTE: This module intentionally does NOT fetch or redistribute real
+# exchange market data (e.g. via psxdata/yfinance live quotes). PSX's
+# published data-licensing notice prohibits dissemination of its market
+# data feed (prices, bids/asks, volumes, index levels) through
+# applications without a license. All prices/volumes below are
+# synthetically generated for demonstration purposes only.
 
-
-def _configure_psx_proxy():
-    """Route psxdata's PSX requests through a proxy if PSX_PROXY_URL is set.
-
-    PSX_PROXY_URL should be a standard proxy URL, e.g.
-    "http://user:pass@proxy-host:port". This lets a residential/rotating
-    proxy or scraping-API's proxy endpoint (ScraperAPI, Webshare,
-    ScrapingBee, etc.) bypass IP blocks on cloud hosts like Render, without
-    hardcoding any specific vendor. Only psxdata's own sessions are touched,
-    so Yahoo Finance calls are unaffected.
-    """
-    global _psx_proxy_configured
-    if _psx_proxy_configured:
-        return
-    _psx_proxy_configured = True
-
-    proxy_url = os.environ.get("PSX_PROXY_URL")
-    if not proxy_url:
-        return
-
-    proxies = {"http": proxy_url, "https": proxy_url}
-    try:
-        client = psxdata.client._client()
-        for attr in ("_historical", "_screener", "_symbols", "_indices", "_sectors",
-                     "_fundamentals", "_debt_market", "_eligible_scrips"):
-            scraper = getattr(client, attr, None)
-            session = getattr(scraper, "_session", None)
-            if session is not None:
-                session.proxies.update(proxies)
-        print("PSX proxy configured for psxdata requests.")
-    except Exception as e:
-        print(f"Could not configure PSX proxy: {e}")
-
-
-_configure_psx_proxy()
-
-# A dictionary of actual PSX companies with realistic profiles and current stats (approximate real-world figures)
+# Baseline profiles used only as seeds for the simulation engine below —
+# not live/real market data.
 STOCK_PROFILES = {
     "MARI": {
         "name": "Mari Petroleum Company Limited",
@@ -288,36 +256,8 @@ def get_available_stocks():
     return [{"ticker": symbol, "name": info["name"], "sector": info["sector"]} for symbol, info in STOCK_PROFILES.items()]
 
 
-PK_SYMBOLS_CACHE = {"time": None, "df": None}
-PK_SYMBOLS_CACHE_DURATION = timedelta(hours=6)
-
-
 def get_pk_symbol_index():
-    """
-    Returns a list of PK ticker/name/sector dicts for search/autocomplete.
-    Caches the live psxdata.symbols() listing and falls back to the static
-    STOCK_PROFILES list when the live fetch is unavailable (e.g. blocked or
-    rate-limited on the hosting provider).
-    """
-    now = datetime.now()
-    cached_time = PK_SYMBOLS_CACHE["time"]
-    if cached_time and now - cached_time < PK_SYMBOLS_CACHE_DURATION and PK_SYMBOLS_CACHE["df"] is not None:
-        return PK_SYMBOLS_CACHE["df"]
-
-    try:
-        df = psxdata.symbols()
-        equities = df[(df["is_debt"] == False) & (df["is_gem"] == False)]
-        results = [
-            {"ticker": row["symbol"], "name": row["name"], "sector": "PSX Equity"}
-            for _, row in equities.iterrows()
-        ]
-        if results:
-            PK_SYMBOLS_CACHE["time"] = now
-            PK_SYMBOLS_CACHE["df"] = results
-            return results
-    except Exception as e:
-        print(f"Error fetching live PSX symbol list: {e}. Falling back to static profile list.")
-
+    """Returns the static list of PK ticker/name/sector dicts used for search/autocomplete."""
     return get_available_stocks()
 
 def get_stock_profile(ticker: str):
@@ -325,20 +265,47 @@ def get_stock_profile(ticker: str):
     ticker = ticker.upper()
     return STOCK_PROFILES.get(ticker)
 
-def _generate_simulated_historical_data(ticker: str, days: int = 120) -> pd.DataFrame:
+
+def _get_or_create_mock_profile(ticker: str, market: str = "PK") -> dict:
     """
-    Generates realistic historical price data (OHLCV) for a given stock ticker.
-    Maintains characteristics of the stock, including base price and typical volatility.
+    Returns a profile for the simulation engine to seed a price series from.
+    Uses the curated STOCK_PROFILES for known PK tickers; otherwise derives a
+    deterministic (ticker-seeded, so stable across calls) placeholder profile
+    for any other ticker/market. None of this reflects real market values.
     """
     ticker = ticker.upper()
     profile = get_stock_profile(ticker)
-    if not profile:
-        profile = {
-            "name": f"Mock {ticker}",
-            "current_price": 100.0,
-            "volume_avg": 100000
-        }
-        
+    if profile:
+        return profile
+
+    seed_val = sum(ord(c) for c in f"{market.upper()}:{ticker}")
+    rng = random.Random(seed_val)
+    base_price = round(rng.uniform(20, 500), 2)
+    return {
+        "name": f"{ticker} ({market.upper()})",
+        "sector": f"{market.upper()} Equity (Simulated)",
+        "current_price": base_price,
+        "pe_ratio": round(rng.uniform(6, 30), 1),
+        "roe": round(rng.uniform(5, 35), 1),
+        "div_yield": round(rng.uniform(0, 6), 1),
+        "debt_equity": round(rng.uniform(0, 80), 1),
+        "pb_ratio": round(rng.uniform(0.8, 6), 1),
+        "eps": round(base_price / rng.uniform(6, 30), 2),
+        "volume_avg": int(rng.uniform(50000, 1000000)),
+        "description": "Simulated equity for demonstration purposes only — not real market data.",
+        "recent_news": []
+    }
+
+
+def _generate_simulated_historical_data(ticker: str, days: int = 120, market: str = "PK") -> pd.DataFrame:
+    """
+    Generates simulated historical price data (OHLCV) for a given stock ticker.
+    Maintains characteristics of the stock, including base price and typical volatility.
+    This is synthetic data for demonstration only, not real exchange data.
+    """
+    ticker = ticker.upper()
+    profile = _get_or_create_mock_profile(ticker, market)
+
     base_price = profile["current_price"]
     avg_vol = profile["volume_avg"]
     
@@ -408,322 +375,14 @@ def _generate_simulated_historical_data(ticker: str, days: int = 120) -> pd.Data
     df = pd.DataFrame(data)
     return df
 
-def get_yahoo_historical(ticker: str, days: int) -> pd.DataFrame:
-    """
-    Downloads historical data from Yahoo Finance and formats it to standard columns.
-    """
-    ticker = ticker.upper()
-    try:
-        # Calculate interval period
-        period = "3mo"
-        if days > 700:
-            period = "5y"
-        elif days > 350:
-            period = "2y"
-        elif days > 150:
-            period = "1y"
-        elif days > 50:
-            period = "6mo"
-        elif days > 10:
-            period = "1mo"
-        else:
-            period = "5d"
-            
-        t = yf.Ticker(ticker)
-        df = t.history(period=period)
-        if df.empty:
-            return pd.DataFrame()
-            
-        df = df.reset_index()
-        df = df.rename(columns={
-            "Open": "Open",
-            "High": "High",
-            "Low": "Low",
-            "Close": "Close",
-            "Volume": "Volume"
-        })
-        df["Date"] = df["Date"].apply(lambda d: d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d))
-        df = df.sort_values(by="Date").reset_index(drop=True)
-        return df[["Date", "Open", "High", "Low", "Close", "Volume"]].tail(days)
-    except Exception as e:
-        print(f"Error fetching Yahoo historical data for {ticker}: {e}")
-        return pd.DataFrame()
-
-STATIC_PROFILE_CACHE = {}
-PROFILE_CACHE_DURATION = timedelta(hours=24)
-
-MARKET_SUFFIX_MAP = {
-    "IN": ".NS",
-    "UK": ".L",
-    "CA": ".TO",
-    "JP": ".T",
-    "DE": ".DE",
-    "AU": ".AX",
-    "SA": ".SR",
-    "AE": ".DU",
-    "CN": ".SS",
-    "QA": ".QA",
-    "EG": ".CA",
-    "TR": ".IS",
-}
-
-
-def _normalize_global_ticker(ticker: str, market_upper: str) -> str:
-    """Append a market suffix for global symbols when needed."""
-    normalized = ticker.upper()
-    suffix = MARKET_SUFFIX_MAP.get(market_upper)
-    if suffix and "." not in normalized and "=" not in normalized and not normalized.endswith(suffix):
-        normalized = f"{normalized}{suffix}"
-    return normalized
-
-
-def _normalize_pk_ticker_for_yahoo(ticker: str) -> str:
-    """Map PK tickers to Yahoo PSX suffix when possible (e.g., MEBL -> MEBL.KA)."""
-    normalized = ticker.upper()
-    if "." not in normalized and "=" not in normalized:
-        return f"{normalized}.KA"
-    return normalized
-
-
-def _normalize_percent_value(raw_value) -> float:
-    """Normalize values that may be either decimal fractions (0.023) or percentages (2.3)."""
-    try:
-        value = float(raw_value or 0.0)
-    except Exception:
-        return 0.0
-
-    if abs(value) <= 1.0:
-        return round(value * 100, 2)
-    return round(value, 2)
-
-
-def _normalize_dividend_yield(raw_value, dividend_rate=None, price=None) -> float:
-    """
-    Normalize dividend yield from Yahoo, which may appear as fraction or percent.
-
-    Examples seen in the wild:
-    - 0.023 meaning 2.3%
-    - 2.39 meaning 2.39%
-    - stale cached values like 239.0 from legacy x100 logic
-    """
-    try:
-        val = float(raw_value or 0.0)
-    except Exception:
-        return 0.0
-
-    # Legacy over-scale guard.
-    if abs(val) > 100:
-        return round(val / 100.0, 2)
-
-    # Additional guard for obviously over-scaled yields in equity contexts.
-    if abs(val) > 20:
-        return round(val / 100.0, 2)
-
-    # If we can estimate expected yield from dividend rate and price, prefer the closer representation.
-    try:
-        rate = float(dividend_rate) if dividend_rate is not None else None
-    except Exception:
-        rate = None
-
-    try:
-        px = float(price) if price is not None else None
-    except Exception:
-        px = None
-
-    if rate is not None and px and px > 0:
-        expected = (rate / px) * 100
-        if abs(val) <= 1.0:
-            as_fraction = val * 100.0
-            as_percent = val
-            chosen = as_fraction if abs(as_fraction - expected) <= abs(as_percent - expected) else as_percent
-            return round(chosen, 2)
-
-    # Fallback heuristic when no reliable cross-check is available.
-    if abs(val) <= 1.0:
-        # Values >= 0.2 are often already percentage points in Yahoo metadata.
-        if abs(val) >= 0.2:
-            return round(val, 2)
-        return round(val * 100.0, 2)
-
-    return round(val, 2)
-
-def get_yahoo_quote(ticker: str) -> dict:
-    """
-    Queries Yahoo Finance and maps key metrics to our standardized quote dictionary.
-    Optimized to cache heavy profile data for 24 hours, querying only the fast daily
-    historical endpoint for real-time prices to avoid performance bottlenecks.
-    """
-    ticker = ticker.upper()
-    now = datetime.now()
-    
-    # 1. Retrieve static profile from 24-hour cache if available
-    profile = None
-    if ticker in STATIC_PROFILE_CACHE:
-        cache_time, cached_profile = STATIC_PROFILE_CACHE[ticker]
-        if now - cache_time < PROFILE_CACHE_DURATION:
-            profile = cached_profile
-            
-    t = yf.Ticker(ticker)
-    
-    # 2. Fetch profile details via t.info if not cached (takes 2-3s, only on first look)
-    if not profile:
-        try:
-            info = t.info
-            if info and info.get("symbol"):
-                sector = info.get("sectorDisp") or info.get("sector") or "US Equity"
-                profile = {
-                    "name": info.get("longName") or info.get("shortName") or ticker,
-                    "sector": sector,
-                    "pe": round(info.get("trailingPE"), 2) if info.get("trailingPE") else 0.0,
-                    "pb_ratio": round(info.get("priceToBook"), 2) if info.get("priceToBook") else 1.0,
-                    "debt_equity": round(info.get("debtToEquity"), 2) if info.get("debtToEquity") else 0.0,
-                    "roe": round((info.get("returnOnEquity") or 0.0) * 100, 2),
-                    "raw_dividend_yield": info.get("dividendYield"),
-                    "dividend_rate": info.get("dividendRate"),
-                    "div_yield": _normalize_dividend_yield(info.get("dividendYield")),
-                    "description": info.get("longBusinessSummary", "A listed stock on the US exchange."),
-                    "eps": round(info.get("trailingEps") or 0.0, 2)
-                }
-                STATIC_PROFILE_CACHE[ticker] = (now, profile)
-        except Exception as e:
-            print(f"Error fetching heavy profile for {ticker}: {e}")
-            
-    # 3. Fallback to basic defaults if profile query failed completely
-    if not profile:
-        profile = {
-            "name": f"{ticker} Inc.",
-            "sector": "US Equity",
-            "pe": 20.0,
-            "pb_ratio": 2.0,
-            "debt_equity": 50.0,
-            "roe": 15.0,
-            "div_yield": 1.5,
-            "description": "A listed stock on the US exchange.",
-            "eps": 5.0
-        }
-    else:
-        # Backward compatibility for in-memory profiles cached before normalization fixes.
-        profile["div_yield"] = _normalize_dividend_yield(profile.get("div_yield", 0.0))
-        
-    # 4. Fetch live price, high, low, volume and yesterday's close using yfinance fast history API
-    try:
-        hist = t.history(period="5d")
-        if hist.empty:
-            raise Exception("Empty history dataframe returned")
-            
-        last_row = hist.iloc[-1]
-        price = float(last_row["Close"])
-        high = float(last_row["High"])
-        low = float(last_row["Low"])
-        volume = int(last_row["Volume"])
-        
-        # Calculate daily change percent against previous close
-        prev_close = price
-        if len(hist) > 1:
-            prev_close = float(hist.iloc[-2]["Close"])
-            
-        change = round(price - prev_close, 2)
-        pct_change = (change / prev_close) * 100 if prev_close > 0 else 0.0
-        pct_change_str = f"{round(pct_change, 2)}%"
-
-        # Track the actual trading day this price came from, so callers can tell
-        # a same-day live price apart from a stale/delayed prior-session close.
-        try:
-            price_date = pd.Timestamp(hist.index[-1]).strftime("%Y-%m-%d")
-        except Exception:
-            price_date = None
-
-        # Fast news lookup
-        news_items = []
-        try:
-            raw_news = t.news or []
-            for item in raw_news[:3]:
-                content = item.get("content", {})
-                title = content.get("title", "")
-                provider = content.get("provider", {}).get("displayName", "Yahoo Finance")
-                news_items.append({
-                    "title": title,
-                    "sentiment": "neutral",
-                    "source": provider
-                })
-        except Exception:
-            pass
-            
-        return {
-            "ticker": ticker,
-            "name": profile["name"],
-            "sector": profile["sector"],
-            "price": round(price, 2),
-            "change": change,
-            "pct_change": pct_change_str,
-            "is_up": change >= 0,
-            "volume": volume,
-            "high": round(high, 2),
-            "low": round(low, 2),
-            "ldcp": round(prev_close, 2),
-            "pe": profile["pe"],
-            "pb_ratio": profile["pb_ratio"],
-            "debt_equity": profile["debt_equity"],
-            "roe": profile["roe"],
-            "div_yield": _normalize_dividend_yield(
-                profile.get("raw_dividend_yield", profile.get("div_yield", 0.0)),
-                dividend_rate=profile.get("dividend_rate"),
-                price=price,
-            ),
-            "description": profile["description"],
-            "eps": profile["eps"],
-            "news": news_items,
-            "timestamp": datetime.now().strftime("%I:%M:%S %p"),
-            "price_date": price_date
-        }
-    except Exception as e:
-        print(f"Error fetching live fast quote for {ticker}: {e}. Falling back to simulation.")
-        return _generate_simulated_quote(ticker)
 
 def generate_historical_data(ticker: str, days: int = 120, market: str = "PK") -> pd.DataFrame:
     """
-    Fetches actual historical daily OHLCV data directly from the Pakistan Stock Exchange using psxdata,
-    or from Yahoo Finance for US stocks.
-    Falls back to simulation if the fetch fails.
+    Returns simulated historical daily OHLCV candles for a ticker. This app
+    does not fetch or redistribute real exchange data (see PSX's market
+    data licensing notice) — values are synthetically generated.
     """
-    ticker = ticker.upper()
-    market_upper = market.upper()
-    if market_upper != "PK":
-        ticker = _normalize_global_ticker(ticker, market_upper)
-        df = get_yahoo_historical(ticker, days)
-        if not df.empty:
-            return df
-        return _generate_simulated_historical_data(ticker, days)
-        
-    try:
-        # Calculate start date going back `days` calendar days
-        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-        
-        # Download history
-        df = psxdata.stocks(ticker, start=start_date)
-        
-        if df.empty:
-            print(f"psxdata returned empty history for {ticker}. Falling back to simulation.")
-            return _generate_simulated_historical_data(ticker, days)
-            
-        # Standardize columns: rename close to Close, open to Open, etc.
-        df = df.rename(columns={
-            "date": "Date",
-            "open": "Open",
-            "high": "High",
-            "low": "Low",
-            "close": "Close",
-            "volume": "Volume"
-        })
-        
-        # Sort chronologically (oldest to newest)
-        df = df.sort_values(by="Date").reset_index(drop=True)
-        
-        # Return standard columns
-        return df[["Date", "Open", "High", "Low", "Close", "Volume"]]
-    except Exception as e:
-        print(f"Error fetching historical data for {ticker} from psxdata: {e}. Falling back to simulation.")
-        return _generate_simulated_historical_data(ticker, days)
+    return _generate_simulated_historical_data(ticker.upper(), days, market.upper())
 
 
 QUOTE_CACHE = {}
@@ -739,26 +398,25 @@ def prune_cache(cache, limit):
             cache.pop(next(iter(cache)))
 
 
-def _generate_simulated_quote(ticker: str):
+def _generate_simulated_quote(ticker: str, market: str = "PK"):
     """
-    Simulates a live quote with minor real-time fluctuations
+    Generates a simulated quote with minor random intraday-style fluctuations.
+    This is synthetic data for demonstration only, not a real market feed.
     """
     ticker = ticker.upper()
-    profile = get_stock_profile(ticker)
-    if not profile:
-        return None
-        
+    profile = _get_or_create_mock_profile(ticker, market)
+
     price = profile["current_price"]
-    # Add a small random intraday change
-    random.seed() # true randomness for live refresh
+    random.seed()  # fresh randomness on every call so the "market" feels alive
     pct_change = random.uniform(-0.015, 0.02)
     new_price = round(price * (1 + pct_change), 2)
     change = round(new_price - price, 2)
     pct_change_str = f"{round(pct_change * 100, 2)}%"
-    
+
     return {
         "ticker": ticker,
         "name": profile["name"],
+        "sector": profile.get("sector", "Simulated Equity"),
         "price": new_price,
         "change": change,
         "pct_change": pct_change_str,
@@ -767,214 +425,46 @@ def _generate_simulated_quote(ticker: str):
         "high": round(new_price * 1.01, 2),
         "low": round(new_price * 0.99, 2),
         "ldcp": round(price, 2),
-        "pe": profile["pe_ratio"],
-        "roe": profile["roe"],
-        "div_yield": profile["div_yield"],
-        "news": profile["recent_news"],
-        "timestamp": datetime.now().strftime("%I:%M:%S %p")
+        "pe": profile.get("pe_ratio", 0.0),
+        "roe": profile.get("roe", 0.0),
+        "div_yield": profile.get("div_yield", 0.0),
+        "pb_ratio": profile.get("pb_ratio", 1.0),
+        "debt_equity": profile.get("debt_equity", 0.0),
+        "eps": profile.get("eps", 0.0),
+        "description": profile.get("description", "Simulated equity for demonstration purposes only."),
+        "news": profile.get("recent_news", []),
+        "timestamp": datetime.now().strftime("%I:%M:%S %p"),
+        "source": "simulated",
+        "is_live": False,
+        "price_date": None,
     }
 
 
 def get_latest_quote(ticker: str, market: str = "PK"):
     """
-    Fetches real-time price and statistics directly from the Pakistan Stock Exchange or Yahoo Finance for US.
-    Falls back to a profile-based payload when live data is unavailable so that the app still renders a useful quote.
+    Returns a simulated quote for the given ticker/market. This app does not
+    fetch or redistribute real exchange market data (see PSX's market data
+    licensing notice, which prohibits unlicensed dissemination of prices,
+    volumes and index levels) — all values here are synthetically generated
+    for demonstration purposes only.
     """
     ticker = ticker.upper()
     market_upper = market.upper()
-    if market_upper != "PK":
-        ticker = _normalize_global_ticker(ticker, market_upper)
-        
+
     now = datetime.now()
     cache_key = f"{market_upper}:{ticker}"
-    
-    # Check cache
+
     if cache_key in QUOTE_CACHE:
         cache_time, cached_data = QUOTE_CACHE[cache_key]
         if now - cache_time < CACHE_DURATION:
-            # For PK, do not keep serving cached fallback quotes once provider health recovers.
-            if market_upper != "PK" or cached_data.get("source") == "live":
-                return cached_data
+            return cached_data
     else:
         prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
-            
-    if market_upper != "PK":
-        quote = get_yahoo_quote(ticker)
-        if quote:
-            QUOTE_CACHE[cache_key] = (now, quote)
-            prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
-            return quote
 
-    if market_upper == "PK":
-        try:
-            df = psxdata.quote(ticker)
-            if df.empty:
-                raise Exception("psxdata returned empty quote")
-
-            row = df.iloc[0]
-            current_price = float(row.get("price", 0.0))
-            pct_change = float(row.get("change_pct", 0.0))
-            prev_close = current_price / (1 + (pct_change / 100.0)) if pct_change != -100 else current_price
-            change = round(current_price - prev_close, 2)
-            pct_change_str = f"{round(pct_change, 2)}%"
-
-            profile = get_stock_profile(ticker) or {
-                "name": ticker,
-                "sector": str(row.get("sector", "Unknown")),
-                "pe_ratio": float(row.get("pe_ratio", 0.0)) if pd.notna(row.get("pe_ratio")) else 0.0,
-                "roe": 0.0,
-                "div_yield": float(row.get("dividend_yield", 0.0)) if pd.notna(row.get("dividend_yield")) else 0.0,
-                "recent_news": []
-            }
-
-            volume = float(row.get("volume_avg_30d", 0)) if pd.notna(row.get("volume_avg_30d")) else float(profile.get("volume_avg", 0))
-            pe = float(row.get("pe_ratio", 0.0)) if pd.notna(row.get("pe_ratio")) else float(profile.get("pe_ratio", 0.0))
-            div_yield = float(row.get("dividend_yield", 0.0)) if pd.notna(row.get("dividend_yield")) else float(profile.get("div_yield", 0.0))
-            roe = float(profile.get("roe", 0.0))
-
-            high = round(current_price * 1.01, 2)
-            low = round(current_price * 0.99, 2)
-            ldcp = round(prev_close, 2)
-
-            result = {
-                "ticker": ticker,
-                "name": profile.get("name", ticker),
-                "sector": profile.get("sector", "Unknown"),
-                "price": round(current_price, 2),
-                "change": change,
-                "pct_change": pct_change_str,
-                "is_up": change >= 0,
-                "volume": int(volume),
-                "high": round(high, 2),
-                "low": round(low, 2),
-                "ldcp": round(ldcp, 2),
-                "pe": round(pe, 2) if pe else 0.0,
-                "roe": round(roe, 2) if roe else 0.0,
-                "div_yield": round(div_yield, 2) if div_yield else 0.0,
-                "news": profile.get("recent_news", []),
-                "timestamp": datetime.now().strftime("%I:%M:%S %p"),
-                "source": "live",
-                "is_live": True,
-            }
-            QUOTE_CACHE[cache_key] = (now, result)
-            prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
-            return result
-        except Exception as e:
-            print(f"Error fetching latest quote for {ticker} from psxdata: {e}. Trying Yahoo PK fallback.")
-
-            # Prefer recent PSX close first so fallback stays aligned with PSX pricing.
-            try:
-                hist_start = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
-                hist_df = psxdata.stocks(ticker, start=hist_start)
-                if not hist_df.empty and "close" in hist_df.columns:
-                    # Ensure we use the most recent row by trading date.
-                    if "date" in hist_df.columns:
-                        hist_df = hist_df.sort_values(by="date").reset_index(drop=True)
-                    last_row = hist_df.iloc[-1]
-                    current_price = float(last_row.get("close", 0.0))
-                    if current_price > 0:
-                        prev_close = current_price
-                        if len(hist_df) > 1:
-                            prev_close = float(hist_df.iloc[-2].get("close", current_price))
-
-                        change = round(current_price - prev_close, 2)
-                        pct_change = (change / prev_close) * 100 if prev_close else 0.0
-
-                        # Only treat this as a live-equivalent price if it's actually
-                        # today's close; otherwise it's a prior session's stale price.
-                        price_date = None
-                        if "date" in hist_df.columns:
-                            try:
-                                price_date = pd.Timestamp(last_row.get("date")).strftime("%Y-%m-%d")
-                            except Exception:
-                                price_date = None
-                        today_str = datetime.now().strftime("%Y-%m-%d")
-                        is_stale = bool(price_date) and price_date != today_str and datetime.now().weekday() < 5
-
-                        profile = get_stock_profile(ticker) or {
-                            "name": ticker,
-                            "sector": "Unknown",
-                            "pe_ratio": 0.0,
-                            "roe": 0.0,
-                            "div_yield": 0.0,
-                            "recent_news": [],
-                            "volume_avg": 0,
-                        }
-
-                        hist_fallback = {
-                            "ticker": ticker,
-                            "name": profile.get("name", ticker),
-                            "sector": profile.get("sector", "Unknown"),
-                            "price": round(current_price, 2),
-                            "change": change,
-                            "pct_change": f"{round(pct_change, 2)}%",
-                            "is_up": change >= 0,
-                            "volume": int(profile.get("volume_avg", 0)),
-                            "high": round(current_price * 1.01, 2),
-                            "low": round(current_price * 0.99, 2),
-                            "ldcp": round(prev_close, 2),
-                            "pe": float(profile.get("pe_ratio", 0.0)),
-                            "roe": float(profile.get("roe", 0.0)),
-                            "div_yield": float(profile.get("div_yield", 0.0)),
-                            "news": profile.get("recent_news", []),
-                            "timestamp": datetime.now().strftime("%I:%M:%S %p"),
-                            "price_date": price_date,
-                            "source": "psx_history_fallback_delayed" if is_stale else "psx_history_fallback",
-                            "is_live": not is_stale,
-                        }
-                        QUOTE_CACHE[cache_key] = (now, hist_fallback)
-                        prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
-                        return hist_fallback
-            except Exception as hist_err:
-                print(f"PSX history fallback failed for {ticker}: {hist_err}")
-
-            # Try Yahoo PK symbol before falling back to static profile values.
-            try:
-                yahoo_ticker = _normalize_pk_ticker_for_yahoo(ticker)
-                yahoo_quote = get_yahoo_quote(yahoo_ticker)
-                if yahoo_quote:
-                    yahoo_quote["ticker"] = ticker
-                    # Yahoo's PSX mirror often lags a full trading day behind, so only
-                    # label this as fresh/live when the bar is actually from today.
-                    price_date = yahoo_quote.get("price_date")
-                    today_str = datetime.now().strftime("%Y-%m-%d")
-                    is_stale = bool(price_date) and price_date != today_str and datetime.now().weekday() < 5
-                    yahoo_quote["source"] = "yahoo_pk_fallback_delayed" if is_stale else "yahoo_pk_fallback"
-                    yahoo_quote["is_live"] = not is_stale
-                    QUOTE_CACHE[cache_key] = (now, yahoo_quote)
-                    prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
-                    return yahoo_quote
-            except Exception as yahoo_err:
-                print(f"Yahoo PK fallback failed for {ticker}: {yahoo_err}")
-
-            print(f"Returning profile fallback state for {ticker}.")
-
-    profile = get_stock_profile(ticker)
-    if profile:
-        fallback_quote = {
-            "ticker": ticker,
-            "name": profile.get("name", ticker),
-            "sector": profile.get("sector", "Unknown"),
-            "price": float(profile.get("current_price", 0.0)),
-            "change": 0.0,
-            "pct_change": "0.0%",
-            "is_up": True,
-            "volume": int(profile.get("volume_avg", 0)),
-            "high": float(profile.get("current_price", 0.0)),
-            "low": float(profile.get("current_price", 0.0)),
-            "ldcp": float(profile.get("current_price", 0.0)),
-            "pe": float(profile.get("pe_ratio", 0.0)),
-            "roe": float(profile.get("roe", 0.0)),
-            "div_yield": float(profile.get("div_yield", 0.0)),
-            "news": profile.get("recent_news", []),
-            "timestamp": datetime.now().strftime("%I:%M:%S %p"),
-            "source": "profile",
-            "is_live": False,
-        }
-        QUOTE_CACHE[cache_key] = (now, fallback_quote)
-        prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
-        return fallback_quote
-    return None
+    quote = _generate_simulated_quote(ticker, market_upper)
+    QUOTE_CACHE[cache_key] = (now, quote)
+    prune_cache(QUOTE_CACHE, MAX_QUOTE_CACHE_SIZE)
+    return quote
 
 
 MARKET_NEWS_CACHE = {}

@@ -6,5 +6,4 @@ httpx
 python-dotenv
 google-generativeai
 openai
-psxdata
 yfinance

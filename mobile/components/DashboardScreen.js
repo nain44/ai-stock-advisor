@@ -731,6 +731,12 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                     <Text style={[styles.stockPriceText, !isDarkMode && { color: '#0F172A' }]}>
                       {displayPrice}
                     </Text>
+                    <View style={[styles.liveIndicatorBadge, { backgroundColor: 'rgba(245, 158, 11, 0.12)' }]}>
+                      <View style={[styles.liveIndicatorDot, { backgroundColor: '#F59E0B' }]} />
+                      <Text style={[styles.liveIndicatorText, { color: '#F59E0B' }]}>
+                        SIMULATED
+                      </Text>
+                    </View>
                     <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-end', marginTop: 4 }}>
                       <View style={{ alignItems: 'center', marginRight: 6 }}>
                         {stock.signal && (
@@ -918,7 +924,13 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                       <Text style={[styles.sectorText, !isDarkMode && { color: theme.subtext }]}>{analysis?.profile?.sector || (activeModalStock || selectedStockObj).sector}</Text>
                     </View>
                     <View style={styles.priceContainer}>
-                      <Text style={[styles.mainPrice, !isDarkMode && { color: theme.text }]}> 
+                      <View style={[styles.liveIndicatorBadge, { alignSelf: 'flex-end', backgroundColor: 'rgba(245, 158, 11, 0.12)' }]}>
+                        <View style={[styles.liveIndicatorDot, { backgroundColor: '#F59E0B' }]} />
+                        <Text style={[styles.liveIndicatorText, { color: '#F59E0B' }]}>
+                          SIMULATED
+                        </Text>
+                      </View>
+                      <Text style={[styles.mainPrice, !isDarkMode && { color: theme.text }]}>
                         {getCurrencySymbol(market)} {analysis.profile?.current_price?.toLocaleString() || '0.00'}
                       </Text>
                       <Text style={[styles.mainChange, { color: (analysis.profile?.change_percent ?? 0) >= 0 ? '#34D399' : '#F87171' }]}>
@@ -927,6 +939,9 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                       </Text>
                     </View>
                   </View>
+                  <Text style={styles.simulatedDisclaimerText}>
+                    Simulated price for demonstration purposes only — not real PSX/exchange market data.
+                  </Text>
 
                   {/* SVG Sparkline Chart */}
                   {historical.length > 0 && (
@@ -1068,8 +1083,11 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                         <Text style={[styles.recommendationLabel, !isDarkMode && { color: theme.subtext }]}>Signal:</Text>
                         {renderRecommendationBadge(analysis.recommendation?.recommendation || 'HOLD')}
                       </View>
-                      <Text style={[styles.aiSummaryText, !isDarkMode && { color: theme.text }]}> 
+                      <Text style={[styles.aiSummaryText, !isDarkMode && { color: theme.text }]}>
                         {analysis.recommendation?.summary}
+                      </Text>
+                      <Text style={styles.aiDisclaimerText}>
+                        This analysis runs on simulated market data for demonstration/educational purposes only — not real PSX/exchange prices, and not financial or investment advice.
                       </Text>
                     </View>
                   </View>
@@ -1818,6 +1836,41 @@ const styles = StyleSheet.create({
     color: '#E2E8F0',
     fontSize: 13,
     lineHeight: 20,
+  },
+  aiDisclaimerText: {
+    color: '#64748B',
+    fontSize: 10.5,
+    lineHeight: 15,
+    marginTop: 10,
+    fontStyle: 'italic',
+  },
+  liveIndicatorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  liveIndicatorDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    marginRight: 4,
+  },
+  liveIndicatorText: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  simulatedDisclaimerText: {
+    color: '#94A3B8',
+    fontSize: 10.5,
+    lineHeight: 15,
+    marginTop: 6,
+    marginBottom: 4,
+    fontStyle: 'italic',
   },
   sectionHeader: {
     flexDirection: 'row',

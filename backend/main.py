@@ -291,7 +291,9 @@ def get_stocks(tickers: Optional[str] = None, market: Optional[str] = "PK"):
                 "low": quote.get("low") or 0.0,
                 "volume": quote.get("volume") or 0,
                 "ldcp": quote.get("ldcp") or 0.0,
-                "signal": signal
+                "signal": signal,
+                "is_live": quote.get("is_live", False),
+                "data_source": quote.get("source", "simulated")
             }
         else:
             return {
@@ -305,7 +307,9 @@ def get_stocks(tickers: Optional[str] = None, market: Optional[str] = "PK"):
                 "low": 0.0,
                 "volume": 0,
                 "ldcp": 0.0,
-                "signal": "HOLD"
+                "signal": "HOLD",
+                "is_live": False,
+                "data_source": "unavailable"
             }
             
     with ThreadPoolExecutor(max_workers=15) as executor:
@@ -467,6 +471,8 @@ def get_analysis(ticker: str, market: Optional[str] = "PK"):
             "news": profile.get("recent_news", [])
         }
         live_profile = profile
+        live_profile["is_live"] = False
+        live_profile["data_source"] = "simulated"
     else:
         # Build profile from quote to match frontend expected fields
         if market_upper != "PK":
@@ -486,7 +492,10 @@ def get_analysis(ticker: str, market: Optional[str] = "PK"):
                 "div_yield": quote.get("div_yield", 0.0),
                 "eps": quote.get("eps", 0.0),
                 "description": quote.get("description", f"{market_upper} Equity"),
-                "recent_news": quote.get("news", [])
+                "recent_news": quote.get("news", []),
+                "is_live": quote.get("is_live", False),
+                "data_source": quote.get("source", "simulated"),
+                "price_date": quote.get("price_date")
             }
         else:
             sector = profile["sector"] if profile else "PSX Equity"
@@ -506,7 +515,10 @@ def get_analysis(ticker: str, market: Optional[str] = "PK"):
                 "div_yield": quote["div_yield"],
                 "eps": profile.get("eps", 0.0) if profile else 0.0,
                 "description": profile.get("description", "A listed equity on the Pakistan Stock Exchange.") if profile else "A listed equity on the Pakistan Stock Exchange.",
-                "recent_news": quote["news"]
+                "recent_news": quote["news"],
+                "is_live": quote.get("is_live", False),
+                "data_source": quote.get("source", "simulated"),
+                "price_date": quote.get("price_date")
             }
             
     # Fetch live ticker news dynamically

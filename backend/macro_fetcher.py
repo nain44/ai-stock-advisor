@@ -1,3 +1,4 @@
+import random
 import urllib.request
 import json
 from datetime import datetime, timedelta
@@ -505,11 +506,16 @@ def get_macro_indicators(market: str = "PK", index_symbol: str = "^KSE", index_n
                     "price": f"${price_usd:,.2f}"
                 }
 
-    # 4. Fetch live Index Quote (e.g. ^GSPC, ^KSE)
+    # 4. Fetch live Index Quote (e.g. ^GSPC). PSX's KSE-100 index level is
+    # explicitly covered by its market-data licensing notice, so it is
+    # never fetched live here — it always falls through to the simulated
+    # fallback value below.
     index_data = None
     cache_key = f"{market}:{index_symbol}"
     if cache_key in INDEX_CACHE and now - INDEX_CACHE[cache_key]["time"] < timedelta(minutes=5):
         index_data = INDEX_CACHE[cache_key]["data"]
+    elif index_symbol == "^KSE":
+        pass
     else:
         try:
             t = yf.Ticker(index_symbol)
@@ -546,16 +552,30 @@ def get_macro_indicators(market: str = "PK", index_symbol: str = "^KSE", index_n
                 "^GSPC": {"name": "S&P 500", "val": "5,459.10", "change": "+48.30 (+0.89%)", "positive": True},
                 "^NSEI": {"name": "NIFTY 50", "val": "24,315.90", "change": "+102.50 (+0.42%)", "positive": True},
                 "^FTSE": {"name": "FTSE 100", "val": "8,185.30", "change": "-24.10 (-0.29%)", "positive": False},
-                "^KSE": {"name": "KSE100", "val": "171,021.00", "change": "-718.00 (-0.42%)", "positive": False}
             }
-            fb = fallback_vals.get(index_symbol, {"name": index_name, "val": "0.00", "change": "0.00 (0.00%)", "positive": True})
-            index_data = {
-                "name": fb["name"],
-                "symbol": index_symbol,
-                "val": fb["val"],
-                "change": fb["change"],
-                "positive": fb["positive"]
-            }
+            if index_symbol == "^KSE":
+                # KSE-100 is never fetched live (PSX data licensing) — simulate a
+                # plausible level with a small random daily move instead.
+                base_val = 100000.0
+                pct = random.uniform(-1.2, 1.5)
+                change_val = base_val * (pct / 100.0)
+                index_data = {
+                    "name": "KSE100 (Simulated)",
+                    "symbol": index_symbol,
+                    "val": f"{base_val + change_val:,.2f}",
+                    "change": f"{'+' if change_val >= 0 else ''}{change_val:,.2f} ({'+' if pct >= 0 else ''}{pct:.2f}%)",
+                    "positive": change_val >= 0,
+                    "simulated": True,
+                }
+            else:
+                fb = fallback_vals.get(index_symbol, {"name": index_name, "val": "0.00", "change": "0.00 (0.00%)", "positive": True})
+                index_data = {
+                    "name": fb["name"],
+                    "symbol": index_symbol,
+                    "val": fb["val"],
+                    "change": fb["change"],
+                    "positive": fb["positive"]
+                }
 
     return {
         "commodities": commodity_list,
