@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -35,22 +35,39 @@ const formatMoney = (n) => {
 const isBg = (theme) => (theme.bg === '#0B0F19' ? '#0F172A' : '#F1F5F9');
 
 // First calculation in a tool is free; every calculation after that shows an
-// interstitial before revealing the (updated) result.
-function useGatedCalculate(triggerInterstitial) {
-  const hasCalculatedOnceRef = useRef(false);
-  return (computeFn) => {
-    if (!hasCalculatedOnceRef.current) {
-      hasCalculatedOnceRef.current = true;
+// interstitial before revealing the (updated) result — unless the user has
+// watched a rewarded ad to skip that gate for the rest of the session.
+function useGatedCalculate(triggerInterstitial, skipGateUnlocked) {
+  const [hasCalculatedOnce, setHasCalculatedOnce] = useState(false);
+  const requestCalculate = (computeFn) => {
+    if (!hasCalculatedOnce) {
+      setHasCalculatedOnce(true);
       computeFn();
-    } else if (triggerInterstitial) {
-      triggerInterstitial(computeFn);
+    } else if (skipGateUnlocked || !triggerInterstitial) {
+      computeFn();
     } else {
-      computeFn();
+      triggerInterstitial(computeFn);
     }
   };
+  return { requestCalculate, hasCalculatedOnce };
 }
 
-export default function CalculatorsScreen({ apiUrl, market, triggerInterstitial, isDarkMode }) {
+// Small link shown after the first calculation, offering to remove the
+// interstitial gate for the rest of the session via a rewarded ad.
+function SkipGateLink({ visible, theme, triggerRewarded, onUnlocked }) {
+  if (!visible) return null;
+  return (
+    <TouchableOpacity
+      style={styles.skipGateLink}
+      onPress={() => triggerRewarded && triggerRewarded(onUnlocked)}
+      activeOpacity={0.7}
+    >
+      <Text style={styles.skipGateLinkText}>Watch an ad to skip ads for the rest of this session</Text>
+    </TouchableOpacity>
+  );
+}
+
+export default function CalculatorsScreen({ apiUrl, market, triggerInterstitial, triggerRewarded, isDarkMode }) {
   const theme = {
     bg: isDarkMode ? '#0B0F19' : '#F8FAFC',
     card: isDarkMode ? '#161B26' : '#FFFFFF',
@@ -60,6 +77,7 @@ export default function CalculatorsScreen({ apiUrl, market, triggerInterstitial,
   };
 
   const [activeTool, setActiveTool] = useState('zakat');
+  const [skipGateUnlocked, setSkipGateUnlocked] = useState(false);
 
   const tools = [
     { key: 'zakat', label: 'Zakat', icon: Coins },
@@ -97,9 +115,37 @@ export default function CalculatorsScreen({ apiUrl, market, triggerInterstitial,
       </View>
 
       <ScrollView style={styles.body} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {activeTool === 'zakat' && <ZakatCalculator apiUrl={apiUrl} market={market} theme={theme} triggerInterstitial={triggerInterstitial} />}
-        {activeTool === 'currency' && <CurrencyConverter apiUrl={apiUrl} theme={theme} triggerInterstitial={triggerInterstitial} />}
-        {activeTool === 'growth' && <GrowthCalculator market={market} theme={theme} triggerInterstitial={triggerInterstitial} />}
+        {activeTool === 'zakat' && (
+          <ZakatCalculator
+            apiUrl={apiUrl}
+            market={market}
+            theme={theme}
+            triggerInterstitial={triggerInterstitial}
+            triggerRewarded={triggerRewarded}
+            skipGateUnlocked={skipGateUnlocked}
+            onUnlockSkipGate={() => setSkipGateUnlocked(true)}
+          />
+        )}
+        {activeTool === 'currency' && (
+          <CurrencyConverter
+            apiUrl={apiUrl}
+            theme={theme}
+            triggerInterstitial={triggerInterstitial}
+            triggerRewarded={triggerRewarded}
+            skipGateUnlocked={skipGateUnlocked}
+            onUnlockSkipGate={() => setSkipGateUnlocked(true)}
+          />
+        )}
+        {activeTool === 'growth' && (
+          <GrowthCalculator
+            market={market}
+            theme={theme}
+            triggerInterstitial={triggerInterstitial}
+            triggerRewarded={triggerRewarded}
+            skipGateUnlocked={skipGateUnlocked}
+            onUnlockSkipGate={() => setSkipGateUnlocked(true)}
+          />
+        )}
       </ScrollView>
     </View>
   );
@@ -171,7 +217,7 @@ function CalculateButton({ onPress, disabled, label = 'Calculate' }) {
 
 const weightToGrams = (amount, unit) => (unit === 'tola' ? toNum(amount) * GRAMS_PER_TOLA : toNum(amount));
 
-function ZakatCalculator({ apiUrl, market, theme, triggerInterstitial }) {
+function ZakatCalculator({ apiUrl, market, theme, triggerInterstitial, triggerRewarded, skipGateUnlocked, onUnlockSkipGate }) {
   const [nisab, setNisab] = useState(null);
   const [loadingNisab, setLoadingNisab] = useState(true);
   const [cash, setCash] = useState('');
@@ -183,7 +229,7 @@ function ZakatCalculator({ apiUrl, market, theme, triggerInterstitial }) {
   const [liabilities, setLiabilities] = useState('');
   const [standard, setStandard] = useState('silver'); // 'silver' is the more commonly recommended, inclusive threshold
   const [result, setResult] = useState(null);
-  const requestCalculate = useGatedCalculate(triggerInterstitial);
+  const { requestCalculate, hasCalculatedOnce } = useGatedCalculate(triggerInterstitial, skipGateUnlocked);
 
   useEffect(() => {
     let ignore = false;
@@ -277,6 +323,12 @@ function ZakatCalculator({ apiUrl, market, theme, triggerInterstitial }) {
       </View>
 
       <CalculateButton onPress={handleCalculate} disabled={loadingNisab || !nisab} label={result ? 'Recalculate' : 'Calculate Zakat'} />
+      <SkipGateLink
+        visible={hasCalculatedOnce && !skipGateUnlocked}
+        theme={theme}
+        triggerRewarded={triggerRewarded}
+        onUnlocked={onUnlockSkipGate}
+      />
 
       {result && (
         <>
@@ -309,14 +361,14 @@ function ZakatCalculator({ apiUrl, market, theme, triggerInterstitial }) {
   );
 }
 
-function CurrencyConverter({ apiUrl, theme, triggerInterstitial }) {
+function CurrencyConverter({ apiUrl, theme, triggerInterstitial, triggerRewarded, skipGateUnlocked, onUnlockSkipGate }) {
   const [rates, setRates] = useState(null);
   const [loading, setLoading] = useState(true);
   const [amount, setAmount] = useState('1');
   const [fromCcy, setFromCcy] = useState('USD');
   const [toCcy, setToCcy] = useState('PKR');
   const [result, setResult] = useState(null);
-  const requestCalculate = useGatedCalculate(triggerInterstitial);
+  const { requestCalculate, hasCalculatedOnce } = useGatedCalculate(triggerInterstitial, skipGateUnlocked);
 
   useEffect(() => {
     let ignore = false;
@@ -397,7 +449,15 @@ function CurrencyConverter({ apiUrl, theme, triggerInterstitial }) {
       {loading ? (
         <ActivityIndicator size="small" color="#00D2FF" style={{ marginTop: 10 }} />
       ) : (
-        <CalculateButton onPress={handleCalculate} disabled={!rates} label={result ? 'Recalculate' : 'Convert'} />
+        <>
+          <CalculateButton onPress={handleCalculate} disabled={!rates} label={result ? 'Recalculate' : 'Convert'} />
+          <SkipGateLink
+            visible={hasCalculatedOnce && !skipGateUnlocked}
+            theme={theme}
+            triggerRewarded={triggerRewarded}
+            onUnlocked={onUnlockSkipGate}
+          />
+        </>
       )}
 
       {result && (
@@ -417,7 +477,7 @@ function CurrencyConverter({ apiUrl, theme, triggerInterstitial }) {
   );
 }
 
-function GrowthCalculator({ market, theme, triggerInterstitial }) {
+function GrowthCalculator({ market, theme, triggerInterstitial, triggerRewarded, skipGateUnlocked, onUnlockSkipGate }) {
   const [mode, setMode] = useState('project'); // 'project' | 'cagr'
 
   // Growth Projection mode
@@ -432,7 +492,7 @@ function GrowthCalculator({ market, theme, triggerInterstitial }) {
   const [cagrYears, setCagrYears] = useState('5');
 
   const [result, setResult] = useState(null);
-  const requestCalculate = useGatedCalculate(triggerInterstitial);
+  const { requestCalculate, hasCalculatedOnce } = useGatedCalculate(triggerInterstitial, skipGateUnlocked);
 
   const currencySymbol = getCurrencySymbol(market);
 
@@ -493,6 +553,12 @@ function GrowthCalculator({ market, theme, triggerInterstitial }) {
           </View>
 
           <CalculateButton onPress={handleCalculateProjection} label={(result && result.mode === 'project') ? 'Recalculate' : 'Calculate Growth'} />
+          <SkipGateLink
+            visible={hasCalculatedOnce && !skipGateUnlocked}
+            theme={theme}
+            triggerRewarded={triggerRewarded}
+            onUnlocked={onUnlockSkipGate}
+          />
 
           {result && result.mode === 'project' && (
             <>
@@ -526,6 +592,12 @@ function GrowthCalculator({ market, theme, triggerInterstitial }) {
           </View>
 
           <CalculateButton onPress={handleCalculateCagr} label={(result && result.mode === 'cagr') ? 'Recalculate' : 'Calculate CAGR'} />
+          <SkipGateLink
+            visible={hasCalculatedOnce && !skipGateUnlocked}
+            theme={theme}
+            triggerRewarded={triggerRewarded}
+            onUnlocked={onUnlockSkipGate}
+          />
 
           {result && result.mode === 'cagr' && (
             <>
@@ -690,6 +762,18 @@ const styles = StyleSheet.create({
     color: '#0B0F19',
     fontSize: 14,
     fontWeight: '800',
+  },
+  skipGateLink: {
+    alignItems: 'center',
+    paddingVertical: 6,
+    marginBottom: 14,
+    marginTop: -6,
+  },
+  skipGateLinkText: {
+    color: '#00D2FF',
+    fontSize: 11.5,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
   resultCard: {
     borderRadius: 16,

@@ -547,7 +547,13 @@ export default function App() {
     setInterstitialVisible(true);
   };
 
-  const triggerRewarded = () => {
+  const rewardedEarnedCallbackRef = useRef(null);
+
+  // onReward (optional) overrides the default AI-credits reward — used when
+  // a screen wants the rewarded ad to unlock something else instead (e.g.
+  // skipping the Calculators recalculate gate).
+  const triggerRewarded = (onReward) => {
+    rewardedEarnedCallbackRef.current = onReward || null;
     setRewardedVisible(true);
   };
 
@@ -607,6 +613,7 @@ export default function App() {
             apiUrl={apiUrl}
             market={market}
             triggerInterstitial={triggerInterstitial}
+            triggerRewarded={triggerRewarded}
             isDarkMode={isDarkMode}
           />
         );
@@ -818,10 +825,18 @@ export default function App() {
             if (cb) cb();
           }}
         />
-        <MockRewardedModal 
-          visible={rewardedVisible} 
-          onClose={() => setRewardedVisible(false)} 
-          onRewardEarned={() => setAiCredits(prev => prev + 3)}
+        <MockRewardedModal
+          visible={rewardedVisible}
+          onClose={() => setRewardedVisible(false)}
+          onRewardEarned={() => {
+            const cb = rewardedEarnedCallbackRef.current;
+            rewardedEarnedCallbackRef.current = null;
+            if (cb) {
+              cb();
+            } else {
+              setAiCredits(prev => prev + 3);
+            }
+          }}
         />
       </SafeAreaView>
 
