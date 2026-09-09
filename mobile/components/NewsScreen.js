@@ -9,6 +9,9 @@ import {
   View,
 } from 'react-native';
 import { getFallbackNews, resolveNewsItems } from './newsFallback';
+import { AppNativeAd } from './AdManager';
+
+const NEWS_AD_INTERVAL = 4;
 
 const NewsScreen = ({ apiUrl, market, refreshTrigger, isDarkMode }) => {
   const [news, setNews] = useState(() => getFallbackNews('PK'));
@@ -198,7 +201,14 @@ const NewsScreen = ({ apiUrl, market, refreshTrigger, isDarkMode }) => {
           <Text style={[styles.emptyText, { color: isDarkMode ? '#94A3B8' : '#64748B' }]}>No news articles are available right now.</Text>
         </View>
       ) : (
-        <View style={styles.list}> {news.map((item, idx) => renderNewsCard(item, idx))} </View>
+        <View style={styles.list}>
+          {news.map((item, idx) => (
+            <React.Fragment key={`news-frag-${idx}`}>
+              {idx % NEWS_AD_INTERVAL === 0 && <AppNativeAd isDarkMode={isDarkMode} />}
+              {renderNewsCard(item, idx)}
+            </React.Fragment>
+          ))}
+        </View>
       )}
     </ScrollView>
   );

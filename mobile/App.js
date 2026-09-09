@@ -593,6 +593,7 @@ export default function App() {
             setPortfolio={setPortfolio}
             apiUrl={apiUrl}
             triggerInterstitial={triggerInterstitial}
+            triggerRewarded={triggerRewarded}
             config={config}
             market={market}
             isDarkMode={isDarkMode}

@@ -10,7 +10,9 @@ const getCurrencySymbol = (m) => {
   return 'Rs.';
 };
 
-export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, triggerInterstitial, config, market, isDarkMode }) {
+const FREE_STOCK_ADD_LIMIT = 2;
+
+export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, triggerInterstitial, triggerRewarded, config, market, isDarkMode }) {
   const theme = {
     bg: isDarkMode ? '#0B0F19' : '#F8FAFC',
     card: isDarkMode ? '#161B26' : '#FFFFFF',
@@ -67,6 +69,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
   const [newQty, setNewQty] = useState('');
   const [newPrice, setNewPrice] = useState('');
   const [newCurrentPrice, setNewCurrentPrice] = useState('');
+  const [skipAddGateUnlocked, setSkipAddGateUnlocked] = useState(false);
   const [adding, setAdding] = useState(false);
   const [editingHolding, setEditingHolding] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
@@ -289,6 +292,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
 
     // Add, merge, or edit holding
     const updatedPortfolio = [...portfolio];
+    let isNewDistinctStock = false;
 
     if (editingHolding) {
       const idx = updatedPortfolio.findIndex(
@@ -314,6 +318,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
         exist.currentPrice = currentPrice;
       } else {
         // Add new
+        isNewDistinctStock = true;
         updatedPortfolio.push({
           ticker: newTicker,
           quantity: qty,
@@ -327,7 +332,17 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
     setPortfolio(updatedPortfolio);
     setModalVisible(false);
     setEditingHolding(null);
-    if (triggerInterstitial) {
+
+    // First FREE_STOCK_ADD_LIMIT distinct stocks in a market are ad-free.
+    // Every new stock after that shows an interstitial, unless the user has
+    // watched a rewarded ad to skip it for the rest of the session. Editing
+    // an existing holding or buying more of one you already hold keeps the
+    // original always-show-interstitial behavior.
+    if (isNewDistinctStock) {
+      if (activeHoldings.length >= FREE_STOCK_ADD_LIMIT && !skipAddGateUnlocked && triggerInterstitial) {
+        triggerInterstitial();
+      }
+    } else if (triggerInterstitial) {
       triggerInterstitial();
     }
     // Reset fields
@@ -615,6 +630,18 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
                 We don't fetch live prices (see the SIMULATED badge on the watchlist). Enter what you see on your broker/PSX to keep P&L accurate — update it anytime by editing this holding.
               </Text>
             </View>
+
+            {!editingHolding && activeHoldings.length >= FREE_STOCK_ADD_LIMIT && !skipAddGateUnlocked && (
+              <TouchableOpacity
+                style={styles.skipAdGateLink}
+                onPress={() => triggerRewarded && triggerRewarded(() => setSkipAddGateUnlocked(true))}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.skipAdGateLinkText}>
+                  Your first {FREE_STOCK_ADD_LIMIT} stocks were ad-free — adding more shows an ad. Watch an ad to skip ads for the rest of this session.
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity style={[styles.modalSubmitBtn, !isDarkMode && { backgroundColor: '#0284C7' }]} onPress={handleAddHolding}>
               <CheckCircle2 size={16} color={isDarkMode ? '#0B0F19' : '#FFFFFF'} style={{ marginRight: 6 }} />
@@ -969,6 +996,16 @@ const styles = StyleSheet.create({
     color: '#00D2FF',
     fontSize: 11,
     marginTop: 4,
+  },
+  skipAdGateLink: {
+    paddingVertical: 8,
+    marginTop: 6,
+  },
+  skipAdGateLinkText: {
+    color: '#00D2FF',
+    fontSize: 11.5,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   modalSubmitBtn: {
     backgroundColor: '#00D2FF',
