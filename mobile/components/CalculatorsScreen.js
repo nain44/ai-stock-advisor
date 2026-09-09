@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { Calculator, Coins, ArrowLeftRight, TrendingUp } from 'lucide-react-native';
+import { AppNativeAd } from './AdManager';
 
 const CURRENCY_OPTIONS = ['USD', 'PKR', 'INR', 'GBP', 'EUR', 'AED', 'SAR', 'CAD', 'JPY', 'CNY'];
 const GRAMS_PER_TOLA = 11.6638;
@@ -30,7 +31,26 @@ const formatMoney = (n) => {
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-export default function CalculatorsScreen({ apiUrl, market, isDarkMode }) {
+// Slightly lighter/darker input background than the card, for contrast.
+const isBg = (theme) => (theme.bg === '#0B0F19' ? '#0F172A' : '#F1F5F9');
+
+// First calculation in a tool is free; every calculation after that shows an
+// interstitial before revealing the (updated) result.
+function useGatedCalculate(triggerInterstitial) {
+  const hasCalculatedOnceRef = useRef(false);
+  return (computeFn) => {
+    if (!hasCalculatedOnceRef.current) {
+      hasCalculatedOnceRef.current = true;
+      computeFn();
+    } else if (triggerInterstitial) {
+      triggerInterstitial(computeFn);
+    } else {
+      computeFn();
+    }
+  };
+}
+
+export default function CalculatorsScreen({ apiUrl, market, triggerInterstitial, isDarkMode }) {
   const theme = {
     bg: isDarkMode ? '#0B0F19' : '#F8FAFC',
     card: isDarkMode ? '#161B26' : '#FFFFFF',
@@ -77,9 +97,9 @@ export default function CalculatorsScreen({ apiUrl, market, isDarkMode }) {
       </View>
 
       <ScrollView style={styles.body} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {activeTool === 'zakat' && <ZakatCalculator apiUrl={apiUrl} market={market} theme={theme} />}
-        {activeTool === 'currency' && <CurrencyConverter apiUrl={apiUrl} theme={theme} />}
-        {activeTool === 'growth' && <GrowthCalculator market={market} theme={theme} />}
+        {activeTool === 'zakat' && <ZakatCalculator apiUrl={apiUrl} market={market} theme={theme} triggerInterstitial={triggerInterstitial} />}
+        {activeTool === 'currency' && <CurrencyConverter apiUrl={apiUrl} theme={theme} triggerInterstitial={triggerInterstitial} />}
+        {activeTool === 'growth' && <GrowthCalculator market={market} theme={theme} triggerInterstitial={triggerInterstitial} />}
       </ScrollView>
     </View>
   );
@@ -100,9 +120,6 @@ function Field({ label, value, onChangeText, theme, placeholder, keyboardType = 
     </View>
   );
 }
-
-// Slightly lighter/darker input background than the card, for contrast.
-const isBg = (theme) => (theme.bg === '#0B0F19' ? '#0F172A' : '#F1F5F9');
 
 // Weight input that lets the user enter in grams or tola (whichever they know),
 // converting to grams internally for the calculation.
@@ -138,9 +155,23 @@ function MetalWeightField({ label, amount, onChangeAmount, unit, onChangeUnit, t
   );
 }
 
+function CalculateButton({ onPress, disabled, label = 'Calculate' }) {
+  return (
+    <TouchableOpacity
+      style={[styles.calculateBtn, disabled && styles.calculateBtnDisabled]}
+      onPress={onPress}
+      disabled={disabled}
+      activeOpacity={0.85}
+    >
+      <Calculator size={16} color="#0B0F19" style={{ marginRight: 6 }} />
+      <Text style={styles.calculateBtnText}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 const weightToGrams = (amount, unit) => (unit === 'tola' ? toNum(amount) * GRAMS_PER_TOLA : toNum(amount));
 
-function ZakatCalculator({ apiUrl, market, theme }) {
+function ZakatCalculator({ apiUrl, market, theme, triggerInterstitial }) {
   const [nisab, setNisab] = useState(null);
   const [loadingNisab, setLoadingNisab] = useState(true);
   const [cash, setCash] = useState('');
@@ -151,6 +182,8 @@ function ZakatCalculator({ apiUrl, market, theme }) {
   const [otherAssets, setOtherAssets] = useState('');
   const [liabilities, setLiabilities] = useState('');
   const [standard, setStandard] = useState('silver'); // 'silver' is the more commonly recommended, inclusive threshold
+  const [result, setResult] = useState(null);
+  const requestCalculate = useGatedCalculate(triggerInterstitial);
 
   useEffect(() => {
     let ignore = false;
@@ -173,15 +206,21 @@ function ZakatCalculator({ apiUrl, market, theme }) {
   }, [apiUrl, market]);
 
   const currencySymbol = nisab?.currency_symbol || getCurrencySymbol(market);
-  const goldGrams = weightToGrams(goldAmount, goldUnit);
-  const silverGrams = weightToGrams(silverAmount, silverUnit);
-  const goldValue = goldGrams * (nisab?.gold_price_per_gram || 0);
-  const silverValue = silverGrams * (nisab?.silver_price_per_gram || 0);
-  const totalAssets = toNum(cash) + goldValue + silverValue + toNum(otherAssets);
-  const netZakatable = Math.max(0, totalAssets - toNum(liabilities));
-  const nisabThreshold = standard === 'gold' ? (nisab?.nisab_gold_threshold || 0) : (nisab?.nisab_silver_threshold || 0);
-  const meetsNisab = nisab ? netZakatable >= nisabThreshold : false;
-  const zakatDue = meetsNisab ? netZakatable * 0.025 : 0;
+
+  const handleCalculate = () => {
+    requestCalculate(() => {
+      const goldGrams = weightToGrams(goldAmount, goldUnit);
+      const silverGrams = weightToGrams(silverAmount, silverUnit);
+      const goldValue = goldGrams * (nisab?.gold_price_per_gram || 0);
+      const silverValue = silverGrams * (nisab?.silver_price_per_gram || 0);
+      const totalAssets = toNum(cash) + goldValue + silverValue + toNum(otherAssets);
+      const netZakatable = Math.max(0, totalAssets - toNum(liabilities));
+      const nisabThreshold = standard === 'gold' ? (nisab?.nisab_gold_threshold || 0) : (nisab?.nisab_silver_threshold || 0);
+      const meetsNisab = nisab ? netZakatable >= nisabThreshold : false;
+      const zakatDue = meetsNisab ? netZakatable * 0.025 : 0;
+      setResult({ netZakatable, meetsNisab, zakatDue });
+    });
+  };
 
   return (
     <View>
@@ -230,27 +269,36 @@ function ZakatCalculator({ apiUrl, market, theme }) {
           <ActivityIndicator size="small" color="#00D2FF" style={{ marginTop: 10 }} />
         ) : nisab ? (
           <Text style={styles.helperText}>
-            Current Nisab threshold: {currencySymbol} {formatMoney(nisabThreshold)} (from real gold/silver spot prices)
+            Current Nisab threshold ({standard}): {currencySymbol} {formatMoney(standard === 'gold' ? nisab.nisab_gold_threshold : nisab.nisab_silver_threshold)} (from real gold/silver spot prices)
           </Text>
         ) : (
           <Text style={styles.helperText}>Could not load current Nisab data.</Text>
         )}
       </View>
 
-      <View style={[styles.resultCard, { backgroundColor: 'rgba(0, 210, 255, 0.08)', borderColor: '#00D2FF' }]}>
-        <Text style={[styles.resultLabel, { color: theme.subtext }]}>Net Zakatable Wealth</Text>
-        <Text style={[styles.resultValue, { color: theme.text }]}>{currencySymbol} {formatMoney(netZakatable)}</Text>
+      <CalculateButton onPress={handleCalculate} disabled={loadingNisab || !nisab} label={result ? 'Recalculate' : 'Calculate Zakat'} />
 
-        <View style={styles.statusRow}>
-          <View style={[styles.statusDot, { backgroundColor: meetsNisab ? '#34D399' : '#94A3B8' }]} />
-          <Text style={[styles.statusText, { color: meetsNisab ? '#34D399' : theme.subtext }]}>
-            {meetsNisab ? 'Above Nisab — Zakat is due' : 'Below Nisab — no Zakat due'}
-          </Text>
-        </View>
+      {result && (
+        <>
+          <View style={[styles.resultCard, { backgroundColor: 'rgba(0, 210, 255, 0.08)', borderColor: '#00D2FF' }]}>
+            <Text style={[styles.resultLabel, { color: theme.subtext }]}>Net Zakatable Wealth</Text>
+            <Text style={[styles.resultValue, { color: theme.text }]}>{currencySymbol} {formatMoney(result.netZakatable)}</Text>
 
-        <Text style={[styles.resultLabel, { color: theme.subtext, marginTop: 12 }]}>Estimated Zakat Due (2.5%)</Text>
-        <Text style={[styles.zakatDueValue]}>{currencySymbol} {formatMoney(zakatDue)}</Text>
-      </View>
+            <View style={styles.statusRow}>
+              <View style={[styles.statusDot, { backgroundColor: result.meetsNisab ? '#34D399' : '#94A3B8' }]} />
+              <Text style={[styles.statusText, { color: result.meetsNisab ? '#34D399' : theme.subtext }]}>
+                {result.meetsNisab ? 'Above Nisab — Zakat is due' : 'Below Nisab — no Zakat due'}
+              </Text>
+            </View>
+
+            <Text style={[styles.resultLabel, { color: theme.subtext, marginTop: 12 }]}>Estimated Zakat Due (2.5%)</Text>
+            <Text style={styles.zakatDueValue}>{currencySymbol} {formatMoney(result.zakatDue)}</Text>
+          </View>
+          <View style={{ marginBottom: 14 }}>
+            <AppNativeAd isDarkMode={theme.bg === '#0B0F19'} />
+          </View>
+        </>
+      )}
 
       <Text style={styles.disclaimerText}>
         This is a general estimate for convenience only, based on real gold/silver spot prices — it is not a religious
@@ -261,12 +309,14 @@ function ZakatCalculator({ apiUrl, market, theme }) {
   );
 }
 
-function CurrencyConverter({ apiUrl, theme }) {
+function CurrencyConverter({ apiUrl, theme, triggerInterstitial }) {
   const [rates, setRates] = useState(null);
   const [loading, setLoading] = useState(true);
   const [amount, setAmount] = useState('1');
   const [fromCcy, setFromCcy] = useState('USD');
   const [toCcy, setToCcy] = useState('PKR');
+  const [result, setResult] = useState(null);
+  const requestCalculate = useGatedCalculate(triggerInterstitial);
 
   useEffect(() => {
     let ignore = false;
@@ -288,12 +338,15 @@ function CurrencyConverter({ apiUrl, theme }) {
     return () => { ignore = true; };
   }, [apiUrl]);
 
-  const converted = useMemo(() => {
-    if (!rates) return 0;
-    const fromRate = rates[fromCcy] || 1;
-    const toRate = rates[toCcy] || 1;
-    return (toNum(amount) / fromRate) * toRate;
-  }, [rates, amount, fromCcy, toCcy]);
+  const handleCalculate = () => {
+    if (!rates) return;
+    requestCalculate(() => {
+      const fromRate = rates[fromCcy] || 1;
+      const toRate = rates[toCcy] || 1;
+      const converted = (toNum(amount) / fromRate) * toRate;
+      setResult({ amount: toNum(amount), fromCcy, toCcy, converted, rate: toRate / fromRate });
+    });
+  };
 
   const CurrencyPicker = ({ selected, onSelect }) => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.currencyRow}>
@@ -344,22 +397,27 @@ function CurrencyConverter({ apiUrl, theme }) {
       {loading ? (
         <ActivityIndicator size="small" color="#00D2FF" style={{ marginTop: 10 }} />
       ) : (
-        <View style={[styles.resultCard, { backgroundColor: 'rgba(0, 210, 255, 0.08)', borderColor: '#00D2FF' }]}>
-          <Text style={[styles.resultLabel, { color: theme.subtext }]}>{amount || 0} {fromCcy} =</Text>
-          <Text style={[styles.resultValue, { color: theme.text }]}>{formatMoney(converted)} {toCcy}</Text>
-          {rates && (
-            <Text style={styles.helperText}>
-              1 {fromCcy} = {((rates[toCcy] || 1) / (rates[fromCcy] || 1)).toFixed(4)} {toCcy}
-            </Text>
-          )}
-        </View>
+        <CalculateButton onPress={handleCalculate} disabled={!rates} label={result ? 'Recalculate' : 'Convert'} />
+      )}
+
+      {result && (
+        <>
+          <View style={[styles.resultCard, { backgroundColor: 'rgba(0, 210, 255, 0.08)', borderColor: '#00D2FF' }]}>
+            <Text style={[styles.resultLabel, { color: theme.subtext }]}>{formatMoney(result.amount)} {result.fromCcy} =</Text>
+            <Text style={[styles.resultValue, { color: theme.text }]}>{formatMoney(result.converted)} {result.toCcy}</Text>
+            <Text style={styles.helperText}>1 {result.fromCcy} = {result.rate.toFixed(4)} {result.toCcy}</Text>
+          </View>
+          <View style={{ marginBottom: 14 }}>
+            <AppNativeAd isDarkMode={theme.bg === '#0B0F19'} />
+          </View>
+        </>
       )}
       <Text style={styles.disclaimerText}>Live exchange rates, updated hourly. Not PSX/exchange stock data.</Text>
     </View>
   );
 }
 
-function GrowthCalculator({ market, theme }) {
+function GrowthCalculator({ market, theme, triggerInterstitial }) {
   const [mode, setMode] = useState('project'); // 'project' | 'cagr'
 
   // Growth Projection mode
@@ -373,31 +431,39 @@ function GrowthCalculator({ market, theme }) {
   const [endVal, setEndVal] = useState('200000');
   const [cagrYears, setCagrYears] = useState('5');
 
+  const [result, setResult] = useState(null);
+  const requestCalculate = useGatedCalculate(triggerInterstitial);
+
   const currencySymbol = getCurrencySymbol(market);
 
-  const projection = useMemo(() => {
-    const monthlyRate = toNum(rate) / 100 / 12;
-    const months = Math.round(toNum(years) * 12);
-    let balance = toNum(initial);
-    let totalContributed = toNum(initial);
-    for (let i = 0; i < months; i++) {
-      balance = balance * (1 + monthlyRate) + toNum(monthly);
-      totalContributed += toNum(monthly);
-    }
-    return {
-      futureValue: balance,
-      totalContributed,
-      totalGrowth: balance - totalContributed,
-    };
-  }, [initial, monthly, rate, years]);
+  const handleCalculateProjection = () => {
+    requestCalculate(() => {
+      const monthlyRate = toNum(rate) / 100 / 12;
+      const months = Math.round(toNum(years) * 12);
+      let balance = toNum(initial);
+      let totalContributed = toNum(initial);
+      for (let i = 0; i < months; i++) {
+        balance = balance * (1 + monthlyRate) + toNum(monthly);
+        totalContributed += toNum(monthly);
+      }
+      setResult({
+        mode: 'project',
+        futureValue: balance,
+        totalContributed,
+        totalGrowth: balance - totalContributed,
+      });
+    });
+  };
 
-  const cagr = useMemo(() => {
-    const s = toNum(startVal);
-    const e = toNum(endVal);
-    const y = toNum(cagrYears);
-    if (s <= 0 || y <= 0) return 0;
-    return (Math.pow(e / s, 1 / y) - 1) * 100;
-  }, [startVal, endVal, cagrYears]);
+  const handleCalculateCagr = () => {
+    requestCalculate(() => {
+      const s = toNum(startVal);
+      const e = toNum(endVal);
+      const y = toNum(cagrYears);
+      const cagr = (s > 0 && y > 0) ? (Math.pow(e / s, 1 / y) - 1) * 100 : 0;
+      setResult({ mode: 'cagr', cagr });
+    });
+  };
 
   return (
     <View>
@@ -426,20 +492,29 @@ function GrowthCalculator({ market, theme }) {
             <Field label="Investment Period (years)" value={years} onChangeText={setYears} theme={theme} placeholder="10" />
           </View>
 
-          <View style={[styles.resultCard, { backgroundColor: 'rgba(0, 210, 255, 0.08)', borderColor: '#00D2FF' }]}>
-            <Text style={[styles.resultLabel, { color: theme.subtext }]}>Projected Future Value</Text>
-            <Text style={[styles.resultValue, { color: theme.text }]}>{currencySymbol} {formatMoney(projection.futureValue)}</Text>
-            <View style={styles.growthStatsRow}>
-              <View>
-                <Text style={styles.helperText}>Total Contributed</Text>
-                <Text style={[styles.growthStatVal, { color: theme.text }]}>{currencySymbol} {formatMoney(projection.totalContributed)}</Text>
+          <CalculateButton onPress={handleCalculateProjection} label={(result && result.mode === 'project') ? 'Recalculate' : 'Calculate Growth'} />
+
+          {result && result.mode === 'project' && (
+            <>
+              <View style={[styles.resultCard, { backgroundColor: 'rgba(0, 210, 255, 0.08)', borderColor: '#00D2FF' }]}>
+                <Text style={[styles.resultLabel, { color: theme.subtext }]}>Projected Future Value</Text>
+                <Text style={[styles.resultValue, { color: theme.text }]}>{currencySymbol} {formatMoney(result.futureValue)}</Text>
+                <View style={styles.growthStatsRow}>
+                  <View>
+                    <Text style={styles.helperText}>Total Contributed</Text>
+                    <Text style={[styles.growthStatVal, { color: theme.text }]}>{currencySymbol} {formatMoney(result.totalContributed)}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.helperText}>Total Growth</Text>
+                    <Text style={[styles.growthStatVal, { color: '#34D399' }]}>{currencySymbol} {formatMoney(result.totalGrowth)}</Text>
+                  </View>
+                </View>
               </View>
-              <View>
-                <Text style={styles.helperText}>Total Growth</Text>
-                <Text style={[styles.growthStatVal, { color: '#34D399' }]}>{currencySymbol} {formatMoney(projection.totalGrowth)}</Text>
+              <View style={{ marginBottom: 14 }}>
+                <AppNativeAd isDarkMode={theme.bg === '#0B0F19'} />
               </View>
-            </View>
-          </View>
+            </>
+          )}
         </>
       ) : (
         <>
@@ -450,10 +525,19 @@ function GrowthCalculator({ market, theme }) {
             <Field label="Holding Period (years)" value={cagrYears} onChangeText={setCagrYears} theme={theme} placeholder="5" />
           </View>
 
-          <View style={[styles.resultCard, { backgroundColor: 'rgba(0, 210, 255, 0.08)', borderColor: '#00D2FF' }]}>
-            <Text style={[styles.resultLabel, { color: theme.subtext }]}>CAGR</Text>
-            <Text style={[styles.resultValue, { color: theme.text }]}>{cagr.toFixed(2)}%</Text>
-          </View>
+          <CalculateButton onPress={handleCalculateCagr} label={(result && result.mode === 'cagr') ? 'Recalculate' : 'Calculate CAGR'} />
+
+          {result && result.mode === 'cagr' && (
+            <>
+              <View style={[styles.resultCard, { backgroundColor: 'rgba(0, 210, 255, 0.08)', borderColor: '#00D2FF' }]}>
+                <Text style={[styles.resultLabel, { color: theme.subtext }]}>CAGR</Text>
+                <Text style={[styles.resultValue, { color: theme.text }]}>{result.cagr.toFixed(2)}%</Text>
+              </View>
+              <View style={{ marginBottom: 14 }}>
+                <AppNativeAd isDarkMode={theme.bg === '#0B0F19'} />
+              </View>
+            </>
+          )}
         </>
       )}
       <Text style={styles.disclaimerText}>
@@ -589,6 +673,23 @@ const styles = StyleSheet.create({
   standardBtnText: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  calculateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#00D2FF',
+    borderRadius: 12,
+    paddingVertical: 13,
+    marginBottom: 14,
+  },
+  calculateBtnDisabled: {
+    opacity: 0.5,
+  },
+  calculateBtnText: {
+    color: '#0B0F19',
+    fontSize: 14,
+    fontWeight: '800',
   },
   resultCard: {
     borderRadius: 16,

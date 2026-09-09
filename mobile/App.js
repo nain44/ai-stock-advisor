@@ -537,8 +537,13 @@ export default function App() {
   const [useTestAds, setUseTestAds] = useState(false);
   const [interstitialVisible, setInterstitialVisible] = useState(false);
   const [rewardedVisible, setRewardedVisible] = useState(false);
+  const interstitialDismissCallbackRef = useRef(null);
 
-  const triggerInterstitial = () => {
+  // onDismiss (optional) runs after the interstitial is closed — used to
+  // gate revealing a result behind the ad rather than just firing it
+  // alongside an already-completed action.
+  const triggerInterstitial = (onDismiss) => {
+    interstitialDismissCallbackRef.current = onDismiss || null;
     setInterstitialVisible(true);
   };
 
@@ -601,6 +606,7 @@ export default function App() {
           <CalculatorsScreen
             apiUrl={apiUrl}
             market={market}
+            triggerInterstitial={triggerInterstitial}
             isDarkMode={isDarkMode}
           />
         );
@@ -803,9 +809,14 @@ export default function App() {
         </Modal>
 
         {/* Root monetization ad overlays */}
-        <MockInterstitialModal 
-          visible={interstitialVisible} 
-          onClose={() => setInterstitialVisible(false)} 
+        <MockInterstitialModal
+          visible={interstitialVisible}
+          onClose={() => {
+            setInterstitialVisible(false);
+            const cb = interstitialDismissCallbackRef.current;
+            interstitialDismissCallbackRef.current = null;
+            if (cb) cb();
+          }}
         />
         <MockRewardedModal 
           visible={rewardedVisible} 
