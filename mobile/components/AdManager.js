@@ -34,9 +34,36 @@ try {
 // Check if running in a real environment with native AdMob capabilities compiled
 const hasNativeAdMob = !!(gma && BannerAdComponent && Platform.OS !== 'web');
 
+// Shared "ad-free" flag, set from App.js once purchase status is known.
+// A plain module-level store (not Context) so AppBannerAd/AppNativeAd can
+// self-suppress from anywhere without every screen having to thread the
+// flag through as a prop.
+let adFreeState = false;
+const adFreeListeners = new Set();
+
+export function setAdFree(value) {
+  adFreeState = value;
+  adFreeListeners.forEach((fn) => fn(value));
+}
+
+export function getAdFree() {
+  return adFreeState;
+}
+
+export function useAdFree() {
+  const [value, setValue] = useState(adFreeState);
+  useEffect(() => {
+    adFreeListeners.add(setValue);
+    return () => adFreeListeners.delete(setValue);
+  }, []);
+  return value;
+}
+
 // 1. Banner Ad Component
 export const AppBannerAd = ({ isDarkMode = true, useTestAds = false }) => {
+  const isAdFree = useAdFree();
   const bannerUnitId = useTestAds ? TEST_BANNER_ID : 'ca-app-pub-4935488254463353/4624173658';
+  if (isAdFree) return null;
   if (hasNativeAdMob) {
     try {
       return (
@@ -67,6 +94,8 @@ export const AppBannerAd = ({ isDarkMode = true, useTestAds = false }) => {
 
 // 2. Native Advanced Ad Component (Inline inside list)
 export const AppNativeAd = ({ isDarkMode = true }) => {
+  const isAdFree = useAdFree();
+  if (isAdFree) return null;
   return (
     <View style={[styles.mockNativeCard, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
       <View style={styles.nativeCardHeader}>

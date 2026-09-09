@@ -1,9 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, StatusBar, Modal, TextInput, Platform, Animated, Easing, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, StatusBar, Modal, TextInput, Platform, Animated, Easing, ScrollView, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AppBannerAd, MockInterstitialModal, MockRewardedModal } from './components/AdManager';
+import { AppBannerAd, MockInterstitialModal, MockRewardedModal, setAdFree } from './components/AdManager';
+import {
+  configurePurchases,
+  fetchAdFreePackage,
+  purchaseAdFree,
+  restorePurchases,
+  checkAdFreeEntitlement,
+  isPurchasesReady,
+} from './components/Purchases';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Home, MessageSquare, Briefcase, Newspaper, Wifi, WifiOff, Settings, AlertCircle, RefreshCw, Menu, X, Sun, Moon, DollarSign, Calculator } from 'lucide-react-native';
+import { Home, MessageSquare, Briefcase, Newspaper, Wifi, WifiOff, Settings, AlertCircle, RefreshCw, Menu, X, Sun, Moon, DollarSign, Calculator, Sparkles, ShieldCheck } from 'lucide-react-native';
 
 // Screen Components
 import DashboardScreen from './components/DashboardScreen';
@@ -291,6 +299,83 @@ export default function App() {
     loadTheme();
   }, []);
 
+  // Remove Ads: show the cached purchase state immediately (so ads don't
+  // flash back in on every launch), then reconcile with RevenueCat.
+  const [isAdFree, setIsAdFree] = useState(false);
+  const [adFreePackage, setAdFreePackage] = useState(null);
+  const [purchaseBusy, setPurchaseBusy] = useState(false);
+  const [purchaseMessage, setPurchaseMessage] = useState('');
+
+  const applyAdFree = (value) => {
+    setIsAdFree(value);
+    setAdFree(value);
+    AsyncStorage.setItem('@multistocks_ad_free', value ? 'true' : 'false').catch(() => {});
+  };
+
+  useEffect(() => {
+    const initPurchases = async () => {
+      try {
+        const cached = await AsyncStorage.getItem('@multistocks_ad_free');
+        if (cached === 'true') {
+          applyAdFree(true);
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      configurePurchases();
+      if (isPurchasesReady()) {
+        const entitled = await checkAdFreeEntitlement();
+        applyAdFree(entitled);
+        const pkg = await fetchAdFreePackage();
+        setAdFreePackage(pkg);
+      }
+    };
+    initPurchases();
+  }, []);
+
+  const handlePurchaseAdFree = async () => {
+    if (!isPurchasesReady()) {
+      setPurchaseMessage('Purchases are not set up yet — check back soon.');
+      return;
+    }
+    if (!adFreePackage) {
+      setPurchaseMessage('No purchase available right now. Please try again later.');
+      return;
+    }
+    setPurchaseBusy(true);
+    setPurchaseMessage('');
+    try {
+      const entitled = await purchaseAdFree(adFreePackage);
+      applyAdFree(entitled);
+      setPurchaseMessage(entitled ? 'Ads removed — thank you!' : 'Purchase did not complete.');
+    } catch (e) {
+      if (!e || !e.userCancelled) {
+        setPurchaseMessage('Purchase failed. Please try again.');
+      }
+    } finally {
+      setPurchaseBusy(false);
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    if (!isPurchasesReady()) {
+      setPurchaseMessage('Purchases are not set up yet — check back soon.');
+      return;
+    }
+    setPurchaseBusy(true);
+    setPurchaseMessage('');
+    try {
+      const entitled = await restorePurchases();
+      applyAdFree(entitled);
+      setPurchaseMessage(entitled ? 'Purchase restored — ads removed.' : 'No previous purchase found.');
+    } catch (e) {
+      setPurchaseMessage('Restore failed. Please try again.');
+    } finally {
+      setPurchaseBusy(false);
+    }
+  };
+
   const toggleTheme = async (mode) => {
     setIsDarkMode(mode);
     try {
@@ -541,8 +626,13 @@ export default function App() {
 
   // onDismiss (optional) runs after the interstitial is closed — used to
   // gate revealing a result behind the ad rather than just firing it
-  // alongside an already-completed action.
+  // alongside an already-completed action. Skipped entirely when the user
+  // has purchased Remove Ads.
   const triggerInterstitial = (onDismiss) => {
+    if (isAdFree) {
+      if (onDismiss) onDismiss();
+      return;
+    }
     interstitialDismissCallbackRef.current = onDismiss || null;
     setInterstitialVisible(true);
   };
@@ -551,8 +641,14 @@ export default function App() {
 
   // onReward (optional) overrides the default AI-credits reward — used when
   // a screen wants the rewarded ad to unlock something else instead (e.g.
-  // skipping the Calculators recalculate gate).
+  // skipping the Calculators recalculate gate). If the user is ad-free
+  // there's nothing to watch, so the reward is just granted immediately.
   const triggerRewarded = (onReward) => {
+    if (isAdFree) {
+      const cb = onReward || (() => setAiCredits(prev => prev + 3));
+      cb();
+      return;
+    }
     rewardedEarnedCallbackRef.current = onReward || null;
     setRewardedVisible(true);
   };
@@ -862,6 +958,59 @@ export default function App() {
             </View>
 
             <ScrollView style={styles.sidebarContent}>
+              {/* Remove Ads */}
+              <View style={[styles.sidebarCard, { backgroundColor: isDarkMode ? '#1F2937' : '#FFF', borderColor: isDarkMode ? '#374151' : '#E2E8F0' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                  {isAdFree ? (
+                    <ShieldCheck size={16} color="#34D399" style={{ marginRight: 6 }} />
+                  ) : (
+                    <Sparkles size={16} color={isDarkMode ? '#00D2FF' : '#0284C7'} style={{ marginRight: 6 }} />
+                  )}
+                  <Text style={[styles.sidebarCardTitle, { color: isDarkMode ? '#00D2FF' : '#0284C7', marginBottom: 0 }]}>
+                    {isAdFree ? 'Ads Removed' : 'Remove Ads'}
+                  </Text>
+                </View>
+
+                {isAdFree ? (
+                  <Text style={{ color: isDarkMode ? '#94A3B8' : '#64748B', fontSize: 12 }}>
+                    Thanks for supporting the app — banner, native, and interstitial ads are off.
+                  </Text>
+                ) : (
+                  <>
+                    <Text style={{ color: isDarkMode ? '#94A3B8' : '#64748B', fontSize: 12, marginBottom: 10 }}>
+                      Remove banner, native, and interstitial ads throughout the app{adFreePackage?.product?.priceString ? ` for ${adFreePackage.product.priceString}` : ''}.
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.themeToggleBtn, { backgroundColor: '#00D2FF', opacity: purchaseBusy ? 0.6 : 1 }]}
+                      onPress={handlePurchaseAdFree}
+                      disabled={purchaseBusy}
+                    >
+                      {purchaseBusy ? (
+                        <ActivityIndicator size="small" color="#0B0F19" />
+                      ) : (
+                        <Text style={{ color: '#0B0F19', fontWeight: 'bold' }}>
+                          {isPurchasesReady() ? 'Remove Ads' : 'Coming Soon'}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={{ marginTop: 10, alignItems: 'center' }}
+                      onPress={handleRestorePurchases}
+                      disabled={purchaseBusy}
+                    >
+                      <Text style={{ color: isDarkMode ? '#00D2FF' : '#0284C7', fontSize: 12, fontWeight: '600' }}>
+                        Restore Purchases
+                      </Text>
+                    </TouchableOpacity>
+                    {!!purchaseMessage && (
+                      <Text style={{ color: isDarkMode ? '#94A3B8' : '#64748B', fontSize: 11, marginTop: 8, textAlign: 'center' }}>
+                        {purchaseMessage}
+                      </Text>
+                    )}
+                  </>
+                )}
+              </View>
+
               {/* Theme Toggle Widget */}
               <View style={[styles.sidebarCard, { backgroundColor: isDarkMode ? '#1F2937' : '#FFF', borderColor: isDarkMode ? '#374151' : '#E2E8F0' }]}>
                 <Text style={[styles.sidebarCardTitle, { color: isDarkMode ? '#00D2FF' : '#0284C7' }]}>Theme Settings</Text>
