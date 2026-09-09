@@ -811,7 +811,7 @@ def query_chat_advisor(query: str, ticker_context: str = None, portfolio: list =
     return generate_simulator_chat_response(query, portfolio, market)
 
 
-def get_market_digest(news_items: list, macro_data: dict, market: str = "PK") -> dict:
+def get_market_digest(news_items: list, macro_data: dict, market: str = "PK", market_name: str = None) -> dict:
     """
     Summarizes today's real news headlines and macro data (forex/commodities/
     index) into a short AI-written market pulse. Unlike per-stock analysis,
@@ -819,8 +819,7 @@ def get_market_digest(news_items: list, macro_data: dict, market: str = "PK") ->
     over real, publicly aggregated news and macro data.
     """
     market_upper = market.upper()
-    market_names = {"US": "United States", "IN": "India", "UK": "United Kingdom"}
-    market_name = market_names.get(market_upper, "Pakistan")
+    market_name = market_name or market_upper
 
     headlines = [item.get("title", "") for item in (news_items or [])[:10] if item.get("title")]
     digest_input = {

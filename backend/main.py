@@ -762,7 +762,7 @@ def get_market_digest(market: Optional[str] = "PK"):
     index_name = index_names_map.get(index_symbol, index_name)
     macro_data = macro_fetcher.get_macro_indicators(market_str, index_symbol, index_name)
 
-    digest = ai_advisor.get_market_digest(news_items, macro_data, market=market_str)
+    digest = ai_advisor.get_market_digest(news_items, macro_data, market=market_str, market_name=market_data.get("name"))
     return {
         "digest": digest,
         "news": news_items[:8],
