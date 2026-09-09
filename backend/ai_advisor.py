@@ -809,3 +809,90 @@ def query_chat_advisor(query: str, ticker_context: str = None, portfolio: list =
             
     # Fallback to rules simulator
     return generate_simulator_chat_response(query, portfolio, market)
+
+
+def get_market_digest(news_items: list, macro_data: dict, market: str = "PK") -> dict:
+    """
+    Summarizes today's real news headlines and macro data (forex/commodities/
+    index) into a short AI-written market pulse. Unlike per-stock analysis,
+    this never quotes an individual simulated stock price — it only reasons
+    over real, publicly aggregated news and macro data.
+    """
+    market_upper = market.upper()
+    market_names = {"US": "United States", "IN": "India", "UK": "United Kingdom"}
+    market_name = market_names.get(market_upper, "Pakistan")
+
+    headlines = [item.get("title", "") for item in (news_items or [])[:10] if item.get("title")]
+    digest_input = {
+        "headlines": headlines,
+        "macro": macro_data or {},
+    }
+
+    fallback_response = {
+        "sentiment": "Mixed",
+        "summary": f"Market sentiment for {market_name} is being shaped by a mix of headlines today — see the stories below for details.",
+        "themes": [h[:80] for h in headlines[:3]] if headlines else ["No major headlines available right now."],
+    }
+
+    if has_gemini:
+        try:
+            import google.generativeai as genai
+            model = genai.GenerativeModel("gemini-1.5-flash")
+
+            prompt = f"""
+            You are a financial news analyst summarizing today's market mood for a retail investor
+            following the {market_name} market. Do not invent or state specific stock prices — you
+            only have access to news headlines and macro data (forex/commodities/index), not live
+            stock quotes.
+
+            Data:
+            {json.dumps(digest_input, indent=2)}
+
+            Return ONLY raw JSON in this exact structure:
+            {{
+                "sentiment": "Bullish" or "Bearish" or "Mixed",
+                "summary": "2-3 sentence plain-language summary of what's moving sentiment today",
+                "themes": ["Theme 1 grounded in a headline", "Theme 2", "Theme 3"]
+            }}
+            """
+            response = model.generate_content(prompt)
+            res_text = response.text.strip()
+            if res_text.startswith("```"):
+                res_text = res_text.split("\n", 1)[1].rsplit("\n", 1)[0].strip()
+            return json.loads(res_text)
+        except Exception as e:
+            print(f"Gemini market digest failed: {e}")
+
+    if has_openai:
+        try:
+            prompt = f"""
+            You are a financial news analyst summarizing today's market mood for a retail investor
+            following the {market_name} market. Do not invent or state specific stock prices — you
+            only have access to news headlines and macro data (forex/commodities/index), not live
+            stock quotes.
+
+            Data:
+            {json.dumps(digest_input, indent=2)}
+
+            Return ONLY raw JSON in this exact structure:
+            {{
+                "sentiment": "Bullish" or "Bearish" or "Mixed",
+                "summary": "2-3 sentence plain-language summary of what's moving sentiment today",
+                "themes": ["Theme 1 grounded in a headline", "Theme 2", "Theme 3"]
+            }}
+            """
+            response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a financial news analyst. Return only valid raw JSON."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            res_text = response.choices[0].message.content.strip()
+            if res_text.startswith("```"):
+                res_text = res_text.split("\n", 1)[1].rsplit("\n", 1)[0].strip()
+            return json.loads(res_text)
+        except Exception as e:
+            print(f"OpenAI market digest failed: {e}")
+
+    return fallback_response

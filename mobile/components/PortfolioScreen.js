@@ -66,6 +66,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
   const [newTicker, setNewTicker] = useState('');
   const [newQty, setNewQty] = useState('');
   const [newPrice, setNewPrice] = useState('');
+  const [newCurrentPrice, setNewCurrentPrice] = useState('');
   const [adding, setAdding] = useState(false);
   const [editingHolding, setEditingHolding] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
@@ -130,10 +131,12 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
     };
   }, [apiUrl, market, portfolio]);
 
-  // Find live price for any stock ticker
-  const getLivePrice = (ticker) => {
-    const s = stocks.find(item => item.ticker === ticker);
-    return s ? s.current_price : 0;
+  // Portfolio value is computed only from the price the user enters themselves,
+  // not a live/simulated feed (this app doesn't source or redistribute real
+  // exchange prices for portfolio math).
+  const getReportedPrice = (holding) => {
+    if (holding.currentPrice != null && holding.currentPrice > 0) return holding.currentPrice;
+    return holding.avgPrice;
   };
 
   const getLiveChange = (ticker) => {
@@ -153,7 +156,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
   const activeHoldings = portfolio.filter(h => h.market === market);
 
   activeHoldings.forEach(holding => {
-    const livePrice = getLivePrice(holding.ticker) || holding.avgPrice;
+    const livePrice = getReportedPrice(holding);
     totalCost += holding.avgPrice * holding.quantity;
     totalValue += livePrice * holding.quantity;
   });
@@ -191,19 +194,16 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
   const selectTickerFromSearch = async (tickerSymbol) => {
     setNewTicker(tickerSymbol);
     setSearchResults([]);
-    
-    // Fetch live price for this selected symbol
+
+    // Look up the ticker's name/sector for display only — price fields are
+    // always entered by the user, never pre-filled from a market feed.
     try {
       setAdding(true);
       const res = await fetch(`${apiUrl}/api/stocks?tickers=${tickerSymbol}&market=${market}`);
       if (res.ok) {
         const data = await res.json();
-        if (data && data.length > 0) {
-          const livePrice = data[0].current_price || 100.0;
-          setNewPrice(livePrice.toString());
-          if (!stocks.some(s => s.ticker === tickerSymbol)) {
-            setStocks(prev => [...prev, { ...data[0], current_price: livePrice }]);
-          }
+        if (data && data.length > 0 && !stocks.some(s => s.ticker === tickerSymbol)) {
+          setStocks(prev => [...prev, data[0]]);
         }
       }
     } catch (e) {
@@ -213,30 +213,23 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
     }
   };
 
-  // Handle ticker change in input to pre-populate current live price
+  // Handle ticker change in input — looks up the name for display only;
+  // does not pre-fill any price field from a market feed.
   const handleTickerChange = async (ticker) => {
     const cleanTicker = ticker.toUpperCase().trim();
     setNewTicker(cleanTicker);
-    
-    const livePrice = getLivePrice(cleanTicker);
-    if (livePrice > 0) {
-      setNewPrice(livePrice.toString());
-    } else {
-      if (cleanTicker.length >= 3 && cleanTicker.length <= 6) {
-        try {
-          const res = await fetch(`${apiUrl}/api/stocks?tickers=${cleanTicker}&market=${market}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data && data.length > 0 && data[0].current_price > 0) {
-              setNewPrice(data[0].current_price.toString());
-              if (!stocks.some(s => s.ticker === cleanTicker)) {
-                setStocks(prev => [...prev, data[0]]);
-              }
-            }
+
+    if (!stocks.some(s => s.ticker === cleanTicker) && cleanTicker.length >= 3 && cleanTicker.length <= 6) {
+      try {
+        const res = await fetch(`${apiUrl}/api/stocks?tickers=${cleanTicker}&market=${market}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            setStocks(prev => [...prev, data[0]]);
           }
-        } catch (e) {
-          // ignore
         }
+      } catch (e) {
+        // ignore
       }
     }
   };
@@ -246,6 +239,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
     setNewTicker(holding.ticker);
     setNewQty(holding.quantity.toString());
     setNewPrice(holding.avgPrice.toString());
+    setNewCurrentPrice(getReportedPrice(holding).toString());
     setModalVisible(true);
   };
 
@@ -254,6 +248,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
     setNewTicker('');
     setNewQty('');
     setNewPrice('');
+    setNewCurrentPrice('');
     setModalVisible(true);
   };
 
@@ -265,13 +260,20 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
 
     const qty = parseInt(newQty);
     const price = parseFloat(newPrice);
+    // Current price defaults to the buy price when left blank (so a
+    // freshly added holding starts at zero P&L until updated by the user).
+    const currentPrice = newCurrentPrice ? parseFloat(newCurrentPrice) : price;
 
     if (isNaN(qty) || qty <= 0) {
       showAlert("Error", "Quantity must be a valid positive integer.", "error");
       return;
     }
     if (isNaN(price) || price <= 0) {
-      showAlert("Error", "Price must be a valid positive number.", "error");
+      showAlert("Error", "Purchase price must be a valid positive number.", "error");
+      return;
+    }
+    if (isNaN(currentPrice) || currentPrice <= 0) {
+      showAlert("Error", "Current price must be a valid positive number.", "error");
       return;
     }
 
@@ -279,8 +281,8 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
     const exists = stocks.some(s => s.ticker === newTicker);
     if (!exists && !editingHolding) {
       showAlert(
-        "Warning",
-        `Ticker ${newTicker} is not currently monitored in KSE coverage list. Adding it might use simulated quotes.`,
+        "Note",
+        `Ticker ${newTicker} isn't in our coverage list, but that's fine — you enter its price yourself, so it'll still track correctly.`,
         "warning"
       );
     }
@@ -296,7 +298,8 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
         updatedPortfolio[idx] = {
           ...updatedPortfolio[idx],
           quantity: qty,
-          avgPrice: price
+          avgPrice: price,
+          currentPrice: currentPrice
         };
       }
     } else {
@@ -308,12 +311,14 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
         const combinedCost = (exist.avgPrice * exist.quantity) + (price * qty);
         exist.quantity = combinedQty;
         exist.avgPrice = combinedCost / combinedQty;
+        exist.currentPrice = currentPrice;
       } else {
         // Add new
         updatedPortfolio.push({
           ticker: newTicker,
           quantity: qty,
           avgPrice: price,
+          currentPrice: currentPrice,
           market: market
         });
       }
@@ -329,12 +334,13 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
     setNewTicker('');
     setNewQty('');
     setNewPrice('');
+    setNewCurrentPrice('');
   };
 
   const handleRemoveHolding = (ticker) => {
     showAlert(
       "Confirm Sell/Remove",
-      `Are you sure you want to remove ${ticker} from your simulated portfolio?`,
+      `Are you sure you want to remove ${ticker} from your portfolio?`,
       "confirm",
       () => {
         const updated = portfolio.filter(h => h.ticker !== ticker);
@@ -390,7 +396,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
 
       {/* Portfolio Header Cards */}
       <View style={[styles.headerBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <Text style={[styles.headerLabel, { color: theme.subtext }]}>Simulated Portfolio Value</Text>
+        <Text style={[styles.headerLabel, { color: theme.subtext }]}>Your Portfolio Value</Text>
         <Text style={[styles.headerVal, { color: theme.text }]}>{getCurrencySymbol(market)} {totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
         
         <View style={styles.pnlRow}>
@@ -420,7 +426,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
 
       {/* Holdings Header */}
       <View style={styles.titleRow}>
-        <Text style={[styles.titleText, { color: theme.text }]}>Your Simulated Holdings</Text>
+        <Text style={[styles.titleText, { color: theme.text }]}>Your Holdings</Text>
         <TouchableOpacity style={[styles.addBtn, !isDarkMode && { backgroundColor: '#0284C7' }]} onPress={handleOpenAddModal}>
           <Plus size={16} color={isDarkMode ? '#0B0F19' : '#FFFFFF'} style={{ marginRight: 4 }} />
           <Text style={[styles.addBtnText, !isDarkMode && { color: '#FFFFFF' }]}>Add Stock</Text>
@@ -430,13 +436,13 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
       {activeHoldings.length === 0 ? (
         <View style={styles.emptyContainer}>
           <ShieldAlert size={28} color="#64748B" />
-          <Text style={[styles.emptyText, !isDarkMode && { color: '#475569' }]}>No active holdings in your simulated {((config?.markets || {})[market] || {}).name || market} portfolio.</Text>
-          <Text style={[styles.emptySubText, !isDarkMode && { color: '#64748B' }]}>Tap 'Add Stock' above to simulate a stock transaction and track performance.</Text>
+          <Text style={[styles.emptyText, !isDarkMode && { color: '#475569' }]}>No active holdings in your {((config?.markets || {})[market] || {}).name || market} portfolio.</Text>
+          <Text style={[styles.emptySubText, !isDarkMode && { color: '#64748B' }]}>Tap 'Add Stock' above to log a holding and track it with your own price updates.</Text>
         </View>
       ) : (
         <ScrollView style={styles.holdingsScroll}>
           {activeHoldings.map((holding) => {
-            const livePrice = getLivePrice(holding.ticker) || holding.avgPrice;
+            const livePrice = getReportedPrice(holding);
             const currentVal = livePrice * holding.quantity;
             const costVal = holding.avgPrice * holding.quantity;
             const holdingPnL = currentVal - costVal;
@@ -477,7 +483,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
                     </Text>
                   </View>
                   <View style={styles.gridCol}>
-                    <Text style={[styles.gridLabel, !isDarkMode && { color: '#64748B' }]}>Live Price</Text>
+                    <Text style={[styles.gridLabel, !isDarkMode && { color: '#64748B' }]}>Your Price</Text>
                     <Text style={[styles.gridVal, !isDarkMode && { color: '#0F172A' }]}>{getCurrencySymbol(market)} {livePrice.toLocaleString()}</Text>
                   </View>
                   <View style={styles.gridCol}>
@@ -509,7 +515,7 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
           <View style={[styles.modalContent, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
             <View style={[styles.modalHeader, !isDarkMode && { borderBottomColor: '#E2E8F0' }]}>
               <Text style={[styles.modalTitle, !isDarkMode && { color: '#0F172A' }]}>
-                {editingHolding ? "Edit Simulated Holding" : "Add Simulated Holding"}
+                {editingHolding ? "Edit Holding" : "Add Holding"}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <X size={20} color={isDarkMode ? '#94A3B8' : '#64748B'} />
@@ -593,6 +599,21 @@ export default function PortfolioScreen({ portfolio, setPortfolio, apiUrl, trigg
                   <ActivityIndicator size="small" color="#00D2FF" style={{ marginLeft: 10 }} />
                 )}
               </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, !isDarkMode && { color: '#64748B' }]}>Current Price ({getCurrencySymbol(market)} per share)</Text>
+              <TextInput
+                style={[styles.inputField, !isDarkMode && { backgroundColor: '#F1F5F9', color: '#000000', borderColor: '#CBD5E1' }]}
+                placeholder="Defaults to purchase price if left blank"
+                placeholderTextColor="#64748B"
+                keyboardType="numeric"
+                value={newCurrentPrice}
+                onChangeText={setNewCurrentPrice}
+              />
+              <Text style={styles.helperText}>
+                We don't fetch live prices (see the SIMULATED badge on the watchlist). Enter what you see on your broker/PSX to keep P&L accurate — update it anytime by editing this holding.
+              </Text>
             </View>
 
             <TouchableOpacity style={[styles.modalSubmitBtn, !isDarkMode && { backgroundColor: '#0284C7' }]} onPress={handleAddHolding}>

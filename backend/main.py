@@ -69,6 +69,7 @@ class HoldingItem(BaseModel):
     ticker: str
     quantity: int
     avgPrice: float
+    currentPrice: Optional[float] = None
 
 class PortfolioAnalysisRequest(BaseModel):
     portfolio: List[HoldingItem]
@@ -553,44 +554,49 @@ def get_analysis(ticker: str, market: Optional[str] = "PK"):
 @app.post("/api/portfolio/analysis")
 def analyze_portfolio(req: PortfolioAnalysisRequest):
     """
-    Evaluates the simulated portfolio and returns an AI recommendation report.
+    Evaluates the user's real portfolio and returns an AI recommendation report.
+
+    P&L is computed from the current price the user reports themselves
+    (e.g. from their broker or the PSX website) rather than any fetched
+    quote, so this works with real holdings and real prices without this
+    app sourcing or redistributing exchange market data.
     """
     if not req.portfolio:
         raise HTTPException(status_code=400, detail="Portfolio cannot be empty.")
-        
+
     market_str = req.market or "PK"
     market_upper = market_str.upper()
     total_cost = 0.0
     total_value = 0.0
     holdings_metrics = []
-    
+
     for holding in req.portfolio:
         ticker = holding.ticker.upper()
         qty = holding.quantity
         avg_price = holding.avgPrice
-        
-        quote = data_fetcher.get_latest_quote(ticker, market=market_str)
+        current_price = holding.currentPrice if holding.currentPrice is not None else avg_price
+        price_is_user_reported = holding.currentPrice is not None
+
         profile = data_fetcher.get_stock_profile(ticker) if market_upper == "PK" else None
-        
-        live_price = quote["price"] if quote else avg_price
-        name = quote["name"] if quote else (profile["name"] if profile else ticker)
-        sector = quote["sector"] if market_upper != "PK" else (profile["sector"] if profile else "PSX Equity")
-        
+        name = profile["name"] if profile else ticker
+        sector = profile["sector"] if profile else ("PSX Equity" if market_upper == "PK" else f"{market_upper} Equity")
+
         cost_val = avg_price * qty
-        current_val = live_price * qty
+        current_val = current_price * qty
         pnl_val = current_val - cost_val
         pnl_pct = (pnl_val / cost_val) * 100 if cost_val > 0 else 0.0
-        
+
         total_cost += cost_val
         total_value += current_val
-        
+
         holdings_metrics.append({
             "ticker": ticker,
             "name": name,
             "sector": sector,
             "quantity": qty,
             "avg_buy_price": avg_price,
-            "current_price": live_price,
+            "current_price": current_price,
+            "price_is_user_reported": price_is_user_reported,
             "total_cost": cost_val,
             "current_value": current_val,
             "pnl": pnl_val,
@@ -711,8 +717,39 @@ def get_macro(market: Optional[str] = "PK"):
         "XU100.IS": "BIST 100"
     }
     index_name = index_names_map.get(index_symbol, index_name)
-    
+
     return macro_fetcher.get_macro_indicators(market_str, index_symbol, index_name)
+
+@app.get("/api/market-digest")
+def get_market_digest(market: Optional[str] = "PK"):
+    """
+    AI-written summary of today's market mood, built only from real news
+    headlines and macro data (forex/commodities/index) — never from a
+    per-stock simulated price, so it stays useful even though this app
+    doesn't source live exchange quotes.
+    """
+    market_str = (market or "PK").upper()
+    news_items = data_fetcher.fetch_market_news(market_str)
+
+    market_data = MARKETS_CONFIG.get(market_str, MARKETS_CONFIG.get("PK", {}))
+    index_symbol = market_data.get("index_symbol", "^KSE")
+    subtitle = market_data.get("subtitle", "Stock Index")
+    index_name = subtitle.split(" (")[0] if " (" in subtitle else subtitle
+    index_names_map = {
+        "^KSE": "KSE100", "^GSPC": "S&P 500", "^NSEI": "NIFTY 50", "^FTSE": "FTSE 100",
+        "^GSPTSE": "S&P/TSX", "^N225": "Nikkei 225", "^GDAXI": "DAX", "^AXJO": "S&P/ASX 200",
+        "^TASI.SR": "Tadawul", "^DFMGI": "DFMGI", "000001.SS": "SSE Composite",
+        "^QE": "QE General", "^EGX30": "EGX 30", "IRR=X": "USD/IRR", "XU100.IS": "BIST 100"
+    }
+    index_name = index_names_map.get(index_symbol, index_name)
+    macro_data = macro_fetcher.get_macro_indicators(market_str, index_symbol, index_name)
+
+    digest = ai_advisor.get_market_digest(news_items, macro_data, market=market_str)
+    return {
+        "digest": digest,
+        "news": news_items[:8],
+        "generated_at": datetime.datetime.now().strftime("%I:%M %p")
+    }
 
 @app.get("/api/settings")
 def get_settings():

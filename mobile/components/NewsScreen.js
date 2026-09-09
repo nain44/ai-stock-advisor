@@ -13,6 +13,8 @@ import { getFallbackNews, resolveNewsItems } from './newsFallback';
 const NewsScreen = ({ apiUrl, market, refreshTrigger, isDarkMode }) => {
   const [news, setNews] = useState(() => getFallbackNews('PK'));
   const [loadingNews, setLoadingNews] = useState(false);
+  const [digest, setDigest] = useState(null);
+  const [loadingDigest, setLoadingDigest] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -59,6 +61,44 @@ const NewsScreen = ({ apiUrl, market, refreshTrigger, isDarkMode }) => {
       ignore = true;
     };
   }, [apiUrl, market, refreshTrigger]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const fetchDigest = async () => {
+      try {
+        setLoadingDigest(true);
+        const res = await fetch(`${apiUrl}/api/market-digest?market=${market}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!ignore) {
+            setDigest(data.digest || null);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to retrieve AI market digest', err);
+        if (!ignore) {
+          setDigest(null);
+        }
+      } finally {
+        if (!ignore) {
+          setLoadingDigest(false);
+        }
+      }
+    };
+
+    fetchDigest();
+    return () => {
+      ignore = true;
+    };
+  }, [apiUrl, market, refreshTrigger]);
+
+  const getDigestSentimentColor = (sentiment) => {
+    const s = (sentiment || '').toLowerCase();
+    if (s === 'bullish') return '#10B981';
+    if (s === 'bearish') return '#EF4444';
+    return '#F59E0B';
+  };
 
   const renderNewsCard = (item, idx) => {
     const sentiment = (item.sentiment || 'neutral').toLowerCase();
@@ -115,8 +155,39 @@ const NewsScreen = ({ apiUrl, market, refreshTrigger, isDarkMode }) => {
     >
       <View style={styles.headerBlock}>
         <Text style={[styles.pageTitle, { color: isDarkMode ? '#FFFFFF' : '#0F172A' }]}>Market News</Text>
-        <Text style={[styles.pageSubtitle, { color: isDarkMode ? '#94A3B8' : '#64748B' }]}>Live updates from the selected market and sentiment feed.</Text>
+        <Text style={[styles.pageSubtitle, { color: isDarkMode ? '#94A3B8' : '#64748B' }]}>Real headlines and an AI-written sentiment summary for the selected market.</Text>
       </View>
+
+      {loadingDigest && !digest ? (
+        <View style={[styles.digestCard, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
+          <ActivityIndicator size="small" color="#00D2FF" />
+        </View>
+      ) : digest ? (
+        <View style={[styles.digestCard, !isDarkMode && { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
+          <View style={styles.digestHeader}>
+            <Text style={[styles.digestTitle, !isDarkMode && { color: '#0F172A' }]}>AI Market Pulse</Text>
+            <View style={[styles.sentimentBadge, { backgroundColor: `${getDigestSentimentColor(digest.sentiment)}20`, borderColor: getDigestSentimentColor(digest.sentiment) }]}>
+              <View style={[styles.sentimentDot, { backgroundColor: getDigestSentimentColor(digest.sentiment) }]} />
+              <Text style={[styles.sentimentText, { color: getDigestSentimentColor(digest.sentiment) }]}>
+                {(digest.sentiment || 'Mixed').toUpperCase()}
+              </Text>
+            </View>
+          </View>
+          <Text style={[styles.digestSummary, !isDarkMode && { color: '#334155' }]}>{digest.summary}</Text>
+          {Array.isArray(digest.themes) && digest.themes.length > 0 && (
+            <View style={styles.digestThemes}>
+              {digest.themes.map((theme, idx) => (
+                <Text key={`theme-${idx}`} style={[styles.digestTheme, !isDarkMode && { color: '#475569' }]} numberOfLines={2}>
+                  • {theme}
+                </Text>
+              ))}
+            </View>
+          )}
+          <Text style={styles.digestDisclaimer}>
+            Based on real public news and macro data only — not a stock price forecast, and not financial advice.
+          </Text>
+        </View>
+      ) : null}
 
       {loadingNews && news.length === 0 ? (
         <View style={styles.loadingBox}>
@@ -166,6 +237,47 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: 10,
+  },
+  digestCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    backgroundColor: '#111827',
+    borderColor: '#1F2937',
+    marginBottom: 14,
+  },
+  digestHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  digestTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#F8FAFC',
+  },
+  digestSummary: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#CBD5E1',
+  },
+  digestThemes: {
+    marginTop: 10,
+    gap: 4,
+  },
+  digestTheme: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#94A3B8',
+  },
+  digestDisclaimer: {
+    marginTop: 10,
+    fontSize: 10.5,
+    lineHeight: 15,
+    color: '#64748B',
+    fontStyle: 'italic',
   },
   card: {
     borderRadius: 16,
