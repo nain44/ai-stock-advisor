@@ -816,7 +816,6 @@ export default function App() {
           <CalculatorsScreen
             apiUrl={apiUrl}
             market={market}
-            portfolio={portfolio}
             isDarkMode={isDarkMode}
           />
         );

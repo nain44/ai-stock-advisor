@@ -11,6 +11,7 @@ import {
 import { Calculator, Coins, ArrowLeftRight, TrendingUp } from 'lucide-react-native';
 
 const CURRENCY_OPTIONS = ['USD', 'PKR', 'INR', 'GBP', 'EUR', 'AED', 'SAR', 'CAD', 'JPY', 'CNY'];
+const GRAMS_PER_TOLA = 11.6638;
 
 const getCurrencySymbol = (m) => {
   if (m === 'US') return '$';
@@ -29,7 +30,7 @@ const formatMoney = (n) => {
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-export default function CalculatorsScreen({ apiUrl, market, portfolio, isDarkMode }) {
+export default function CalculatorsScreen({ apiUrl, market, isDarkMode }) {
   const theme = {
     bg: isDarkMode ? '#0B0F19' : '#F8FAFC',
     card: isDarkMode ? '#161B26' : '#FFFFFF',
@@ -76,7 +77,7 @@ export default function CalculatorsScreen({ apiUrl, market, portfolio, isDarkMod
       </View>
 
       <ScrollView style={styles.body} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {activeTool === 'zakat' && <ZakatCalculator apiUrl={apiUrl} market={market} portfolio={portfolio} theme={theme} />}
+        {activeTool === 'zakat' && <ZakatCalculator apiUrl={apiUrl} market={market} theme={theme} />}
         {activeTool === 'currency' && <CurrencyConverter apiUrl={apiUrl} theme={theme} />}
         {activeTool === 'growth' && <GrowthCalculator market={market} theme={theme} />}
       </ScrollView>
@@ -103,12 +104,50 @@ function Field({ label, value, onChangeText, theme, placeholder, keyboardType = 
 // Slightly lighter/darker input background than the card, for contrast.
 const isBg = (theme) => (theme.bg === '#0B0F19' ? '#0F172A' : '#F1F5F9');
 
-function ZakatCalculator({ apiUrl, market, portfolio, theme }) {
+// Weight input that lets the user enter in grams or tola (whichever they know),
+// converting to grams internally for the calculation.
+function MetalWeightField({ label, amount, onChangeAmount, unit, onChangeUnit, theme }) {
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={[styles.fieldLabel, { color: theme.subtext }]}>{label}</Text>
+      <View style={styles.weightRow}>
+        <TextInput
+          style={[styles.fieldInput, styles.weightInput, { backgroundColor: isBg(theme), color: theme.text, borderColor: theme.border }]}
+          placeholder="0"
+          placeholderTextColor="#64748B"
+          keyboardType="numeric"
+          value={amount}
+          onChangeText={onChangeAmount}
+        />
+        <View style={styles.unitToggle}>
+          <TouchableOpacity
+            style={[styles.unitBtn, { borderColor: theme.border }, unit === 'gram' && styles.unitBtnActive]}
+            onPress={() => onChangeUnit('gram')}
+          >
+            <Text style={[styles.unitBtnText, { color: unit === 'gram' ? '#00D2FF' : theme.subtext }]}>grams</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.unitBtn, { borderColor: theme.border }, unit === 'tola' && styles.unitBtnActive]}
+            onPress={() => onChangeUnit('tola')}
+          >
+            <Text style={[styles.unitBtnText, { color: unit === 'tola' ? '#00D2FF' : theme.subtext }]}>tola</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const weightToGrams = (amount, unit) => (unit === 'tola' ? toNum(amount) * GRAMS_PER_TOLA : toNum(amount));
+
+function ZakatCalculator({ apiUrl, market, theme }) {
   const [nisab, setNisab] = useState(null);
   const [loadingNisab, setLoadingNisab] = useState(true);
   const [cash, setCash] = useState('');
-  const [goldGrams, setGoldGrams] = useState('');
-  const [silverGrams, setSilverGrams] = useState('');
+  const [goldAmount, setGoldAmount] = useState('');
+  const [goldUnit, setGoldUnit] = useState('tola');
+  const [silverAmount, setSilverAmount] = useState('');
+  const [silverUnit, setSilverUnit] = useState('tola');
   const [otherAssets, setOtherAssets] = useState('');
   const [liabilities, setLiabilities] = useState('');
   const [standard, setStandard] = useState('silver'); // 'silver' is the more commonly recommended, inclusive threshold
@@ -133,18 +172,12 @@ function ZakatCalculator({ apiUrl, market, portfolio, theme }) {
     return () => { ignore = true; };
   }, [apiUrl, market]);
 
-  const portfolioValue = useMemo(() => {
-    const activeHoldings = (portfolio || []).filter(h => h.market === market);
-    return activeHoldings.reduce((sum, h) => {
-      const price = (h.currentPrice != null && h.currentPrice > 0) ? h.currentPrice : h.avgPrice;
-      return sum + (price * h.quantity);
-    }, 0);
-  }, [portfolio, market]);
-
   const currencySymbol = nisab?.currency_symbol || getCurrencySymbol(market);
-  const goldValue = toNum(goldGrams) * (nisab?.gold_price_per_gram || 0);
-  const silverValue = toNum(silverGrams) * (nisab?.silver_price_per_gram || 0);
-  const totalAssets = toNum(cash) + portfolioValue + goldValue + silverValue + toNum(otherAssets);
+  const goldGrams = weightToGrams(goldAmount, goldUnit);
+  const silverGrams = weightToGrams(silverAmount, silverUnit);
+  const goldValue = goldGrams * (nisab?.gold_price_per_gram || 0);
+  const silverValue = silverGrams * (nisab?.silver_price_per_gram || 0);
+  const totalAssets = toNum(cash) + goldValue + silverValue + toNum(otherAssets);
   const netZakatable = Math.max(0, totalAssets - toNum(liabilities));
   const nisabThreshold = standard === 'gold' ? (nisab?.nisab_gold_threshold || 0) : (nisab?.nisab_silver_threshold || 0);
   const meetsNisab = nisab ? netZakatable >= nisabThreshold : false;
@@ -157,16 +190,22 @@ function ZakatCalculator({ apiUrl, market, portfolio, theme }) {
 
         <Field label={`Cash & Bank Balances (${currencySymbol})`} value={cash} onChangeText={setCash} theme={theme} placeholder="0" />
 
-        <View style={styles.fieldGroup}>
-          <Text style={[styles.fieldLabel, { color: theme.subtext }]}>Stock Portfolio Value</Text>
-          <View style={[styles.fieldInput, styles.readonlyField, { backgroundColor: isBg(theme), borderColor: theme.border }]}>
-            <Text style={{ color: theme.text }}>{currencySymbol} {formatMoney(portfolioValue)}</Text>
-          </View>
-          <Text style={styles.helperText}>Pulled automatically from your {market} portfolio holdings.</Text>
-        </View>
-
-        <Field label="Gold Owned (grams)" value={goldGrams} onChangeText={setGoldGrams} theme={theme} placeholder="0" />
-        <Field label="Silver Owned (grams)" value={silverGrams} onChangeText={setSilverGrams} theme={theme} placeholder="0" />
+        <MetalWeightField
+          label="Gold Owned"
+          amount={goldAmount}
+          onChangeAmount={setGoldAmount}
+          unit={goldUnit}
+          onChangeUnit={setGoldUnit}
+          theme={theme}
+        />
+        <MetalWeightField
+          label="Silver Owned"
+          amount={silverAmount}
+          onChangeAmount={setSilverAmount}
+          unit={silverUnit}
+          onChangeUnit={setSilverUnit}
+          theme={theme}
+        />
         <Field label={`Other Zakatable Assets (${currencySymbol})`} value={otherAssets} onChangeText={setOtherAssets} theme={theme} placeholder="0" />
         <Field label={`Debts / Liabilities Due (${currencySymbol})`} value={liabilities} onChangeText={setLiabilities} theme={theme} placeholder="0" />
       </View>
@@ -496,8 +535,31 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
   },
-  readonlyField: {
-    justifyContent: 'center',
+  weightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  weightInput: {
+    flex: 1,
+  },
+  unitToggle: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  unitBtn: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  unitBtnActive: {
+    borderColor: '#00D2FF',
+    backgroundColor: 'rgba(0, 210, 255, 0.08)',
+  },
+  unitBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   amountInput: {
     fontSize: 20,
