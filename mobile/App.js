@@ -3,13 +3,14 @@ import { StyleSheet, View, Text, TouchableOpacity, StatusBar, Modal, TextInput, 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppBannerAd, MockInterstitialModal, MockRewardedModal } from './components/AdManager';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Home, MessageSquare, Briefcase, Newspaper, Wifi, WifiOff, Settings, AlertCircle, RefreshCw, Menu, X, Sun, Moon, DollarSign } from 'lucide-react-native';
+import { Home, MessageSquare, Briefcase, Newspaper, Wifi, WifiOff, Settings, AlertCircle, RefreshCw, Menu, X, Sun, Moon, DollarSign, Calculator } from 'lucide-react-native';
 
 // Screen Components
 import DashboardScreen from './components/DashboardScreen';
 import AIChatScreen from './components/AIChatScreen';
 import PortfolioScreen from './components/PortfolioScreen';
 import NewsScreen from './components/NewsScreen';
+import CalculatorsScreen from './components/CalculatorsScreen';
 
 // Default Local Configuration Cache / Fallback
 const DEFAULT_CONFIG = {
@@ -810,6 +811,15 @@ export default function App() {
             isDarkMode={isDarkMode}
           />
         );
+      case 'calculators':
+        return (
+          <CalculatorsScreen
+            apiUrl={apiUrl}
+            market={market}
+            portfolio={portfolio}
+            isDarkMode={isDarkMode}
+          />
+        );
       default:
         return <View style={styles.flexEmpty} />;
     }
@@ -931,6 +941,16 @@ export default function App() {
             <Briefcase size={20} color={currentTab === 'portfolio' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
             <Text style={[styles.tabLabel, currentTab === 'portfolio' && styles.activeTabLabel, { color: currentTab === 'portfolio' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8') }]}>
               Portfolio
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tabItem, currentTab === 'calculators' && styles.activeTabItem]}
+            onPress={() => setCurrentTab('calculators')}
+          >
+            <Calculator size={20} color={currentTab === 'calculators' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
+            <Text style={[styles.tabLabel, currentTab === 'calculators' && styles.activeTabLabel, { color: currentTab === 'calculators' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8') }]}>
+              Calc/Conv
             </Text>
           </TouchableOpacity>
         </View>

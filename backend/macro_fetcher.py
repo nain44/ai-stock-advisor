@@ -16,15 +16,9 @@ def prune_index_cache(cache, limit):
         while len(cache) > limit:
             cache.pop(next(iter(cache)))
 
-def get_macro_indicators(market: str = "PK", index_symbol: str = "^KSE", index_name: str = "KSE100"):
-    """
-    Fetches real-time commodity futures (Gold, Silver, WTI Crude Oil) and Forex currency pairs
-    based on the selected tab market. Converts commodity gold rate into localized weight units (Tola/g).
-    """
-    market = (market or "PK").upper()
+def _get_forex_rates_dict():
+    """Fetches (or returns cached) USD-based exchange rates for all currencies."""
     now = datetime.now()
-    
-    # 1. Fetch Forex currency exchange rates (USD base = 1)
     forex_rates_dict = None
     if "data" in FOREX_CACHE and now - FOREX_CACHE["time"] < timedelta(hours=1):
         forex_rates_dict = FOREX_CACHE["data"]
@@ -43,11 +37,116 @@ def get_macro_indicators(market: str = "PK", index_symbol: str = "^KSE", index_n
             print(f"[macro_fetcher] Error loading exchange rates: {e}")
             # Fallback to expired cache if available
             forex_rates_dict = FOREX_CACHE.get("data")
-            
+
     # Absolute local fallback in case network is down and cache is empty
     if not forex_rates_dict:
         forex_rates_dict = {"PKR": 278.4, "INR": 83.5, "EUR": 0.92, "GBP": 0.78, "JPY": 154.0, "AED": 3.67, "CAD": 1.37, "TRY": 33.5}
-        
+    return forex_rates_dict
+
+
+def _get_commodity_list():
+    """Fetches (or returns cached) Gold/Silver/Crude Oil USD spot prices."""
+    now = datetime.now()
+    if "data" in COMMODITY_CACHE and now - COMMODITY_CACHE["time"] < timedelta(minutes=15):
+        return COMMODITY_CACHE["data"]
+
+    tickers_map = {"Gold": "GC=F", "Silver": "SI=F", "Crude Oil": "CL=F"}
+    commodity_list = []
+
+    for name, ticker in tickers_map.items():
+        try:
+            t = yf.Ticker(ticker)
+            hist = t.history(period="2d")
+            if not hist.empty:
+                current_price = hist["Close"].iloc[-1]
+                prev_close = hist["Close"].iloc[-2] if len(hist) > 1 else current_price
+                change = current_price - prev_close
+                pct = (change / prev_close) * 100 if prev_close != 0 else 0.0
+                commodity_list.append({
+                    "name": name,
+                    "ticker": ticker,
+                    "price": round(current_price, 2),
+                    "change": round(change, 2),
+                    "pct_change": round(pct, 2)
+                })
+        except Exception as e:
+            print(f"[macro_fetcher] Error loading commodity {name}: {e}")
+
+    if len(commodity_list) > 0:
+        COMMODITY_CACHE["data"] = commodity_list
+        COMMODITY_CACHE["time"] = now
+        return commodity_list
+
+    # Fallback commodities list in case yfinance is blocked or offline
+    return [
+        {"name": "Gold", "ticker": "GC=F", "price": 2385.4, "change": 10.7, "pct_change": 0.45},
+        {"name": "Silver", "ticker": "SI=F", "price": 27.8, "change": 0.15, "pct_change": 0.54},
+        {"name": "Crude Oil", "ticker": "CL=F", "price": 78.4, "change": -0.85, "pct_change": -1.07}
+    ]
+
+
+GRAMS_PER_TROY_OUNCE = 31.1034768
+NISAB_GOLD_GRAMS = 87.48
+NISAB_SILVER_GRAMS = 612.36
+
+CURRENCY_SYMBOLS = {"PK": "Rs.", "US": "$", "IN": "₹", "UK": "£", "CA": "C$"}
+CURRENCY_CODES = {"PK": "PKR", "US": "USD", "IN": "INR", "UK": "GBP", "CA": "CAD"}
+
+
+def get_all_forex_rates() -> dict:
+    """Returns the full USD-based exchange rate table for a generic currency converter."""
+    return _get_forex_rates_dict()
+
+
+def get_zakat_nisab(market: str = "PK") -> dict:
+    """
+    Computes the current Nisab thresholds (gold & silver standard) in the
+    local currency, from real gold/silver spot prices and forex rates —
+    not from PSX/exchange stock data. This is a general estimate for
+    convenience only, not a religious ruling; users should confirm with a
+    qualified scholar for their specific situation.
+    """
+    market_upper = (market or "PK").upper()
+    currency_symbol = CURRENCY_SYMBOLS.get(market_upper, "Rs.")
+    currency_code = CURRENCY_CODES.get(market_upper, "PKR")
+
+    forex_rates_dict = _get_forex_rates_dict()
+    usd_to_local = 1.0 if currency_code == "USD" else forex_rates_dict.get(currency_code, 1.0)
+
+    commodities = {c["name"]: c["price"] for c in _get_commodity_list()}
+    gold_usd_per_oz = commodities.get("Gold", 2385.4)
+    silver_usd_per_oz = commodities.get("Silver", 27.8)
+
+    gold_per_gram_local = (gold_usd_per_oz / GRAMS_PER_TROY_OUNCE) * usd_to_local
+    silver_per_gram_local = (silver_usd_per_oz / GRAMS_PER_TROY_OUNCE) * usd_to_local
+
+    nisab_gold = gold_per_gram_local * NISAB_GOLD_GRAMS
+    nisab_silver = silver_per_gram_local * NISAB_SILVER_GRAMS
+
+    return {
+        "currency_symbol": currency_symbol,
+        "currency_code": currency_code,
+        "gold_price_per_gram": round(gold_per_gram_local, 2),
+        "silver_price_per_gram": round(silver_per_gram_local, 2),
+        "nisab_gold_threshold": round(nisab_gold, 2),
+        "nisab_silver_threshold": round(nisab_silver, 2),
+        "nisab_gold_grams": NISAB_GOLD_GRAMS,
+        "nisab_silver_grams": NISAB_SILVER_GRAMS,
+        "zakat_rate_percent": 2.5,
+    }
+
+
+def get_macro_indicators(market: str = "PK", index_symbol: str = "^KSE", index_name: str = "KSE100"):
+    """
+    Fetches real-time commodity futures (Gold, Silver, WTI Crude Oil) and Forex currency pairs
+    based on the selected tab market. Converts commodity gold rate into localized weight units (Tola/g).
+    """
+    market = (market or "PK").upper()
+    now = datetime.now()
+
+    # 1. Fetch Forex currency exchange rates (USD base = 1)
+    forex_rates_dict = _get_forex_rates_dict()
+
     usd_pkr = forex_rates_dict.get("PKR", 278.4)
     usd_inr = forex_rates_dict.get("INR", 83.5)
     usd_eur = forex_rates_dict.get("EUR", 0.92)
@@ -172,44 +271,7 @@ def get_macro_indicators(market: str = "PK", index_symbol: str = "^KSE", index_n
         ]
 
     # 2. Fetch Commodity rates (Gold, Silver, WTI Crude Oil)
-    commodity_list = []
-    if "data" in COMMODITY_CACHE and now - COMMODITY_CACHE["time"] < timedelta(minutes=15):
-        commodity_list = COMMODITY_CACHE["data"]
-    else:
-        tickers_map = {"Gold": "GC=F", "Silver": "SI=F", "Crude Oil": "CL=F"}
-        commodity_list = []
-        
-        for name, ticker in tickers_map.items():
-            try:
-                t = yf.Ticker(ticker)
-                hist = t.history(period="2d")
-                if not hist.empty:
-                    current_price = hist["Close"].iloc[-1]
-                    prev_close = hist["Close"].iloc[-2] if len(hist) > 1 else current_price
-                    change = current_price - prev_close
-                    pct = (change / prev_close) * 100 if prev_close != 0 else 0.0
-                    commodity_list.append({
-                        "name": name,
-                        "ticker": ticker,
-                        "price": round(current_price, 2),
-                        "change": round(change, 2),
-                        "pct_change": round(pct, 2)
-                    })
-            except Exception as e:
-                print(f"[macro_fetcher] Error loading commodity {name}: {e}")
-                
-        # Cache results if we fetched successfully
-        if len(commodity_list) > 0:
-            COMMODITY_CACHE["data"] = commodity_list
-            COMMODITY_CACHE["time"] = now
-
-    # Fallback commodities list in case yfinance is blocked or offline
-    if not commodity_list:
-        commodity_list = [
-            {"name": "Gold", "ticker": "GC=F", "price": 2385.4, "change": 10.7, "pct_change": 0.45},
-            {"name": "Silver", "ticker": "SI=F", "price": 27.8, "change": 0.15, "pct_change": 0.54},
-            {"name": "Crude Oil", "ticker": "CL=F", "price": 78.4, "change": -0.85, "pct_change": -1.07}
-        ]
+    commodity_list = _get_commodity_list()
 
     # 3. Add localized conversions for ALL commodities based on active market
     for item in commodity_list:

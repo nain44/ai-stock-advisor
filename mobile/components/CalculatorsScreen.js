@@ -1,0 +1,616 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { Calculator, Coins, ArrowLeftRight, TrendingUp } from 'lucide-react-native';
+
+const CURRENCY_OPTIONS = ['USD', 'PKR', 'INR', 'GBP', 'EUR', 'AED', 'SAR', 'CAD', 'JPY', 'CNY'];
+
+const getCurrencySymbol = (m) => {
+  if (m === 'US') return '$';
+  if (m === 'IN') return '₹';
+  if (m === 'UK') return '£';
+  return 'Rs.';
+};
+
+const toNum = (v) => {
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+};
+
+const formatMoney = (n) => {
+  if (!isFinite(n)) return '0';
+  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+export default function CalculatorsScreen({ apiUrl, market, portfolio, isDarkMode }) {
+  const theme = {
+    bg: isDarkMode ? '#0B0F19' : '#F8FAFC',
+    card: isDarkMode ? '#161B26' : '#FFFFFF',
+    border: isDarkMode ? '#222A3C' : '#E2E8F0',
+    text: isDarkMode ? '#FFFFFF' : '#0F172A',
+    subtext: isDarkMode ? '#94A3B8' : '#64748B',
+  };
+
+  const [activeTool, setActiveTool] = useState('zakat');
+
+  const tools = [
+    { key: 'zakat', label: 'Zakat', icon: Coins },
+    { key: 'currency', label: 'Currency', icon: ArrowLeftRight },
+    { key: 'growth', label: 'Growth', icon: TrendingUp },
+  ];
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <View style={styles.headerBlock}>
+        <Text style={[styles.pageTitle, { color: theme.text }]}>Calculators & Converters</Text>
+        <Text style={[styles.pageSubtitle, { color: theme.subtext }]}>Zakat, currency conversion, and investment growth tools.</Text>
+      </View>
+
+      <View style={styles.toolSelectorRow}>
+        {tools.map((tool) => {
+          const Icon = tool.icon;
+          const isActive = activeTool === tool.key;
+          return (
+            <TouchableOpacity
+              key={tool.key}
+              style={[
+                styles.toolChip,
+                { backgroundColor: theme.card, borderColor: theme.border },
+                isActive && styles.toolChipActive,
+              ]}
+              onPress={() => setActiveTool(tool.key)}
+              activeOpacity={0.8}
+            >
+              <Icon size={16} color={isActive ? '#00D2FF' : theme.subtext} />
+              <Text style={[styles.toolChipText, { color: isActive ? '#00D2FF' : theme.subtext }]}>{tool.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <ScrollView style={styles.body} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {activeTool === 'zakat' && <ZakatCalculator apiUrl={apiUrl} market={market} portfolio={portfolio} theme={theme} />}
+        {activeTool === 'currency' && <CurrencyConverter apiUrl={apiUrl} theme={theme} />}
+        {activeTool === 'growth' && <GrowthCalculator market={market} theme={theme} />}
+      </ScrollView>
+    </View>
+  );
+}
+
+function Field({ label, value, onChangeText, theme, placeholder, keyboardType = 'numeric' }) {
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={[styles.fieldLabel, { color: theme.subtext }]}>{label}</Text>
+      <TextInput
+        style={[styles.fieldInput, { backgroundColor: isBg(theme), color: theme.text, borderColor: theme.border }]}
+        placeholder={placeholder}
+        placeholderTextColor="#64748B"
+        keyboardType={keyboardType}
+        value={value}
+        onChangeText={onChangeText}
+      />
+    </View>
+  );
+}
+
+// Slightly lighter/darker input background than the card, for contrast.
+const isBg = (theme) => (theme.bg === '#0B0F19' ? '#0F172A' : '#F1F5F9');
+
+function ZakatCalculator({ apiUrl, market, portfolio, theme }) {
+  const [nisab, setNisab] = useState(null);
+  const [loadingNisab, setLoadingNisab] = useState(true);
+  const [cash, setCash] = useState('');
+  const [goldGrams, setGoldGrams] = useState('');
+  const [silverGrams, setSilverGrams] = useState('');
+  const [otherAssets, setOtherAssets] = useState('');
+  const [liabilities, setLiabilities] = useState('');
+  const [standard, setStandard] = useState('silver'); // 'silver' is the more commonly recommended, inclusive threshold
+
+  useEffect(() => {
+    let ignore = false;
+    const fetchNisab = async () => {
+      try {
+        setLoadingNisab(true);
+        const res = await fetch(`${apiUrl}/api/zakat/nisab?market=${market}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!ignore) setNisab(data);
+        }
+      } catch (e) {
+        console.warn('Failed to fetch Zakat Nisab data', e);
+      } finally {
+        if (!ignore) setLoadingNisab(false);
+      }
+    };
+    fetchNisab();
+    return () => { ignore = true; };
+  }, [apiUrl, market]);
+
+  const portfolioValue = useMemo(() => {
+    const activeHoldings = (portfolio || []).filter(h => h.market === market);
+    return activeHoldings.reduce((sum, h) => {
+      const price = (h.currentPrice != null && h.currentPrice > 0) ? h.currentPrice : h.avgPrice;
+      return sum + (price * h.quantity);
+    }, 0);
+  }, [portfolio, market]);
+
+  const currencySymbol = nisab?.currency_symbol || getCurrencySymbol(market);
+  const goldValue = toNum(goldGrams) * (nisab?.gold_price_per_gram || 0);
+  const silverValue = toNum(silverGrams) * (nisab?.silver_price_per_gram || 0);
+  const totalAssets = toNum(cash) + portfolioValue + goldValue + silverValue + toNum(otherAssets);
+  const netZakatable = Math.max(0, totalAssets - toNum(liabilities));
+  const nisabThreshold = standard === 'gold' ? (nisab?.nisab_gold_threshold || 0) : (nisab?.nisab_silver_threshold || 0);
+  const meetsNisab = nisab ? netZakatable >= nisabThreshold : false;
+  const zakatDue = meetsNisab ? netZakatable * 0.025 : 0;
+
+  return (
+    <View>
+      <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>Your Zakatable Assets</Text>
+
+        <Field label={`Cash & Bank Balances (${currencySymbol})`} value={cash} onChangeText={setCash} theme={theme} placeholder="0" />
+
+        <View style={styles.fieldGroup}>
+          <Text style={[styles.fieldLabel, { color: theme.subtext }]}>Stock Portfolio Value</Text>
+          <View style={[styles.fieldInput, styles.readonlyField, { backgroundColor: isBg(theme), borderColor: theme.border }]}>
+            <Text style={{ color: theme.text }}>{currencySymbol} {formatMoney(portfolioValue)}</Text>
+          </View>
+          <Text style={styles.helperText}>Pulled automatically from your {market} portfolio holdings.</Text>
+        </View>
+
+        <Field label="Gold Owned (grams)" value={goldGrams} onChangeText={setGoldGrams} theme={theme} placeholder="0" />
+        <Field label="Silver Owned (grams)" value={silverGrams} onChangeText={setSilverGrams} theme={theme} placeholder="0" />
+        <Field label={`Other Zakatable Assets (${currencySymbol})`} value={otherAssets} onChangeText={setOtherAssets} theme={theme} placeholder="0" />
+        <Field label={`Debts / Liabilities Due (${currencySymbol})`} value={liabilities} onChangeText={setLiabilities} theme={theme} placeholder="0" />
+      </View>
+
+      <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>Nisab Standard</Text>
+        <View style={styles.standardRow}>
+          <TouchableOpacity
+            style={[styles.standardBtn, { borderColor: theme.border }, standard === 'silver' && styles.standardBtnActive]}
+            onPress={() => setStandard('silver')}
+          >
+            <Text style={[styles.standardBtnText, { color: standard === 'silver' ? '#00D2FF' : theme.subtext }]}>Silver (612.36g)</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.standardBtn, { borderColor: theme.border }, standard === 'gold' && styles.standardBtnActive]}
+            onPress={() => setStandard('gold')}
+          >
+            <Text style={[styles.standardBtnText, { color: standard === 'gold' ? '#00D2FF' : theme.subtext }]}>Gold (87.48g)</Text>
+          </TouchableOpacity>
+        </View>
+        {loadingNisab ? (
+          <ActivityIndicator size="small" color="#00D2FF" style={{ marginTop: 10 }} />
+        ) : nisab ? (
+          <Text style={styles.helperText}>
+            Current Nisab threshold: {currencySymbol} {formatMoney(nisabThreshold)} (from real gold/silver spot prices)
+          </Text>
+        ) : (
+          <Text style={styles.helperText}>Could not load current Nisab data.</Text>
+        )}
+      </View>
+
+      <View style={[styles.resultCard, { backgroundColor: 'rgba(0, 210, 255, 0.08)', borderColor: '#00D2FF' }]}>
+        <Text style={[styles.resultLabel, { color: theme.subtext }]}>Net Zakatable Wealth</Text>
+        <Text style={[styles.resultValue, { color: theme.text }]}>{currencySymbol} {formatMoney(netZakatable)}</Text>
+
+        <View style={styles.statusRow}>
+          <View style={[styles.statusDot, { backgroundColor: meetsNisab ? '#34D399' : '#94A3B8' }]} />
+          <Text style={[styles.statusText, { color: meetsNisab ? '#34D399' : theme.subtext }]}>
+            {meetsNisab ? 'Above Nisab — Zakat is due' : 'Below Nisab — no Zakat due'}
+          </Text>
+        </View>
+
+        <Text style={[styles.resultLabel, { color: theme.subtext, marginTop: 12 }]}>Estimated Zakat Due (2.5%)</Text>
+        <Text style={[styles.zakatDueValue]}>{currencySymbol} {formatMoney(zakatDue)}</Text>
+      </View>
+
+      <Text style={styles.disclaimerText}>
+        This is a general estimate for convenience only, based on real gold/silver spot prices — it is not a religious
+        ruling (fatwa). Zakat also requires the wealth to have been held for a full lunar year (Hawl), which this
+        calculator does not track. Please confirm your specific situation with a qualified scholar.
+      </Text>
+    </View>
+  );
+}
+
+function CurrencyConverter({ apiUrl, theme }) {
+  const [rates, setRates] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [amount, setAmount] = useState('1');
+  const [fromCcy, setFromCcy] = useState('USD');
+  const [toCcy, setToCcy] = useState('PKR');
+
+  useEffect(() => {
+    let ignore = false;
+    const fetchRates = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`${apiUrl}/api/forex/rates`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!ignore) setRates(data.rates || null);
+        }
+      } catch (e) {
+        console.warn('Failed to fetch forex rates', e);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    };
+    fetchRates();
+    return () => { ignore = true; };
+  }, [apiUrl]);
+
+  const converted = useMemo(() => {
+    if (!rates) return 0;
+    const fromRate = rates[fromCcy] || 1;
+    const toRate = rates[toCcy] || 1;
+    return (toNum(amount) / fromRate) * toRate;
+  }, [rates, amount, fromCcy, toCcy]);
+
+  const CurrencyPicker = ({ selected, onSelect }) => (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.currencyRow}>
+      {CURRENCY_OPTIONS.map((ccy) => (
+        <TouchableOpacity
+          key={ccy}
+          style={[
+            styles.currencyChip,
+            { borderColor: theme.border },
+            selected === ccy && styles.currencyChipActive,
+          ]}
+          onPress={() => onSelect(ccy)}
+        >
+          <Text style={[styles.currencyChipText, { color: selected === ccy ? '#00D2FF' : theme.subtext }]}>{ccy}</Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+
+  return (
+    <View>
+      <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>Amount</Text>
+        <TextInput
+          style={[styles.fieldInput, styles.amountInput, { backgroundColor: isBg(theme), color: theme.text, borderColor: theme.border }]}
+          keyboardType="numeric"
+          value={amount}
+          onChangeText={setAmount}
+          placeholder="0"
+          placeholderTextColor="#64748B"
+        />
+
+        <Text style={[styles.fieldLabel, { color: theme.subtext, marginTop: 14 }]}>From</Text>
+        <CurrencyPicker selected={fromCcy} onSelect={setFromCcy} />
+
+        <TouchableOpacity
+          style={styles.swapBtn}
+          onPress={() => { setFromCcy(toCcy); setToCcy(fromCcy); }}
+        >
+          <ArrowLeftRight size={16} color="#00D2FF" />
+          <Text style={styles.swapBtnText}>Swap</Text>
+        </TouchableOpacity>
+
+        <Text style={[styles.fieldLabel, { color: theme.subtext }]}>To</Text>
+        <CurrencyPicker selected={toCcy} onSelect={setToCcy} />
+      </View>
+
+      {loading ? (
+        <ActivityIndicator size="small" color="#00D2FF" style={{ marginTop: 10 }} />
+      ) : (
+        <View style={[styles.resultCard, { backgroundColor: 'rgba(0, 210, 255, 0.08)', borderColor: '#00D2FF' }]}>
+          <Text style={[styles.resultLabel, { color: theme.subtext }]}>{amount || 0} {fromCcy} =</Text>
+          <Text style={[styles.resultValue, { color: theme.text }]}>{formatMoney(converted)} {toCcy}</Text>
+          {rates && (
+            <Text style={styles.helperText}>
+              1 {fromCcy} = {((rates[toCcy] || 1) / (rates[fromCcy] || 1)).toFixed(4)} {toCcy}
+            </Text>
+          )}
+        </View>
+      )}
+      <Text style={styles.disclaimerText}>Live exchange rates, updated hourly. Not PSX/exchange stock data.</Text>
+    </View>
+  );
+}
+
+function GrowthCalculator({ market, theme }) {
+  const [mode, setMode] = useState('project'); // 'project' | 'cagr'
+
+  // Growth Projection mode
+  const [initial, setInitial] = useState('100000');
+  const [monthly, setMonthly] = useState('5000');
+  const [rate, setRate] = useState('12');
+  const [years, setYears] = useState('10');
+
+  // CAGR mode
+  const [startVal, setStartVal] = useState('100000');
+  const [endVal, setEndVal] = useState('200000');
+  const [cagrYears, setCagrYears] = useState('5');
+
+  const currencySymbol = getCurrencySymbol(market);
+
+  const projection = useMemo(() => {
+    const monthlyRate = toNum(rate) / 100 / 12;
+    const months = Math.round(toNum(years) * 12);
+    let balance = toNum(initial);
+    let totalContributed = toNum(initial);
+    for (let i = 0; i < months; i++) {
+      balance = balance * (1 + monthlyRate) + toNum(monthly);
+      totalContributed += toNum(monthly);
+    }
+    return {
+      futureValue: balance,
+      totalContributed,
+      totalGrowth: balance - totalContributed,
+    };
+  }, [initial, monthly, rate, years]);
+
+  const cagr = useMemo(() => {
+    const s = toNum(startVal);
+    const e = toNum(endVal);
+    const y = toNum(cagrYears);
+    if (s <= 0 || y <= 0) return 0;
+    return (Math.pow(e / s, 1 / y) - 1) * 100;
+  }, [startVal, endVal, cagrYears]);
+
+  return (
+    <View>
+      <View style={styles.standardRow}>
+        <TouchableOpacity
+          style={[styles.standardBtn, { borderColor: theme.border }, mode === 'project' && styles.standardBtnActive]}
+          onPress={() => setMode('project')}
+        >
+          <Text style={[styles.standardBtnText, { color: mode === 'project' ? '#00D2FF' : theme.subtext }]}>Growth Projection</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.standardBtn, { borderColor: theme.border }, mode === 'cagr' && styles.standardBtnActive]}
+          onPress={() => setMode('cagr')}
+        >
+          <Text style={[styles.standardBtnText, { color: mode === 'cagr' ? '#00D2FF' : theme.subtext }]}>Find CAGR</Text>
+        </TouchableOpacity>
+      </View>
+
+      {mode === 'project' ? (
+        <>
+          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>Investment Growth Projection</Text>
+            <Field label={`Initial Investment (${currencySymbol})`} value={initial} onChangeText={setInitial} theme={theme} placeholder="0" />
+            <Field label={`Monthly Contribution (${currencySymbol})`} value={monthly} onChangeText={setMonthly} theme={theme} placeholder="0" />
+            <Field label="Expected Annual Return (%)" value={rate} onChangeText={setRate} theme={theme} placeholder="12" />
+            <Field label="Investment Period (years)" value={years} onChangeText={setYears} theme={theme} placeholder="10" />
+          </View>
+
+          <View style={[styles.resultCard, { backgroundColor: 'rgba(0, 210, 255, 0.08)', borderColor: '#00D2FF' }]}>
+            <Text style={[styles.resultLabel, { color: theme.subtext }]}>Projected Future Value</Text>
+            <Text style={[styles.resultValue, { color: theme.text }]}>{currencySymbol} {formatMoney(projection.futureValue)}</Text>
+            <View style={styles.growthStatsRow}>
+              <View>
+                <Text style={styles.helperText}>Total Contributed</Text>
+                <Text style={[styles.growthStatVal, { color: theme.text }]}>{currencySymbol} {formatMoney(projection.totalContributed)}</Text>
+              </View>
+              <View>
+                <Text style={styles.helperText}>Total Growth</Text>
+                <Text style={[styles.growthStatVal, { color: '#34D399' }]}>{currencySymbol} {formatMoney(projection.totalGrowth)}</Text>
+              </View>
+            </View>
+          </View>
+        </>
+      ) : (
+        <>
+          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>Compound Annual Growth Rate</Text>
+            <Field label={`Starting Value (${currencySymbol})`} value={startVal} onChangeText={setStartVal} theme={theme} placeholder="0" />
+            <Field label={`Ending Value (${currencySymbol})`} value={endVal} onChangeText={setEndVal} theme={theme} placeholder="0" />
+            <Field label="Holding Period (years)" value={cagrYears} onChangeText={setCagrYears} theme={theme} placeholder="5" />
+          </View>
+
+          <View style={[styles.resultCard, { backgroundColor: 'rgba(0, 210, 255, 0.08)', borderColor: '#00D2FF' }]}>
+            <Text style={[styles.resultLabel, { color: theme.subtext }]}>CAGR</Text>
+            <Text style={[styles.resultValue, { color: theme.text }]}>{cagr.toFixed(2)}%</Text>
+          </View>
+        </>
+      )}
+      <Text style={styles.disclaimerText}>
+        Estimates only, based on your inputs — not a forecast or guarantee of actual returns. Not financial advice.
+      </Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  headerBlock: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  pageTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  pageSubtitle: {
+    marginTop: 4,
+    fontSize: 13,
+  },
+  toolSelectorRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 4,
+  },
+  toolChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+  },
+  toolChipActive: {
+    borderColor: '#00D2FF',
+    backgroundColor: 'rgba(0, 210, 255, 0.08)',
+  },
+  toolChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  body: {
+    flex: 1,
+    paddingHorizontal: 16,
+    marginTop: 12,
+  },
+  card: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 14,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  fieldGroup: {
+    marginBottom: 12,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  fieldInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  readonlyField: {
+    justifyContent: 'center',
+  },
+  amountInput: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  helperText: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 4,
+  },
+  standardRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  standardBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  standardBtnActive: {
+    borderColor: '#00D2FF',
+    backgroundColor: 'rgba(0, 210, 255, 0.08)',
+  },
+  standardBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  resultCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 14,
+  },
+  resultLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  resultValue: {
+    fontSize: 26,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  zakatDueValue: {
+    fontSize: 26,
+    fontWeight: '800',
+    marginTop: 4,
+    color: '#00D2FF',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  currencyRow: {
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  currencyChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    marginRight: 8,
+  },
+  currencyChipActive: {
+    borderColor: '#00D2FF',
+    backgroundColor: 'rgba(0, 210, 255, 0.08)',
+  },
+  currencyChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  swapBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    marginBottom: 4,
+  },
+  swapBtnText: {
+    color: '#00D2FF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  growthStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  growthStatVal: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  disclaimerText: {
+    fontSize: 10.5,
+    lineHeight: 15,
+    color: '#64748B',
+    fontStyle: 'italic',
+    marginBottom: 20,
+  },
+});

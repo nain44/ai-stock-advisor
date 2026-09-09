@@ -720,6 +720,24 @@ def get_macro(market: Optional[str] = "PK"):
 
     return macro_fetcher.get_macro_indicators(market_str, index_symbol, index_name)
 
+@app.get("/api/forex/rates")
+def get_forex_rates_endpoint():
+    """
+    Returns the full USD-based exchange rate table for a generic currency
+    converter. Real forex data (not PSX/exchange stock data).
+    """
+    return {"base": "USD", "rates": macro_fetcher.get_all_forex_rates()}
+
+@app.get("/api/zakat/nisab")
+def get_zakat_nisab_endpoint(market: Optional[str] = "PK"):
+    """
+    Returns current Nisab thresholds (gold & silver standard) in the local
+    currency, from real gold/silver spot prices and forex rates. General
+    estimate only, not a religious ruling.
+    """
+    market_str = (market or "PK").upper()
+    return macro_fetcher.get_zakat_nisab(market_str)
+
 @app.get("/api/market-digest")
 def get_market_digest(market: Optional[str] = "PK"):
     """
