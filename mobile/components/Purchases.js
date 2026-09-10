@@ -1,86 +1,91 @@
 import { Platform } from 'react-native';
 
-// Entitlement identifier configured in the RevenueCat dashboard — must match
-// exactly what's set up there.
-export const AD_FREE_ENTITLEMENT_ID = 'ad_free';
+// Product id configured in App Store Connect / Google Play Console — must
+// match exactly what's set up there. Single non-consumable "remove ads" IAP.
+export const PRO_UNLOCK_PRODUCT_ID = 'pro_unlock';
 
-// Fill these in once a RevenueCat project exists (Project Settings > API Keys).
-// Public SDK keys are safe to ship in client code.
-const REVENUECAT_API_KEYS = {
-  ios: '',
-  android: '',
-};
-
-// Check if react-native-purchases' native module is available. Like AdManager's
+// Check if react-native-iap's native module is available. Like AdManager's
 // AdMob check, this fails gracefully (e.g. under Expo Go, which can't load
 // custom native modules) instead of crashing the app.
-let PurchasesSDK = null;
+let IAP = null;
 try {
-  PurchasesSDK = require('react-native-purchases').default;
+  IAP = require('react-native-iap');
 } catch (e) {
   // Native module not available (Expo Go / web) — purchases stay disabled.
 }
 
-export const hasNativeIAP = !!(PurchasesSDK && Platform.OS !== 'web');
+export const hasNativeIAP = !!(IAP && Platform.OS !== 'web' && IAP.isNitroReady && IAP.isNitroReady());
 
-let isConfigured = false;
+let isConnected = false;
+let purchaseUpdateSub = null;
+let purchaseErrorSub = null;
 
-function currentApiKey() {
-  return Platform.OS === 'ios' ? REVENUECAT_API_KEYS.ios : REVENUECAT_API_KEYS.android;
-}
-
-// True once both the native module is present AND a real API key has been
-// filled in above — lets the UI show a clear "not set up yet" state instead
-// of a confusing purchase failure.
 export function isPurchasesReady() {
-  return hasNativeIAP && !!currentApiKey();
+  return hasNativeIAP;
 }
 
-export function configurePurchases() {
-  if (isConfigured || !isPurchasesReady()) return;
+export async function configurePurchases() {
+  if (isConnected || !isPurchasesReady()) return;
   try {
-    PurchasesSDK.configure({ apiKey: currentApiKey() });
-    isConfigured = true;
+    await IAP.initConnection();
+    isConnected = true;
+
+    // Finish any purchase as soon as it comes back, whether it started in
+    // this session (purchaseAdFree) or was restored by the store itself.
+    purchaseUpdateSub = IAP.purchaseUpdatedListener(async (purchase) => {
+      try {
+        await IAP.finishTransaction({ purchase, isConsumable: false });
+      } catch (e) {
+        // ignore — already finished or transient store error
+      }
+    });
+    purchaseErrorSub = IAP.purchaseErrorListener(() => {});
   } catch (e) {
-    console.warn('Failed to configure RevenueCat', e);
+    console.warn('Failed to connect to the store', e);
   }
 }
 
-function hasAdFreeEntitlement(customerInfo) {
-  return !!(customerInfo && customerInfo.entitlements && customerInfo.entitlements.active && customerInfo.entitlements.active[AD_FREE_ENTITLEMENT_ID]);
+function hasProUnlock(purchases) {
+  return !!(purchases || []).find((p) => p.productId === PRO_UNLOCK_PRODUCT_ID);
 }
 
-// Returns the purchasable "remove ads" package (price, product id, etc.) from
-// the RevenueCat current offering, or null if unavailable.
+// Returns the purchasable "remove ads" product (price, product id, etc.), or
+// null if unavailable.
 export async function fetchAdFreePackage() {
-  if (!isConfigured) return null;
+  if (!isConnected) return null;
   try {
-    const offerings = await PurchasesSDK.getOfferings();
-    const pkgs = offerings?.current?.availablePackages || [];
-    return pkgs[0] || null;
+    const products = await IAP.fetchProducts({ skus: [PRO_UNLOCK_PRODUCT_ID], type: 'in-app' });
+    return products?.[0] || null;
   } catch (e) {
-    console.warn('Failed to fetch RevenueCat offerings', e);
+    console.warn('Failed to fetch IAP products', e);
     return null;
   }
 }
 
-export async function purchaseAdFree(pkg) {
-  if (!isConfigured) throw new Error('Purchases are not configured in this build.');
-  const { customerInfo } = await PurchasesSDK.purchasePackage(pkg);
-  return hasAdFreeEntitlement(customerInfo);
+export async function purchaseAdFree() {
+  if (!isConnected) throw new Error('Purchases are not configured in this build.');
+  await IAP.requestPurchase({
+    request: {
+      apple: { sku: PRO_UNLOCK_PRODUCT_ID },
+      google: { skus: [PRO_UNLOCK_PRODUCT_ID] },
+    },
+    type: 'in-app',
+  });
+  const purchases = await IAP.getAvailablePurchases();
+  return hasProUnlock(purchases);
 }
 
 export async function restorePurchases() {
-  if (!isConfigured) throw new Error('Purchases are not configured in this build.');
-  const customerInfo = await PurchasesSDK.restorePurchases();
-  return hasAdFreeEntitlement(customerInfo);
+  if (!isConnected) throw new Error('Purchases are not configured in this build.');
+  const purchases = await IAP.getAvailablePurchases();
+  return hasProUnlock(purchases);
 }
 
 export async function checkAdFreeEntitlement() {
-  if (!isConfigured) return false;
+  if (!isConnected) return false;
   try {
-    const customerInfo = await PurchasesSDK.getCustomerInfo();
-    return hasAdFreeEntitlement(customerInfo);
+    const purchases = await IAP.getAvailablePurchases();
+    return hasProUnlock(purchases);
   } catch (e) {
     return false;
   }

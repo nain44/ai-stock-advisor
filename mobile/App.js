@@ -300,7 +300,7 @@ export default function App() {
   }, []);
 
   // Remove Ads: show the cached purchase state immediately (so ads don't
-  // flash back in on every launch), then reconcile with RevenueCat.
+  // flash back in on every launch), then reconcile with the store.
   const [isAdFree, setIsAdFree] = useState(false);
   const [adFreePackage, setAdFreePackage] = useState(null);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
@@ -978,7 +978,7 @@ export default function App() {
                 ) : (
                   <>
                     <Text style={{ color: isDarkMode ? '#94A3B8' : '#64748B', fontSize: 12, marginBottom: 10 }}>
-                      Remove banner, native, and interstitial ads throughout the app{adFreePackage?.product?.priceString ? ` for ${adFreePackage.product.priceString}` : ''}.
+                      Remove banner, native, and interstitial ads throughout the app{adFreePackage?.displayPrice ? ` for ${adFreePackage.displayPrice}` : ''}.
                     </Text>
                     <TouchableOpacity
                       style={[styles.themeToggleBtn, { backgroundColor: '#00D2FF', opacity: purchaseBusy ? 0.6 : 1 }]}
