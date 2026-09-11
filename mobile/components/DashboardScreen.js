@@ -5,6 +5,7 @@ import { AppNativeAd } from './AdManager';
 import Svg, { Path, Defs, LinearGradient, Stop, Rect, Line, Text as SvgText } from 'react-native-svg';
 import { TrendingUp, TrendingDown, ShieldAlert, Award, Compass, RefreshCw, BarChart2, Trash2, Plus, Search, ArrowLeft } from 'lucide-react-native';
 import { resolveWatchlist } from './watchlistSync';
+import LearnTooltip from './LearnTooltip';
 
 const { width } = Dimensions.get('window');
 
@@ -1107,7 +1108,10 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                     {/* RSI */}
                     <View style={styles.indicatorRow}>
                       <View style={styles.indicatorMeta}>
-                        <Text style={[styles.indicatorName, !isDarkMode && { color: theme.subtext }]}>RSI (14)</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={[styles.indicatorName, !isDarkMode && { color: theme.subtext }]}>RSI (14)</Text>
+                          <LearnTooltip term="RSI" isDarkMode={isDarkMode} />
+                        </View>
                         <Text style={[styles.indicatorVal, {
                           color: (analysis.technical_analysis?.rsi?.value ?? 50) > 70 ? '#F87171' :
                                  (analysis.technical_analysis?.rsi?.value ?? 50) < 30 ? '#34D399' : '#F3F4F6'
@@ -1128,7 +1132,10 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                     {/* MACD */}
                     <View style={styles.indicatorRow}>
                       <View style={styles.indicatorMeta}>
-                        <Text style={[styles.indicatorName, !isDarkMode && { color: theme.subtext }]}>MACD</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={[styles.indicatorName, !isDarkMode && { color: theme.subtext }]}>MACD</Text>
+                          <LearnTooltip term="MACD" isDarkMode={isDarkMode} />
+                        </View>
                         <Text style={styles.indicatorVal}>
                           {(analysis.technical_analysis?.macd?.line ?? 0).toFixed(2)}
                         </Text>
@@ -1141,7 +1148,10 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                     {/* Bollinger Bands */}
                     <View style={styles.indicatorRow}>
                       <View style={styles.indicatorMeta}>
-                        <Text style={[styles.indicatorName, !isDarkMode && { color: theme.subtext }]}>Bollinger Bands (20,2)</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={[styles.indicatorName, !isDarkMode && { color: theme.subtext }]}>Bollinger Bands (20,2)</Text>
+                          <LearnTooltip term="BOLLINGER" isDarkMode={isDarkMode} />
+                        </View>
                         <Text style={styles.indicatorVal}>
                           Basis: {(analysis.technical_analysis?.bollinger_bands?.middle ?? 0).toFixed(1)}
                         </Text>
@@ -1161,29 +1171,47 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                   <View style={[styles.fundamentalsCard, !isDarkMode && { backgroundColor: theme.card, borderColor: theme.border }]}> 
                     <View style={styles.fundRow}>
                       <View style={styles.fundCol}>
-                        <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>P/E Ratio</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>P/E Ratio</Text>
+                          <LearnTooltip term="PE_RATIO" isDarkMode={isDarkMode} size={12} />
+                        </View>
                         <Text style={[styles.fundVal, !isDarkMode && { color: theme.text }]}>{analysis.profile?.pe_ratio || 'N/A'}</Text>
                       </View>
                       <View style={styles.fundCol}>
-                        <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>P/B Ratio</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>P/B Ratio</Text>
+                          <LearnTooltip term="PB_RATIO" isDarkMode={isDarkMode} size={12} />
+                        </View>
                         <Text style={[styles.fundVal, !isDarkMode && { color: theme.text }]}>{analysis.profile?.pb_ratio || 'N/A'}</Text>
                       </View>
                       <View style={styles.fundCol}>
-                        <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>ROE</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>ROE</Text>
+                          <LearnTooltip term="ROE" isDarkMode={isDarkMode} size={12} />
+                        </View>
                         <Text style={[styles.fundVal, !isDarkMode && { color: theme.text }]}>{analysis.profile?.roe ? `${analysis.profile.roe}%` : 'N/A'}</Text>
                       </View>
                     </View>
                     <View style={styles.fundRow}>
                       <View style={styles.fundCol}>
-                        <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>Div. Yield</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>Div. Yield</Text>
+                          <LearnTooltip term="DIV_YIELD" isDarkMode={isDarkMode} size={12} />
+                        </View>
                         <Text style={[styles.fundVal, !isDarkMode && { color: theme.text }]}>{analysis.profile?.div_yield ? `${analysis.profile.div_yield}%` : 'N/A'}</Text>
                       </View>
                       <View style={styles.fundCol}>
-                        <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>Debt/Equity</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>Debt/Equity</Text>
+                          <LearnTooltip term="DEBT_EQUITY" isDarkMode={isDarkMode} size={12} />
+                        </View>
                         <Text style={[styles.fundVal, !isDarkMode && { color: theme.text }]}>{analysis.profile?.debt_equity ? `${analysis.profile.debt_equity}%` : 'N/A'}</Text>
                       </View>
                       <View style={styles.fundCol}>
-                        <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>Avg. Volume</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={[styles.fundLabel, !isDarkMode && { color: theme.subtext }]}>Avg. Volume</Text>
+                          <LearnTooltip term="AVG_VOLUME" isDarkMode={isDarkMode} size={12} />
+                        </View>
                         <Text style={[styles.fundVal, !isDarkMode && { color: theme.text }]}>{analysis.profile?.volume_avg ? analysis.profile.volume_avg.toLocaleString() : 'N/A'}</Text>
                       </View>
                     </View>
