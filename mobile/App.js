@@ -822,26 +822,6 @@ export default function App() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tabItem, currentTab === 'chat' && styles.activeTabItem]}
-            onPress={() => setCurrentTab('chat')}
-          >
-            <MessageSquare size={20} color={currentTab === 'chat' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
-            <Text style={[styles.tabLabel, currentTab === 'chat' && styles.activeTabLabel, { color: currentTab === 'chat' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8') }]}>
-              AI Advisor
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentTab === 'news' && styles.activeTabItem]}
-            onPress={() => setCurrentTab('news')}
-          >
-            <Newspaper size={20} color={currentTab === 'news' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
-            <Text style={[styles.tabLabel, currentTab === 'news' && styles.activeTabLabel, { color: currentTab === 'news' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8') }]}>
-              News
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
             style={[styles.tabItem, currentTab === 'portfolio' && styles.activeTabItem]}
             onPress={() => setCurrentTab('portfolio')}
           >
@@ -858,6 +838,26 @@ export default function App() {
             <Calculator size={20} color={currentTab === 'calculators' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
             <Text style={[styles.tabLabel, currentTab === 'calculators' && styles.activeTabLabel, { color: currentTab === 'calculators' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8') }]}>
               Calc/Conv
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tabItem, currentTab === 'news' && styles.activeTabItem]}
+            onPress={() => setCurrentTab('news')}
+          >
+            <Newspaper size={20} color={currentTab === 'news' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
+            <Text style={[styles.tabLabel, currentTab === 'news' && styles.activeTabLabel, { color: currentTab === 'news' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8') }]}>
+              News
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tabItem, currentTab === 'chat' && styles.activeTabItem]}
+            onPress={() => setCurrentTab('chat')}
+          >
+            <MessageSquare size={20} color={currentTab === 'chat' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
+            <Text style={[styles.tabLabel, currentTab === 'chat' && styles.activeTabLabel, { color: currentTab === 'chat' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8') }]}>
+              AI Advisor
             </Text>
           </TouchableOpacity>
         </View>
