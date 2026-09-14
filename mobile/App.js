@@ -812,12 +812,12 @@ export default function App() {
         {/* Custom Bottom Tab Navigator */}
         <View style={[styles.tabBar, { backgroundColor: isDarkMode ? '#111827' : '#FFFFFF', borderTopColor: isDarkMode ? '#222A3C' : '#E2E8F0' }]}>
           <TouchableOpacity
-            style={[styles.tabItem, currentTab === 'calculators' && styles.activeTabItem]}
-            onPress={() => setCurrentTab('calculators')}
+            style={[styles.tabItem, currentTab === 'dashboard' && styles.activeTabItem]}
+            onPress={() => setCurrentTab('dashboard')}
           >
-            <Calculator size={20} color={currentTab === 'calculators' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
-            <Text style={[styles.tabLabel, currentTab === 'calculators' && styles.activeTabLabel, { color: currentTab === 'calculators' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8') }]}>
-              Calc/Conv
+            <Home size={20} color={currentTab === 'dashboard' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
+            <Text style={[styles.tabLabel, currentTab === 'dashboard' && styles.activeTabLabel, { color: currentTab === 'dashboard' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8') }]}>
+              Dashboard
             </Text>
           </TouchableOpacity>
 
@@ -832,12 +832,12 @@ export default function App() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tabItem, currentTab === 'dashboard' && styles.activeTabItem]}
-            onPress={() => setCurrentTab('dashboard')}
+            style={[styles.tabItem, currentTab === 'calculators' && styles.activeTabItem]}
+            onPress={() => setCurrentTab('calculators')}
           >
-            <Home size={20} color={currentTab === 'dashboard' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
-            <Text style={[styles.tabLabel, currentTab === 'dashboard' && styles.activeTabLabel, { color: currentTab === 'dashboard' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8') }]}>
-              Sim/Stocks
+            <Calculator size={20} color={currentTab === 'calculators' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
+            <Text style={[styles.tabLabel, currentTab === 'calculators' && styles.activeTabLabel, { color: currentTab === 'calculators' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8') }]}>
+              Calc/Conv
             </Text>
           </TouchableOpacity>
 
