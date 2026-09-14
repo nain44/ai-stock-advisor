@@ -280,6 +280,10 @@ const DEFAULT_API_URL = 'https://ai-stock-advisor-sp9b.onrender.com';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState('dashboard');
+  // Set when a dashboard stock's "Practice with this stock" button is tapped —
+  // consumed once by CalculatorsScreen to seed the Scenario Simulator, then
+  // cleared so revisiting the tab later doesn't re-trigger it.
+  const [scenarioSeed, setScenarioSeed] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarRendered, setSidebarRendered] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -667,6 +671,10 @@ export default function App() {
             config={config}
             refreshTrigger={refreshTrigger}
             isDarkMode={isDarkMode}
+            onPracticeWithStock={(seed) => {
+              setScenarioSeed(seed);
+              setCurrentTab('calculators');
+            }}
           />
         );
       case 'chat':
@@ -713,6 +721,8 @@ export default function App() {
             triggerInterstitial={triggerInterstitial}
             triggerRewarded={triggerRewarded}
             isDarkMode={isDarkMode}
+            scenarioSeed={scenarioSeed}
+            onScenarioSeedConsumed={() => setScenarioSeed(null)}
           />
         );
       default:

@@ -68,7 +68,7 @@ function SkipGateLink({ visible, theme, triggerRewarded, onUnlocked }) {
   );
 }
 
-export default function CalculatorsScreen({ apiUrl, market, triggerInterstitial, triggerRewarded, isDarkMode }) {
+export default function CalculatorsScreen({ apiUrl, market, triggerInterstitial, triggerRewarded, isDarkMode, scenarioSeed, onScenarioSeedConsumed }) {
   const theme = {
     bg: isDarkMode ? '#0B0F19' : '#F8FAFC',
     card: isDarkMode ? '#161B26' : '#FFFFFF',
@@ -79,6 +79,14 @@ export default function CalculatorsScreen({ apiUrl, market, triggerInterstitial,
 
   const [activeTool, setActiveTool] = useState('zakat');
   const [skipGateUnlocked, setSkipGateUnlocked] = useState(false);
+
+  // Jumping here from a dashboard stock's "Practice with this stock" button
+  // switches straight to the Scenario tool, pre-filled with that stock.
+  useEffect(() => {
+    if (scenarioSeed) {
+      setActiveTool('scenario');
+    }
+  }, [scenarioSeed]);
 
   const tools = [
     { key: 'zakat', label: 'Zakat', icon: Coins },
@@ -156,6 +164,8 @@ export default function CalculatorsScreen({ apiUrl, market, triggerInterstitial,
             triggerRewarded={triggerRewarded}
             skipGateUnlocked={skipGateUnlocked}
             onUnlockSkipGate={() => setSkipGateUnlocked(true)}
+            seed={scenarioSeed}
+            onSeedConsumed={onScenarioSeedConsumed}
           />
         )}
       </ScrollView>
@@ -671,14 +681,25 @@ function scenarioTakeaway({ trend, volatility, totalReturnPct, maxDrawdownPct })
   return `You chose a ${trendWord} trend with ${volWord} volatility. Along the way, the price dipped as much as ${maxDrawdownPct.toFixed(1)}% below its peak before the period ended, and it ${endedWord} ${Math.abs(totalReturnPct).toFixed(1)}% overall. That gap between the drawdown and the final result is the difference between a stock's long-term trend and its short-term volatility: a clear trend can still contain a rough ride, and a rough ride doesn't mean the trend changed.`;
 }
 
-function ScenarioSimulator({ market, theme, triggerInterstitial, triggerRewarded, skipGateUnlocked, onUnlockSkipGate }) {
+function ScenarioSimulator({ market, theme, triggerInterstitial, triggerRewarded, skipGateUnlocked, onUnlockSkipGate, seed, onSeedConsumed }) {
   const [startingPrice, setStartingPrice] = useState('100');
   const [trend, setTrend] = useState('bullish');
   const [volatility, setVolatility] = useState('medium');
   const [days, setDays] = useState('90');
   const [investment, setInvestment] = useState('100000');
   const [result, setResult] = useState(null);
+  const [practicingLabel, setPracticingLabel] = useState(null);
   const { requestCalculate, hasCalculatedOnce } = useGatedCalculate(triggerInterstitial, skipGateUnlocked);
+
+  // Consume the seed once: pre-fill the starting price from the dashboard
+  // stock that was tapped, then clear it so it doesn't re-apply later.
+  useEffect(() => {
+    if (!seed) return;
+    setStartingPrice(String(Math.round((seed.startingPrice || 100) * 100) / 100));
+    setPracticingLabel(seed.name || null);
+    setResult(null);
+    onSeedConsumed && onSeedConsumed();
+  }, [seed]);
 
   const currencySymbol = getCurrencySymbol(market);
 
@@ -721,7 +742,9 @@ function ScenarioSimulator({ market, theme, triggerInterstitial, triggerRewarded
       <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <Text style={[styles.cardTitle, { color: theme.text }]}>Market Scenario Simulator</Text>
         <Text style={[styles.helperText, { marginTop: -8, marginBottom: 12 }]}>
-          Set up a hypothetical stock and see how trend and volatility interact over time — a teaching tool, not a market forecast.
+          {practicingLabel
+            ? `Practicing with ${practicingLabel}'s current price as a starting point — everything from here is still a hypothetical, editable simulation.`
+            : 'Set up a hypothetical stock and see how trend and volatility interact over time — a teaching tool, not a market forecast.'}
         </Text>
 
         <Field label={`Starting Price (${currencySymbol})`} value={startingPrice} onChangeText={setStartingPrice} theme={theme} placeholder="100" />

@@ -3,13 +3,13 @@ import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppNativeAd } from './AdManager';
 import Svg, { Path, Defs, LinearGradient, Stop, Rect, Line, Text as SvgText } from 'react-native-svg';
-import { TrendingUp, TrendingDown, ShieldAlert, Award, Compass, RefreshCw, BarChart2, Trash2, Plus, Search, ArrowLeft } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, ShieldAlert, Award, Compass, RefreshCw, BarChart2, Trash2, Plus, Search, ArrowLeft, GraduationCap } from 'lucide-react-native';
 import { resolveWatchlist } from './watchlistSync';
 import LearnTooltip from './LearnTooltip';
 
 const { width } = Dimensions.get('window');
 
-export default function DashboardScreen({ selectedTicker, setSelectedTicker, apiUrl, market, setMarket, config, refreshTrigger, isDarkMode }) {
+export default function DashboardScreen({ selectedTicker, setSelectedTicker, apiUrl, market, setMarket, config, refreshTrigger, isDarkMode, onPracticeWithStock }) {
   const theme = {
     bg: isDarkMode ? '#0B0F19' : '#F8FAFC',
     card: isDarkMode ? '#161B26' : '#FFFFFF',
@@ -943,6 +943,21 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                   <Text style={styles.simulatedDisclaimerText}>
                     Simulated price for demonstration purposes only — not real PSX/exchange market data.
                   </Text>
+
+                  {onPracticeWithStock && (
+                    <TouchableOpacity
+                      style={[styles.practiceButton, !isDarkMode && { backgroundColor: '#E0F2FE', borderColor: '#7DD3FC' }]}
+                      onPress={() => onPracticeWithStock({
+                        startingPrice: analysis.profile?.current_price || 100,
+                        name: analysis?.profile?.name || (activeModalStock || selectedStockObj).name,
+                        sector: analysis?.profile?.sector || (activeModalStock || selectedStockObj).sector,
+                      })}
+                      activeOpacity={0.8}
+                    >
+                      <GraduationCap size={16} color="#00D2FF" style={{ marginRight: 8 }} />
+                      <Text style={styles.practiceButtonText}>Practice with this stock in the Scenario Simulator</Text>
+                    </TouchableOpacity>
+                  )}
 
                   {/* SVG Sparkline Chart */}
                   {historical.length > 0 && (
@@ -1899,6 +1914,26 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 4,
     fontStyle: 'italic',
+  },
+  practiceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 210, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 255, 0.35)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  practiceButtonText: {
+    color: '#00D2FF',
+    fontSize: 12.5,
+    fontWeight: '700',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   sectionHeader: {
     flexDirection: 'row',
