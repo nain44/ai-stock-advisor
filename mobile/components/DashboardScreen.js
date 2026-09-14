@@ -951,6 +951,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
                         startingPrice: analysis.profile?.current_price || 100,
                         name: analysis?.profile?.name || (activeModalStock || selectedStockObj).name,
                         sector: analysis?.profile?.sector || (activeModalStock || selectedStockObj).sector,
+                        ticker: (activeModalStock || selectedStockObj).ticker,
                       })}
                       activeOpacity={0.8}
                     >

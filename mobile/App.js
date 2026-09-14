@@ -12,12 +12,12 @@ import {
   isUserCancelledPurchase,
 } from './components/Purchases';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Home, MessageSquare, Briefcase, Newspaper, Wifi, WifiOff, Settings, AlertCircle, RefreshCw, Menu, X, Sun, Moon, DollarSign, Calculator, Sparkles, ShieldCheck } from 'lucide-react-native';
+import { Home, MessageSquare, Activity, Newspaper, Wifi, WifiOff, Settings, AlertCircle, RefreshCw, Menu, X, Sun, Moon, DollarSign, Calculator, Sparkles, ShieldCheck } from 'lucide-react-native';
 
 // Screen Components
 import DashboardScreen from './components/DashboardScreen';
 import AIChatScreen from './components/AIChatScreen';
-import PortfolioScreen from './components/PortfolioScreen';
+import ScenarioSimulatorScreen from './components/ScenarioSimulatorScreen';
 import NewsScreen from './components/NewsScreen';
 import CalculatorsScreen from './components/CalculatorsScreen';
 
@@ -673,7 +673,7 @@ export default function App() {
             isDarkMode={isDarkMode}
             onPracticeWithStock={(seed) => {
               setScenarioSeed(seed);
-              setCurrentTab('calculators');
+              setCurrentTab('portfolio');
             }}
           />
         );
@@ -693,7 +693,7 @@ export default function App() {
         );
       case 'portfolio':
         return (
-          <PortfolioScreen
+          <ScenarioSimulatorScreen
             portfolio={portfolio}
             setPortfolio={setPortfolio}
             apiUrl={apiUrl}
@@ -702,6 +702,8 @@ export default function App() {
             config={config}
             market={market}
             isDarkMode={isDarkMode}
+            seed={scenarioSeed}
+            onSeedConsumed={() => setScenarioSeed(null)}
           />
         );
       case 'news':
@@ -843,9 +845,9 @@ export default function App() {
             style={[styles.tabItem, currentTab === 'portfolio' && styles.activeTabItem]}
             onPress={() => setCurrentTab('portfolio')}
           >
-            <Briefcase size={20} color={currentTab === 'portfolio' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
+            <Activity size={20} color={currentTab === 'portfolio' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8')} />
             <Text style={[styles.tabLabel, currentTab === 'portfolio' && styles.activeTabLabel, { color: currentTab === 'portfolio' ? '#00D2FF' : (isDarkMode ? '#64748B' : '#94A3B8') }]}>
-              Portfolio
+              Scenario
             </Text>
           </TouchableOpacity>
 
