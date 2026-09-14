@@ -62,17 +62,42 @@ export async function fetchAdFreePackage() {
   }
 }
 
+// requestPurchase() only kicks off the native purchase flow — the actual
+// outcome (success or failure) arrives asynchronously via
+// purchaseUpdatedListener/purchaseErrorListener, not its return value or an
+// immediate re-query of getAvailablePurchases().
 export async function purchaseAdFree() {
   if (!isConnected) throw new Error('Purchases are not configured in this build.');
-  await IAP.requestPurchase({
-    request: {
-      apple: { sku: PRO_UNLOCK_PRODUCT_ID },
-      google: { skus: [PRO_UNLOCK_PRODUCT_ID] },
-    },
-    type: 'in-app',
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      updateSub.remove();
+      errorSub.remove();
+    };
+    const updateSub = IAP.purchaseUpdatedListener((purchase) => {
+      if (purchase.productId === PRO_UNLOCK_PRODUCT_ID) {
+        cleanup();
+        resolve(true);
+      }
+    });
+    const errorSub = IAP.purchaseErrorListener((error) => {
+      cleanup();
+      reject(error);
+    });
+    IAP.requestPurchase({
+      request: {
+        apple: { sku: PRO_UNLOCK_PRODUCT_ID },
+        google: { skus: [PRO_UNLOCK_PRODUCT_ID] },
+      },
+      type: 'in-app',
+    }).catch((error) => {
+      cleanup();
+      reject(error);
+    });
   });
-  const purchases = await IAP.getAvailablePurchases();
-  return hasProUnlock(purchases);
+}
+
+export function isUserCancelledPurchase(error) {
+  return !!(IAP && IAP.isUserCancelledError && IAP.isUserCancelledError(error));
 }
 
 export async function restorePurchases() {

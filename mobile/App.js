@@ -9,6 +9,7 @@ import {
   restorePurchases,
   checkAdFreeEntitlement,
   isPurchasesReady,
+  isUserCancelledPurchase,
 } from './components/Purchases';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Home, MessageSquare, Briefcase, Newspaper, Wifi, WifiOff, Settings, AlertCircle, RefreshCw, Menu, X, Sun, Moon, DollarSign, Calculator, Sparkles, ShieldCheck } from 'lucide-react-native';
@@ -323,7 +324,7 @@ export default function App() {
         // ignore
       }
 
-      configurePurchases();
+      await configurePurchases();
       if (isPurchasesReady()) {
         const entitled = await checkAdFreeEntitlement();
         applyAdFree(entitled);
@@ -350,7 +351,7 @@ export default function App() {
       applyAdFree(entitled);
       setPurchaseMessage(entitled ? 'Ads removed — thank you!' : 'Purchase did not complete.');
     } catch (e) {
-      if (!e || !e.userCancelled) {
+      if (!isUserCancelledPurchase(e)) {
         setPurchaseMessage('Purchase failed. Please try again.');
       }
     } finally {
