@@ -577,7 +577,7 @@ export default function DashboardScreen({ selectedTicker, setSelectedTicker, api
           <Search size={18} color="#64748B" style={styles.searchIcon} />
           <TextInput
             style={[styles.searchInputField, { color: theme.text }]}
-            placeholder={market === 'US' ? "Search global US stocks..." : "Search all 500+ PSX stocks..."}
+            placeholder={market === 'US' ? "Search global US stocks..." : "Search demo PSX stocks (simulated)..."}
             placeholderTextColor="#64748B"
             value={searchQuery}
             onChangeText={setSearchQuery}
