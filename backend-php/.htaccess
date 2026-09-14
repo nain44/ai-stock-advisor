@@ -1,0 +1,29 @@
+# Route every request that isn't an existing file/directory through
+# index.php's front controller. Use this if your host lets you point a
+# domain/subdomain's document root directly at this backend-php/ folder
+# but you still want clean URLs like /api/stocks to work (Apache + mod_php
+# or Apache + PHP-FPM via a handler both work with this).
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Uncomment and adjust if this app lives in a subfolder instead of the
+    # domain root, e.g. https://example.com/backend/api/stocks
+    # RewriteBase /backend/
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+# Never serve the cache/ directory, prompts.json, or .env over HTTP.
+<IfModule mod_authz_core.c>
+    <FilesMatch "^\.env">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+<IfModule !mod_authz_core.c>
+    <FilesMatch "^\.env">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+</IfModule>

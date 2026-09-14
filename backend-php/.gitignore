@@ -1,0 +1,4 @@
+.env
+cache/*
+!cache/.gitkeep
+!cache/.htaccess
