@@ -8,9 +8,13 @@ front controller (`index.php`). Requires PHP 7.4+ with the `curl` and
 host).
 
 It serves the same mobile-app-facing REST endpoints as `backend/main.py`
-(see that file for the authoritative route list). The `/api/admin/*`
-routes used only by a separate web admin dashboard are **not** ported in
-this pass — see the bottom of `index.php` for the exact list.
+(see that file for the authoritative route list), plus the `/api/admin/*`
+routes used by the separate web admin dashboard. One behavioral note: the
+admin "System Logs" page reads `GET /api/admin/logs`, which here persists
+to `data/system_events.json` instead of an in-process list (see
+`system_events_get()`/`system_event_add()` in `lib/helpers.php`), since
+PHP has no long-running process to hold Python's in-memory list between
+requests.
 
 ## Deploying on shared/cPanel hosting
 
@@ -134,18 +138,17 @@ uses, so the app is fully functional without any LLM subscription.
   (`gemini-1.5-flash`, `gpt-4o-mini`), same prompts (including
   `prompts.json` overrides), same JSON-fence-stripping parse logic.
 
-## Not ported (out of scope for this pass)
+## Admin routes
 
-The `/api/admin/*` routes are used only by a separate web admin dashboard,
-not the mobile app, and were explicitly excluded from this port:
+`/api/admin/*` (used by the separate web admin dashboard, not the mobile
+app) has no authentication in either the Python or this PHP version — it's
+assumed to sit behind network-level access control (VPN, IP allowlist, a
+non-public subdomain) if exposed publicly. Same behavior ported here.
 
-- `GET/POST /api/admin/prompt`
-- `POST /api/admin/fetcher/trigger`
-- `GET /api/admin/logs`
-- `GET/POST /api/admin/markets`
-
-If you need the admin dashboard on PHP hosting too, it would need its own
-small port following the same pattern as `index.php`.
+- `GET/POST /api/admin/prompt` — reads/writes `prompts.json`.
+- `POST /api/admin/fetcher/trigger?market=` — warms the quote cache for a market's watchlist.
+- `GET /api/admin/logs` — see the system-events note above.
+- `GET/POST /api/admin/markets` — reads/writes `data/markets.json`.
 
 ## Syntax-checking
 

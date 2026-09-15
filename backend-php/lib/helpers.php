@@ -140,6 +140,48 @@ function cache_prune(string $dir, int $maxEntries): void
 }
 
 /* ---------------------------------------------------------------------
+ * System event log for the admin dashboard's "Keys & System Logs" page.
+ * Stand-in for main.py's in-process SYSTEM_EVENTS list: since PHP has no
+ * persistent process between requests, this persists to a small JSON file
+ * (data/system_events.json) instead, capped at the same 200 entries and
+ * seeded with the same two boot messages on first use.
+ * ------------------------------------------------------------------- */
+
+const MAX_SYSTEM_EVENTS = 200;
+
+function system_events_path(): string
+{
+    return __DIR__ . '/../data/system_events.json';
+}
+
+function system_events_get(): array
+{
+    $path = system_events_path();
+    if (is_file($path)) {
+        $raw = @file_get_contents($path);
+        $decoded = $raw !== false ? json_decode($raw, true) : null;
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+    }
+    $now = date('Y-m-d H:i:s');
+    return [
+        ['timestamp' => $now, 'message' => 'MultiStocks AI API Backend initialized.'],
+        ['timestamp' => $now, 'message' => 'Loaded market watchlists and global index feeds.'],
+    ];
+}
+
+function system_event_add(string $message): void
+{
+    $events = system_events_get();
+    $events[] = ['timestamp' => date('Y-m-d H:i:s'), 'message' => $message];
+    if (count($events) > MAX_SYSTEM_EVENTS) {
+        $events = array_slice($events, count($events) - MAX_SYSTEM_EVENTS);
+    }
+    @file_put_contents($path = system_events_path(), json_encode($events, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
+}
+
+/* ---------------------------------------------------------------------
  * Minimal HTTP client wrappers (curl). Used for the RSS news feeds,
  * forex/commodity quotes, and the Gemini/OpenAI LLM REST calls.
  * ------------------------------------------------------------------- */

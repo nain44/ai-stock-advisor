@@ -9,10 +9,9 @@
  * definitions this mirrors, and README.md in this directory for
  * deployment instructions (.htaccess rewrite, env vars, etc).
  *
- * Scope: only the mobile-app-facing endpoints are ported here. The
- * /api/admin/* routes (prompt controls, fetcher triggers, logs, markets
- * admin) used by a separate web admin dashboard are NOT ported in this
- * pass — see the "not ported" note near the bottom of this file.
+ * Scope: mobile-app-facing endpoints plus the /api/admin/* routes used by
+ * the separate web admin dashboard (prompt controls, fetcher triggers,
+ * logs, markets admin).
  */
 
 declare(strict_types=1);
@@ -599,14 +598,85 @@ try {
         json_response(['status' => 'success', 'message' => 'Settings updated successfully']);
     }
 
-    // --------------------------------------------------------------
-    // NOT PORTED (out of scope for this pass — used only by a separate
-    // web admin dashboard, not the mobile app):
-    //   GET/POST /api/admin/prompt
-    //   POST     /api/admin/fetcher/trigger
-    //   GET      /api/admin/logs
-    //   GET/POST /api/admin/markets
-    // --------------------------------------------------------------
+    // GET /api/admin/prompt
+    if (($p = route('GET', '/api/admin/prompt', $method, $path)) !== null) {
+        $defaultPortfolio = "You are a premier quantitative financial analyst and portfolio manager advising a retail investor on their {exchange_name} portfolio.\nAnalyze the following portfolio summary details and return a structured JSON response evaluating its risk, performance, diversification, and actionable rebalancing.";
+        $defaultChat = "You are a professional financial advisor for {market_name}.\n{context}\nUser asks: '{query}'\n\nProvide a clear, detailed, professional answer in markdown. Mention tickers, numbers, and structural arguments (inflation, interest rates, earnings) where relevant.";
+
+        json_response([
+            'portfolio_prompt' => load_custom_prompt('portfolio_prompt', $defaultPortfolio),
+            'chat_prompt' => load_custom_prompt('chat_prompt', $defaultChat),
+        ]);
+    }
+
+    // POST /api/admin/prompt
+    if (($p = route('POST', '/api/admin/prompt', $method, $path)) !== null) {
+        $body = read_json_body();
+        $promptsPath = __DIR__ . '/prompts.json';
+        $data = [];
+        if (is_file($promptsPath)) {
+            $raw = @file_get_contents($promptsPath);
+            $decoded = $raw !== false ? json_decode($raw, true) : null;
+            if (is_array($decoded)) {
+                $data = $decoded;
+            }
+        }
+
+        if (array_key_exists('portfolio_prompt', $body) && $body['portfolio_prompt'] !== null) {
+            $data['portfolio_prompt'] = $body['portfolio_prompt'];
+        }
+        if (array_key_exists('chat_prompt', $body) && $body['chat_prompt'] !== null) {
+            $data['chat_prompt'] = $body['chat_prompt'];
+        }
+
+        $written = @file_put_contents($promptsPath, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
+        if ($written === false) {
+            json_error('Unable to write prompts.json — the web root may not be writable on this host.', 500);
+        }
+        system_event_add('System prompt templates updated by admin.');
+        json_response(['status' => 'success', 'message' => 'Prompts updated successfully']);
+    }
+
+    // POST /api/admin/fetcher/trigger?market=PK
+    if (($p = route('POST', '/api/admin/fetcher/trigger', $method, $path)) !== null) {
+        $marketStr = strtoupper(query_param('market', 'PK'));
+        system_event_add("Manual fetcher triggered for market: $marketStr");
+
+        try {
+            $marketsConfig = markets_config();
+            $watchlist = ($marketsConfig[$marketStr] ?? ($marketsConfig['PK'] ?? ['watchlist' => []]))['watchlist'] ?? [];
+            foreach ($watchlist as $ticker) {
+                get_latest_quote($ticker, $marketStr);
+            }
+            system_event_add("Fetcher completed: refreshed watchlist tickers for $marketStr");
+            json_response(['status' => 'success', 'message' => "Data refresh completed for market $marketStr"]);
+        } catch (Throwable $e) {
+            system_event_add('Fetcher failed: ' . $e->getMessage());
+            json_error($e->getMessage(), 500);
+        }
+    }
+
+    // GET /api/admin/logs
+    if (($p = route('GET', '/api/admin/logs', $method, $path)) !== null) {
+        json_response(system_events_get());
+    }
+
+    // GET /api/admin/markets
+    if (($p = route('GET', '/api/admin/markets', $method, $path)) !== null) {
+        json_response(markets_config());
+    }
+
+    // POST /api/admin/markets
+    if (($p = route('POST', '/api/admin/markets', $method, $path)) !== null) {
+        $newConfig = read_json_body();
+        $marketsPath = __DIR__ . '/data/markets.json';
+        $written = @file_put_contents($marketsPath, json_encode($newConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
+        if ($written === false) {
+            json_error('Unable to write data/markets.json — the web root may not be writable on this host.', 500);
+        }
+        system_event_add('Markets and watchlists configurations updated by admin.');
+        json_response(['status' => 'success', 'message' => 'Markets configuration updated successfully']);
+    }
 
     json_error('Not found.', 404);
 } catch (Throwable $e) {
